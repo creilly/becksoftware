@@ -1,0 +1,37 @@
+#tree {
+    vertical-align: top;    
+}
+
+#controls {
+    height: 100px;
+}
+
+.dataset {
+    background:none;
+    border:none;
+    color:black;
+    cursor:pointer;
+}
+
+.dataset:hover {
+    text-shadow: 1px 0 0;
+}
+
+.folder {
+    background:none;
+    border:none;
+    color:green;
+    cursor:pointer;
+}
+
+.folder:hover {
+    text-shadow: 1px 0 0;
+}
+
+ul {
+    list-style-type: none;
+    padding-left: 20px;
+}
+#root {
+    padding-left: 2px;
+}
