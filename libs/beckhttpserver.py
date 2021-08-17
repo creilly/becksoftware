@@ -94,7 +94,7 @@ def run_beck_server(port,rootfolder,appcls,*args,**kwargs):
     def signal_handler(sig, frame):
         no_interrupt_received.pop()
     prev_handler = signal.signal(signal.SIGINT, signal_handler)
-    with BeckHTTPServer(port,rootfolder,appcls,*args) as httpd:
+    with BeckHTTPServer(port,rootfolder,appcls,*args,**kwargs) as httpd:
         while no_interrupt_received:
             httpd.app.loop()
             httpd.handle_requests()
@@ -134,7 +134,12 @@ def create_app(commands):
     
 class BeckHTTPServer(http.server.HTTPServer):
     commands = {}
+    _DEBUG = '_debug'
     def __init__(self,port,rootfolder,appcls,*args,**kwargs):
+        if self._DEBUG in kwargs:
+            self._debug = kwargs.pop(self._DEBUG)
+        else:
+            self._debug = True
         self.rootfolder = rootfolder
         self.app = set_commands(appcls)(*args,**kwargs)
         super().__init__(('',port),BeckRequestHandler)
@@ -154,7 +159,6 @@ class BeckRequestHandler(http.server.BaseHTTPRequestHandler):
         )
         
     def do_GET(self):
-        print('path:',self.path)
         path = self.path.split('/',1)[1]
         if not path:
             path = 'index.html'
@@ -182,12 +186,26 @@ class BeckRequestHandler(http.server.BaseHTTPRequestHandler):
             response = self.server.app.commands[command](self.server.app,**parameters)
         except Exception as e:
             response = {
-                ERROR:str(e)
+                ERROR:repr(e)
             }
-        # uncomment to sniff traffic
-        # print(command,parameters,data)
+        if self.server._debug:
+            print('command received:')
+            print(
+                '\n'.join(
+                    '\t{}:\t{}'.format(name,value)
+                    for name, value in
+                    (
+                        ('commmand','"{}"'.format(command)),
+                        ('parameters',str(parameters))
+                    )
+                )
+            )
         self.send_response(HTTPStatus.OK)
         self.send_header('Content-type',JSONTYPE)
         self.end_headers()
         self.wfile.write(json.dumps(response).encode())
+
+    def log_message(self,*args,**kwargs):
+        if self.server._debug:
+            super().log_message(*args,**kwargs)
 
