@@ -43,7 +43,7 @@ def get_dir(folder):
             files.append(entry)
         elif os.path.isdir(fullpath):
             folders.append(entry)
-    return files, folders
+    return sorted(files), sorted(folders)
 
 def get_files(folder): return get_dir(folder)[0]
 def get_folders(folder): return get_dir(folder)[1]
@@ -73,6 +73,21 @@ def add_data(path,data):
         )
     return 0
 
+def add_data_multiline(path,data):
+    print(path)
+    with open(format_path_list(path),'a') as f:
+        f.write(
+            '\n'.join(
+                '\t'.join(
+                    map(
+                        '{:e}'.format,
+                        row
+                    )
+                ) for row in data
+            ) + '\n'
+        )
+    return 0
+
 def dataset_status(path):
     return pathlib.Path(format_path_list(path)).stat().st_mtime
 
@@ -98,10 +113,16 @@ commands = {
     'dataset-status':dataset_status,
     'add-dataset':add_dataset,
     'add-data':add_data,
+    'add-data-multiline':add_data_multiline,
     'get-data':get_data,
     'get-fields':get_fields,
     'get-dir':get_dir,
     'get-day-folder':get_day_folder
 }
 
-bhs.run_beck_server(PORT,os.path.dirname(__file__),bhs.create_app(commands))
+bhs.run_beck_server(
+    PORT,
+    os.path.dirname(__file__),
+    bhs.create_app(commands),
+    _debug=False
+)

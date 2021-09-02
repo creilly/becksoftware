@@ -16,6 +16,9 @@ def add_dataset(folder,name,fields):
 def add_data(path,data):
     return send_command('add-data',{'path':path,'data':data})
 
+def add_data_multiline(path,data):
+    return send_command('add-data-multiline',{'path':path,'data':data})
+
 def get_data(path):
     return send_command('get-data',{'path':path})        
 
