@@ -11,6 +11,9 @@ def load_lockin_preset(lockin,preset_number):
 def read_lockin(lockin):
     return float(lockin.query('OUTP ? 1').strip())
 
+def get_xy(lockin):
+    return lockin.query('SNAP?1,2').split(',')
+
 # in hz
 def set_frequency(lockin,frequency):
     lockin.write('FREQ {:f}'.format(frequency))
