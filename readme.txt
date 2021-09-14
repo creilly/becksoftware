@@ -1,3 +1,10 @@
+pythonpath
+----------
+
+make sure the "PYTHONPATH" environment
+variable points to the libs/ folder in
+this repo's root directory
+
 dll loading
 -----------
 
@@ -39,3 +46,13 @@ grapher data path
 the root of the file tree of grapher data is
 the folder pointed to by the "GRAPHERPATH" 
 (no quotes) environment variable.
+
+https proxy config
+------------------
+
+to download from the command line from EPFL,
+I have found it necessary to set the
+"HTTPS_PROXY" environment variable to:
+
+	      http://webproxy-slb.epfl.ch:8080/
+
