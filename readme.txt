@@ -1,7 +1,10 @@
+dll loading
+-----------
+
 for the daqmx and maxon libraries to work,
 you must copy their associated dlls to the
 folder that is pointed to by the "BECKDLL"
-(no apostrophes) environment variable.
+(no quotes) environment variable.
 
 * daqmx dll:
 
@@ -30,3 +33,9 @@ folder that is pointed to by the "BECKDLL"
 		Microsoft Visual C++\
 		Example VC++
 
+grapher data path
+-----------------
+
+the root of the file tree of grapher data is
+the folder pointed to by the "GRAPHERPATH" 
+(no quotes) environment variable.
