@@ -30,7 +30,7 @@ def get_emission_input(handle):
     )
     return emission_current.value
 
-_dtmax = 1.000 # time between read operations (seconds)
+_dtmax = 10.000 # time between read operations (seconds)
 def scan_line(emin,emax,scanrate,delay,tau,cb):
 
     aotask = create_task()
@@ -164,9 +164,9 @@ if __name__ == '__main__':
         for index, row in enumerate(newdata):
             data[index].extend(row)    
     data = [[] for _ in range(4)]
-    emin = 1245
-    emax = 1285
-    scan_line(emin,emax,1.0,3.0,0.1,cb)
+    emin = 700
+    emax = 1000
+    scan_line(emin,emax,3.0,3.0,0.5,cb)
     for row in range(1,2):
         plt.plot(data[0],data[row],'.')
     plt.show()
