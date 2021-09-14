@@ -205,7 +205,7 @@ function set_dataset(path) {
     if (global_timer != null) {
 	clearTimeout(global_timer);	
     }
-    global_time = new Date().getTime();
+    global_time = null;
     send_command(
 	'get-fields',
 	{path:path},
@@ -257,7 +257,9 @@ function _update_dataset() {
 }
 
 function on_dataset_update(time) {
-    time = 1E3*time;
+    if (global_time == null) {
+	global_time = time;
+    }
     if (time > global_time) {
 	global_time = time;
 	_update_dataset();
