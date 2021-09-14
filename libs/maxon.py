@@ -1,9 +1,10 @@
 import ctypes as c
 from ctypes import wintypes as w
+import os
+import beckutil
 
-dll = c.windll.LoadLibrary(
-    r'C:\Program Files (x86)\maxon motor ag\EPOS Positioning Controller\EPOS2\04 Programming\Windows DLL\Microsoft Visual C++\Example VC++\EposCmd64.dll'
-)
+dllname = 'EposCmd64.dll'
+dll = beckutil.load_dll(dllname)
 
 HOMING = 6
 VELOCITY = -2
