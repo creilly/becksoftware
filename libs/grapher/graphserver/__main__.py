@@ -74,7 +74,6 @@ def add_data(path,data):
     return 0
 
 def add_data_multiline(path,data):
-    print(path)
     with open(format_path_list(path),'a') as f:
         f.write(
             '\n'.join(
