@@ -1,6 +1,7 @@
 from ctypes import *
+from beckutil import load_dll
 
-dll = windll.LoadLibrary('nicaiu.dll')
+dll = load_dll('nicaiu.dll')
 bufsize = 2 ** 10
 
 class DAQmxError(Exception):

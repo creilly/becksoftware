@@ -48,7 +48,7 @@ def get_time_constant(lockin):
 def get_time_constants():
     return time_constants
 
-def get_closest_value(arr,value):    
+def get_closest_value(arr,value):   
     return min(
         enumerate(arr),
         key=lambda x: abs(x[1]-value)
@@ -66,6 +66,49 @@ def get_sample_rate(lockin):
 
 def get_sample_rates():
     return sample_rates
+
+def get_frequency(lockin):
+    return float(
+        lockin.query('FREQ?')
+    )
+
+def set_frequency(lockin,frequency):
+    lockin.write(
+        'FREQ {:f}'.format(frequency)
+    )
+
+def get_mod_amp(lockin):
+    return float(
+        lockin.query('SLVL?')
+    )
+
+def set_mod_amp(lockin,amp):
+    lockin.write(
+        'SLVL {:f}'.format(amp)
+    )
+
+sensitivities = (
+    2e-9,5e-9,
+    10e-9,20e-9,50e-9,
+    100e-9,200e-9,500e-9,
+    1e-6,2e-6,5e-6,
+    10e-6,20e-6,50e-6,
+    100e-6,200e-6,500e-6,
+    1e-3,2e-3,5e-3,
+    10e-3,20e-3,50e-3,
+    100e-3,200e-3,500e-3,
+    1e-0
+)
+
+def get_sensitivity(lockin):
+    return sensitivities[int(lockin.query('SENS?'))]
+
+def set_sensitivity(lockin,sensitivity):
+    index, sensitivity = get_closest_value(sensitivities,sensitivity)
+    lockin.write(
+        'SENS {:d}'.format(index)
+    )
+    return sensitivity
 
 def start_data_storage(lockin):
     lockin.write('STRT')
