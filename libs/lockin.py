@@ -1,9 +1,9 @@
 import pyvisa
 
-LOCKIN_VISA_NAME = 'GPIB0::23::INSTR'
+LOCKIN_VISA_NAME = 'bilt-lockin'
 
-def load_lockin():
-    return pyvisa.ResourceManager().open_resource(LOCKIN_VISA_NAME)
+def load_lockin(name=LOCKIN_VISA_NAME):
+    return pyvisa.ResourceManager().open_resource(name)
 
 def load_lockin_preset(lockin,preset_number):
     lockin.write('RSET {:d}'.format(preset_number))
@@ -12,7 +12,7 @@ def read_lockin(lockin):
     return float(lockin.query('OUTP ? 1').strip())
 
 def get_xy(lockin):
-    return lockin.query('SNAP?1,2').split(',')
+    return list(map(float,lockin.query('SNAP?1,2').split(',')))
 
 # in hz
 def set_frequency(lockin,frequency):
