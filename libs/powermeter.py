@@ -3,15 +3,25 @@ import pyvisa
 pmid = 'powermeter'
 pm = pyvisa.ResourceManager().open_resource(pmid)
 
-def get_power():
+def open_pm(pmid=pmid):
+    return pyvisa.ResourceManager().open_resource(pmid)
+
+def get_power(pm):
     return float(pm.query('READ?'))
 
-def get_idn():
+def get_idn(pm):
     return pm.query('*IDN?')
 
+def close_pm(pm):
+    pm.close()
+
 if __name__ == '__main__':
-    print('idn',get_idn())
-    print('power',get_power())
+    pm = open_pm()
+    # print(pm.write('CONF:POW'))
+    print('conf',pm.query('CONF?'))
+    print('idn',get_idn(pm))
+    print('power',get_power(pm))
+    close_pm(pm)
 # # dll module
 # from ctypes import *
 
