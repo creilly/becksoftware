@@ -16,7 +16,7 @@ epsilon_temperature = 0.002 # degC
 
 base_temperature = 25.000 # degC
 
-damping_factor = 10
+damping_factor = 3
 
 wnummin = 2700
 wnummax = 3300
@@ -74,7 +74,7 @@ class TopoApp(bhs.BeckApp):
         self.wnum_set = wavenumber
         topo.set_diode_temperature(base_temperature)
         topo.set_motor_pos(tt.get_motor(wavenumber)/1000)
-        topo.set_etalon_pos(tt.get_etalon(wavenumber)[0][1])
+        topo.set_etalon_pos(tt.get_etalon(wavenumber)[-1][1])
 
     @cmd('get-damping')
     def get_damping(self):
