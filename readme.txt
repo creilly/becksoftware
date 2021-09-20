@@ -43,7 +43,7 @@ environment variable.
 * thorlabs rotation stage
 
 	use the: "Thorlabs.MotionControl.Kinesis.DLLutility.exe" 
-	utility to copy the necessar dlls for the device (right 
+	utility to copy the necessary dlls for the device (right 
 	now the TDC001) to the dlls folder
 
 grapher data path
