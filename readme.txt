@@ -10,8 +10,8 @@ dll loading
 
 for the daqmx and maxon libraries to work,
 you must copy their associated dlls to the
-folder that is pointed to by the "BECKDLL"
-(no quotes) environment variable.
+folder that is pointed to by the "BECKDLL" 
+environment variable.
 
 * daqmx dll:
 
@@ -39,13 +39,19 @@ folder that is pointed to by the "BECKDLL"
 		Windows DLL\
 		Microsoft Visual C++\
 		Example VC++
+		
+* thorlabs rotation stage
+
+	use the: "Thorlabs.MotionControl.Kinesis.DLLutility.exe" 
+	utility to copy the necessar dlls for the device (right 
+	now the TDC001) to the dlls folder
 
 grapher data path
 -----------------
 
 the root of the file tree of grapher data is
 the folder pointed to by the "GRAPHERPATH" 
-(no quotes) environment variable.
+environment variable.
 
 https proxy config
 ------------------
