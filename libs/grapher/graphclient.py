@@ -10,8 +10,8 @@ def send_command(command,parameters):
 def add_folder(folder):
     return send_command('add-folder',{'folder':folder})
 
-def add_dataset(folder,name,fields):
-    return send_command('add-dataset',{'folder':folder,'name':name,'fields':fields})
+def add_dataset(folder,name,fields,metadata=None):
+    return send_command('add-dataset',{'folder':folder,'name':name,'fields':fields,'metadata':metadata})
 
 def add_data(path,data):
     return send_command('add-data',{'path':path,'data':data})
@@ -24,6 +24,9 @@ def get_data(path):
 
 def get_data_np(path):
     return list(map(np.array,get_data(path)))
+
+def get_metadata(path):
+    return send_command('get-metadata',{'path':path})
 
 def get_fields(path):
     return send_command('get-fields',{'path':path})
