@@ -1,9 +1,22 @@
 import pyvisa
+from pyvisa.constants import AccessModes
 
 LOCKIN_VISA_NAME = 'bilt-lockin'
 
+class LockinHandler:
+    def __init__(self,name=LOCKIN_VISA_NAME):
+        self.lockin = load_lockin(name)
+
+    def __enter__(self):
+        return self.lockin
+
+    def __exit__(self,*args):
+        close_lockin(self.lockin)
+
 def load_lockin(name=LOCKIN_VISA_NAME):
-    return pyvisa.ResourceManager().open_resource(name)
+    lockin = pyvisa.ResourceManager().open_resource(name)
+    lockin.lock_excl(timeout=5000.0)
+    return lockin
 
 def load_lockin_preset(lockin,preset_number):
     lockin.write('RSET {:d}'.format(preset_number))
@@ -14,9 +27,8 @@ def read_lockin(lockin):
 def get_xy(lockin):
     return list(map(float,lockin.query('SNAP?1,2').split(',')))
 
-# in hz
-def set_frequency(lockin,frequency):
-    lockin.write('FREQ {:f}'.format(frequency))
+def get_xya(lockin):
+    return list(map(float,lockin.query('SNAP?1,2,5').split(',')))
 
 def close_lockin(lockin):
     lockin.close()
@@ -75,6 +87,16 @@ def get_frequency(lockin):
 def set_frequency(lockin,frequency):
     lockin.write(
         'FREQ {:f}'.format(frequency)
+    )
+
+def get_phase(lockin):
+    return float(
+        lockin.query('PHAS?')
+    )
+
+def set_phase(lockin,phase):
+    lockin.write(
+        'PHAS {:f}'.format(phase)
     )
 
 def get_mod_amp(lockin):
@@ -146,7 +168,6 @@ def set_display_type(lockin,channel,type):
     lockin.write('DDEF {:d}, {:d}, 0'.format(channel,type))
 
 if __name__ == '__main__':
-    lockin = load_lockin()
-    load_lockin_preset(lockin,2)
-    print(read_lockin(lockin))
-    close_lockin(lockin)
+    with LockinHandler() as lockin:
+        tau = get_time_constant(lockin)
+        print('lockin time constant: {:.1g} seconds'.format(tau))
