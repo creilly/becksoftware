@@ -1,7 +1,7 @@
 from ctypes import *
 from beckutil import load_dll
 
-dll = load_dll('nicaiu.dll')
+dll = windll.LoadLibrary('nicaiu.dll')
 bufsize = 2 ** 10
 
 class DAQmxError(Exception):
@@ -14,18 +14,30 @@ class DAQmxError(Exception):
             )
         )
 
+class TaskHandler:
+    def __init__(self,channels):
+        self.task = task = create_task()
+        for channel in channels:
+            add_global_channel(task,channel)
+
+    def __enter__(self):
+        return self.task
+
+    def __exit__(self,*args):
+        clear_task(self.task)
+
 def daqmx(func,*args):
     result = func(*args)
     if result: raise DAQmxError(result)
 
 def create_task():
-    handle = c_int32()
+    handle = c_voidp()
     daqmx(
         dll.DAQmxCreateTask,
         None,
         byref(handle)
     )
-    return handle.value
+    return handle
 
 def clear_task(handle):
     daqmx(
@@ -63,6 +75,15 @@ def task_wait(handle):
         handle,
         c_double(-1)
     )
+
+def is_task_done(handle):
+    task_done = c_uint32()
+    daqmx(
+        dll.DAQmxIsTaskDone,
+        handle,
+        byref(task_done)
+    )
+    return bool(task_done.value)
 
 def stop_task(handle):
     daqmx(
@@ -246,8 +267,8 @@ def read_buff(handle,samps):
     ]
 
 if __name__ == '__main__':
-    aitask = create_task()
-    add_global_channel(aitask,'auger motor x clock')
-    print(get_samp_clk_src(aitask).value)
-    print(get_phys_chan_name(aitask))
-    print(get_co_term(aitask))
+    cotask = create_task()
+    add_global_channel(cotask,'topo scan trigger')
+    print(get_samp_clk_src(cotask).value)
+    print(get_phys_chan_name(cotask))
+    print(get_co_term(cotask))
