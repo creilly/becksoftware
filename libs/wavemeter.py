@@ -2,6 +2,16 @@ import pyvisa
 
 wmid = 'wavemeter'
 
+class WavemeterHandler:
+    def __init__(self,wmid=wmid):
+        self.wm = open_wavemeter(wmid)
+
+    def __enter__(self):
+        return self.wm
+
+    def __exit__(self,*args):
+        close_wavemeter(self.wm)
+
 def open_wavemeter(wmid=wmid):
     wm = pyvisa.ResourceManager().open_resource(wmid)
     wm.timeout = 500
@@ -90,27 +100,19 @@ def get_power(wm,sync=NEW):
     return float(wm.query(':{}:POW?'.format(parse_sync(sync))))
 
 if __name__ == '__main__':
-    from time import time, sleep
-    prevtime = time()
-    print('new')
-    prevint = 0
+    import sys
+    if len(sys.argv) > 1:
+        N = int(sys.argv[1])
+    else:
+        N = int(input('enter number of samples to average: '))
+    print('{:d} sample running average of wavenumber.'.format(N))
+    print('press ctrl-c to quit')
     try:
-        wm = open_wavemeter()
-        for _ in range(5):
-            print('power',get_measurement(wm,NEW))
-            newtime = time()
-            newint = newtime - prevtime
-            print(newint,newint+prevint)        
-            prevint = newint
-            prevtime = newtime
-            sleep(.2)
-            newtime = time()
-            newint = newtime - prevtime
-            print(newint,newint+prevint)        
-            prevint = newint
-            prevtime = newtime
-    except Exception as e:
-        print('error!')
-        print(repr(e))
-        close_wavemeter(wm)
-        
+        with WavemeterHandler() as wm:
+            wavg = get_wavenumber(wm)
+            while True:
+                print('wavenumber:','{:.6f}'.format(wavg),'cm-1')
+                wnew = get_wavenumber(wm)
+                wavg = (N-1) / N * wavg + 1 / N * wnew
+    except KeyboardInterrupt:
+        print('keyboard interrupt received. exiting...')
