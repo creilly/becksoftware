@@ -1,7 +1,9 @@
 <html>
   <head>
     <script src="plotly.js"></script>
+    <script src="json-viewer.js"></script>
     <script src="index.js"></script>
+    <link rel="stylesheet" href="json-viewer.css">
     <link rel="stylesheet" href="index.css">    
   </head>
   <body>
@@ -20,11 +22,30 @@
 		y-axis
 	      </td>
 	    </tr>
+	    <tr>
+	      <td>
+		<input id="updating" type="checkbox" checked>
+		updating
+	      </td>
+	    </tr>
+	</td>
 	  </table>
 	</td>
 	<td rowspan="2">
-	  <div id="plot">
-	  </div>
+	  <table>
+	    <tr>
+	      <td>
+		<div id="plot">
+		</div>
+	      </td>
+	    </tr>
+	    <tr>
+	      <td>
+		<div id="metadata">
+		</div>
+	      </td>
+	    </tr>
+	  </table>
 	</td>
       </tr>
       <tr>

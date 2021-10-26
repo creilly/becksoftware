@@ -28,3 +28,6 @@ def get_damping():
 
 def set_damping(damping):
     return sc('set-damping',{'damping':damping})
+
+def set_line(branch,j,A,dw):
+    return sc('set-line',{'branch':branch,'j':j,'A':A,'dw':dw})

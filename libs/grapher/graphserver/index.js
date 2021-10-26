@@ -11,6 +11,12 @@ var XID = 'x-axis';
 var YID = 'y-axis';
 
 var PLOTID = 'plot';
+var MDID = 'metadata';
+var UPDATING = 'updating';
+
+var json_viewer = new JSONViewer();
+
+var monitored_folders = new Set();
 
 function send_command(command, parameters, cb) {
     var xhttp = new XMLHttpRequest();
@@ -29,13 +35,10 @@ function send_command(command, parameters, cb) {
 
 function format_path_list(path) {
     return [ROOTTOKEN].concat(path).join('/');
-    // return '/' + [ROOT].concat(path).join('/');
 }
 
 function parse_path_string(path_string) {
     return path_string.split('/').slice(1);
-    // var full_path_list = path_string.split('/');
-    // return full_path_list.slice(2,full_path_list.length);
 }
 
 function add_leaves(parent,folder) {    
@@ -46,95 +49,85 @@ function add_leaves(parent,folder) {
     );
 }
 
+function add_folder(parent,root_folder,folder,recent) {
+    var new_folder = root_folder.concat(folder);
+    var li = document.createElement('li');
+    var sp = document.createElement('sp');
+    var cb = document.createElement('input');
+    var bu = document.createElement('button');
+    var ul = document.createElement('ul');
+
+    parent.appendChild(li);
+    li.appendChild(sp);
+    li.appendChild(ul);
+    sp.appendChild(cb);
+    sp.appendChild(bu);
+    bu.append(folder);
+    bu.classList.add('folder');
+    bu.classList.toggle('recent',recent);
+    
+    li.setAttribute('id',format_path_list(new_folder));
+    
+    cb.setAttribute('type','checkbox');
+    cb.setAttribute('tabindex',-1);
+    cb.onchange = function () {	
+	var li = this.parentElement.parentElement;
+	li.querySelector(':scope > sp > button').classList.remove('recent');
+	var ul = li.querySelector('ul');
+	var fmtpath = li.getAttribute('id')
+	var path = parse_path_string(fmtpath);
+	if (cb.checked) {
+	    var pul = li.parentElement;
+	    pul.insertBefore(li,pul.children[0]);
+	    add_leaves(ul,path);
+	    monitored_folders.add(fmtpath);
+	}
+	else {
+	    ul.querySelectorAll('li').forEach(
+		el => monitored_folders.delete(el.id)
+	    )
+	    while (ul.lastElementChild) {
+		ul.removeChild(ul.lastElementChild);
+	    }
+	    monitored_folders.delete(fmtpath);
+	}
+    }
+    bu.onclick = function () {cb.click();};	
+}
+
+function add_dataset(parent,root_folder,dataset,recent) {
+    var li = document.createElement('li');
+    var bu = document.createElement('button');
+
+    parent.appendChild(li);
+    li.appendChild(bu);
+
+    li.setAttribute('id',format_path_list(root_folder.concat(dataset)));
+    bu.innerText = dataset;
+    bu.classList.add('dataset');
+    bu.classList.toggle('recent',recent);
+    bu.onclick = function () {
+	bu.classList.remove('recent');
+	var path = parse_path_string(bu.parentElement.getAttribute('id'));
+	set_dataset(path);
+    };
+}
+
 function add_leaves_cb(parent,root_folder) {
     return function (data) {
-	var files = data[0];
+	var datasets = data[0];
 	var folders = data[1]; 
 	folders.forEach(
 	    function (folder) {
-		var new_folder = root_folder.concat(folder);
-		var li = document.createElement('li');
-		var sp = document.createElement('sp');
-		var cb = document.createElement('input');
-		var bu = document.createElement('button');
-		var ul = document.createElement('ul');
-
-		parent.appendChild(li);
-		li.appendChild(sp);
-		li.appendChild(ul);
-		sp.appendChild(cb);
-		sp.appendChild(bu);
-		bu.append(folder);
-		bu.classList.add('folder');
-		
-		li.setAttribute('id',format_path_list(new_folder));
-		
-		cb.setAttribute('type','checkbox');
-		cb.setAttribute('tabindex',-1);
-		// cb.checked = true;
-		cb.onchange = function () {
-		    var li = this.parentElement.parentElement;
-		    var ul = li.querySelector('ul');
-		    var path = parse_path_string(li.getAttribute('id'));
-		    if (cb.checked) {
-			add_leaves(ul,path);
-		    }
-		    else {
-			while (ul.lastElementChild) {
-			    ul.removeChild(ul.lastElementChild);
-			}
-		    }
-		}
-
-		bu.onclick = function () {cb.click();};	
-
-		// add_leaves(ul,new_folder);
+		add_folder(parent,root_folder,folder,false);
 	    }
 	);
-	files.forEach(
-	    function (file) {
-		var li = document.createElement('li');
-		var bu = document.createElement('button');
-
-		parent.appendChild(li);
-		li.appendChild(bu);
-
-		li.setAttribute('id',format_path_list(root_folder.concat(file)));
-		bu.innerText = file;
-		bu.classList.add('dataset');
-		bu.onclick = function () {
-		    var path = parse_path_string(bu.parentElement.getAttribute('id'));
-		    set_dataset(path);
-		};
+	datasets.forEach(
+	    function (dataset) {
+		add_dataset(parent,root_folder,dataset,false);
 	    }
 	);
     }
-}
-function get_dataset(path,cb) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = function() {	
-	if (this.readyState == 4) {
-	    var rawdata = xhttp.responseText;
-	    var lines = rawdata.split('\n');
-	    var header = lines[0];
-	    var fields = header.slice(2,header.length).split('\t');
-	    columns = [];
-	    for (var i = 0; i < fields.length; i++) {
-		columns.push([]);
-	    }
-	    lines.slice(1,lines.length).forEach(
-		function (line) {
-		    rawfloats = line.split('\t');
-		    for (var i = 0; i < fields.length; i++) {
-			columns[i].push(parseFloat(rawfloats[i]));
-		    }
-		}
-	    )
-	    cb(fields,columns)
-	}
-    };
-    xhttp.open('GET', format_path_list(path), true);
-    xhttp.send();
 }
 
 function update_plot() {
@@ -205,7 +198,7 @@ function set_dataset(path) {
     if (global_timer != null) {
 	clearTimeout(global_timer);	
     }
-    global_time = new Date().getTime();
+    global_time = null;
     send_command(
 	'get-fields',
 	{path:path},
@@ -241,6 +234,13 @@ function set_dataset(path) {
 	    _update_dataset();
 	}
     );
+    send_command(
+	'get-metadata',
+	{path:format_md_path(path)},
+	function (metadata) {
+	    json_viewer.showJSON(metadata,-1,-1);
+	}
+    )
     global_path = path;
 }
 
@@ -256,9 +256,28 @@ function _update_dataset() {
     );
 }
 
+function format_md_path(ds_path) {
+    var md_path = ds_path.slice();
+    var ds_name = md_path.pop();
+    var md_name_segments = ds_name.split('.');
+    md_name_segments.pop();
+    md_name_segments.push('bmd')
+    var md_name = md_name_segments.join('.');
+    md_path.push(md_name);
+    return md_path;
+}
+
 function on_dataset_update(time) {
-    time = 1E3*time;
-    if (time > global_time) {
+    if (global_time == null) {
+	global_time = time;
+    }
+    if (
+	(
+	    time > global_time
+	) && (
+	    document.getElementById(UPDATING).checked
+	)
+    ){
 	global_time = time;
 	_update_dataset();
     }
@@ -275,13 +294,82 @@ function update_dataset() {
     )
 }
 
+function updating() {
+    return 
+}
+
 function on_load() {
     var root = document.getElementById(ROOTID);
     add_leaves(root,[]);
+    document.getElementById(MDID).appendChild(json_viewer.getContainer());
+    update_folders();
+}
+
+function update_folders() {
+    monitored_folders.forEach(
+	function (fmtpath) {
+	    send_command(
+		'get-dir',
+		{folder:parse_path_string(fmtpath)},
+		function (folderl) {
+		    if (monitored_folders.has(fmtpath)) {
+			var datasets = folderl[0];
+			var folders = folderl[1];
+			var li = document.getElementById(fmtpath);
+			var ul = li.querySelector('ul');
+			var current_children = {};
+			ul.querySelectorAll(':scope > li').forEach(
+			    function(el) {
+				current_children[parse_path_string(el.id).pop()] = el; 
+			    }
+			)
+			var path = parse_path_string(fmtpath);
+			folders.forEach(
+			    function (folder) {
+				if (
+				    !(
+					folder in current_children
+				    )
+				) {
+				    add_folder(ul,path,folder,true);
+				}				
+			    }
+			);
+			datasets.forEach(
+			    function (dataset) {
+				if (
+				    !(
+					dataset in current_children
+				    )
+				){
+				    add_dataset(ul,path,dataset,true);
+				}
+			    }
+			)
+			for (const name in current_children) {
+			    if (
+				datasets.indexOf(name) < 0
+				    &&
+				    folders.indexOf(name) < 0
+			    ) {
+				el = current_children[name];
+				monitored_folders.delete(el.id);
+				el.querySelectorAll('li').forEach(
+				    el => monitored_folders.delete(el.id)
+				)
+				ul.removeChild(el);
+			    }
+			}
+		    }
+		}
+	    )
+	}
+    )
+    setTimeout(update_folders,4000);
 }
 
 function on_resize() {
-    update_plot();
+    update_plot();    
 }
 window.onload = on_load;
 window.onresize = on_resize;

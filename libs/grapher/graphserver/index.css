@@ -13,6 +13,10 @@
     cursor:pointer;
 }
 
+.dataset.recent {
+    color:red;
+}
+
 .dataset:hover {
     text-shadow: 1px 0 0;
 }
@@ -22,6 +26,10 @@
     border:none;
     color:green;
     cursor:pointer;
+}
+
+.folder.recent {
+    color:blue;
 }
 
 .folder:hover {

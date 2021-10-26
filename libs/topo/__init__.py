@@ -234,7 +234,7 @@ def get_motor_act_pos():
         FLOAT
     )
 
-def set_motor_pos(pos,wait=False):
+def set_motor_pos(pos,wait=True):
     if wait:
         return set_pos(
             pos,
@@ -247,7 +247,7 @@ def set_motor_pos(pos,wait=False):
         return CommandClient().set_param(
             'laser1:nlo:opo:cavity:motor:position-set',
             pos,
-            INT
+            FLOAT
         )
 
 def get_etalon_pos():
@@ -289,3 +289,97 @@ def get_diode_act_temperature():
         'laser1:dl:tc:temp-act',
         FLOAT
     )
+
+def get_diode_current():
+    return CommandClient().get_param(
+        'laser1:dl:cc:current-set',
+        FLOAT
+    )
+
+def set_diode_current(current):
+    return CommandClient().set_param(
+        'laser1:dl:cc:current-set',
+        current,
+        FLOAT
+    )
+
+def get_analog_temperature_scaling_factor():
+    return CommandClient().get_param(
+        'laser1:dl:tc:external-input:factor',
+        FLOAT
+    )
+
+def set_analog_temperature_scaling_factor(factor):
+    return CommandClient().set_param(
+        'laser1:dl:tc:external-input:factor',
+        factor,
+        FLOAT
+    )
+
+def get_analog_temperature_enabled():
+    return CommandClient().get_param(
+        'laser1:dl:tc:external-input:enabled',
+        BOOL
+    )
+
+def set_analog_temperature_enabled(enabled):
+    return CommandClient().set_param(
+        'laser1:dl:tc:external-input:enabled',
+        enabled,
+        BOOL
+    )
+
+def get_diode_temperature_ready():
+    return CommandClient().get_param(
+        'laser1:dl:tc:ready',
+        BOOL
+    )
+
+def get_analog_current_scaling_factor():
+    return CommandClient().get_param(
+        'laser1:dl:cc:external-input:factor',
+        FLOAT
+    )
+
+def set_analog_current_scaling_factor(factor):
+    return CommandClient().set_param(
+        'laser1:dl:cc:external-input:factor',
+        factor,
+        FLOAT
+    )
+
+def get_analog_current_enabled():
+    return CommandClient().get_param(
+        'laser1:dl:cc:external-input:enabled',
+        BOOL
+    )
+
+def set_analog_current_enabled(enabled):
+    return CommandClient().set_param(
+        'laser1:dl:cc:external-input:enabled',
+        enabled,
+        BOOL
+    )
+
+def set_piezo(voltage):
+    return CommandClient().set_param(
+        'laser1:nlo:opo:cavity:slow-pzt-voltage-set',
+        voltage,
+        FLOAT
+    )
+
+def get_piezo():
+    return CommandClient().get_param(
+        'laser1:nlo:opo:cavity:slow-pzt-voltage-set',
+        FLOAT
+    )
+
+def get_signal_power():
+    return CommandClient().get_param(
+        'laser1:nlo:pd:sig:power',
+        FLOAT
+    )
+
+if __name__ == '__main__':
+    while True:
+        print(get_diode_temperature_ready())
