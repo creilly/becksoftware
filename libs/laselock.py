@@ -9,6 +9,66 @@ read_term = '\r\n'
 
 chunk = 256
 
+def open_ll():   
+    ll = serial.Serial(llport)
+    ll.timeout = 0
+    for reg in (A,B):
+        delta = deltas[reg]
+        if delta < 0:
+            continue
+        mode = modes[reg]
+        if mode is HIGH_VOLTAGE:
+            delta = (
+                high_voltage_to_low_voltage(reg,delta)
+                -
+                high_voltage_to_low_voltage(reg,0)
+            )
+        percentage = low_voltage_to_percentage(delta)
+        # _set_reg_range(ll,reg,percentage)
+    return ll
+
+def close_ll(ll):
+    ll.close()
+
+def _get_regex(param):
+    return re.compile(r'^{}= (-?\d+)$'.format(param).lower())
+
+def _get_param(ll,param):
+    r = _get_regex(param)
+    head = ''
+    value = None
+    i = 0
+    while True:
+        i += 1
+        resp = ll.read(chunk).decode()
+        head += resp
+        while read_term in head:
+            head, tail = head.split(read_term,1)
+            m = r.match(head.lower())
+            if m:
+                value = int(m.group(1))
+            head = tail
+        if not resp and value is not None:
+            return value
+    
+def get_param(ll,param):    
+    ll.write(
+        (
+            param.lower() + '=' + write_term
+        ).encode('utf8')
+    )
+    return _get_param(ll,param)
+
+def set_param(ll,param,value):
+    ll.write(
+        (
+            '{}= {:d}'.format(param.lower(),value)
+            +
+            write_term
+        ).encode('utf8')
+    )
+    return _get_param(ll,param)
+
 A, B = 0, 1
 
 X0, Y0, X1, Y1 = 0, 1, 2, 3
@@ -82,69 +142,6 @@ def low_voltage_to_high_voltage(reg,lv):
 
 def low_voltage_to_percentage(lv):
     return 100 * lv / LOW_MAX
-
-def open_ll():   
-    ll = serial.Serial(llport)
-    ll.timeout = 0
-    for reg in (A,B):
-        delta = deltas[reg]
-        if delta < 0:
-            continue
-        mode = modes[reg]
-        if mode is HIGH_VOLTAGE:
-            delta = (
-                high_voltage_to_low_voltage(reg,delta)
-                -
-                high_voltage_to_low_voltage(reg,0)
-            )
-        percentage = low_voltage_to_percentage(delta)
-        # _set_reg_range(ll,reg,percentage)
-    return ll
-
-def close_ll(ll):
-    ll.close()
-
-def flush(ll):
-    ll.reset_input_buffer()
-
-def _get_regex(param):
-    return re.compile(r'^{}= (-?\d+)$'.format(param).lower())
-
-def _get_param(ll,param):
-    r = _get_regex(param)
-    head = ''
-    value = None
-    i = 0
-    while True:
-        i += 1
-        resp = ll.read(chunk).decode()
-        head += resp
-        while read_term in head:
-            head, tail = head.split(read_term,1)
-            m = r.match(head.lower())
-            if m:
-                value = int(m.group(1))
-            head = tail
-        if not resp and value is not None:
-            return value
-    
-def get_param(ll,param):    
-    ll.write(
-        (
-            param.lower() + '=' + write_term
-        ).encode('utf8')
-    )
-    return _get_param(ll,param)
-
-def set_param(ll,param,value):
-    ll.write(
-        (
-            '{}= {:d}'.format(param.lower(),value)
-            +
-            write_term
-        ).encode('utf8')
-    )
-    return _get_param(ll,param)
 
 def _get_offset_param(reg):
     return 'RegOutOffset{}'.format(regd[reg])
