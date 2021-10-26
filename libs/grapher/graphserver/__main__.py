@@ -2,6 +2,7 @@ import beckhttpserver as bhs
 import os
 from datetime import datetime
 import pathlib
+import json
 
 PORT = 8000
 
@@ -35,38 +36,54 @@ def add_folder(folder):
 def get_dir(folder):
     folder_string = format_path_list(folder)
     entries = os.listdir(folder_string)
-    files = []
+    dsfiles = []
     folders = []
+    mdfiles = []
     for entry in entries:
         fullpath = os.path.join(folder_string,entry)
         if os.path.isfile(fullpath):
-            files.append(entry)
+            _, ext = os.path.splitext(fullpath)
+            if ext == '.tsv':
+                dsfiles.append(entry)
+            if ext == '.bmd':
+                mdfiles.append(entry)
         elif os.path.isdir(fullpath):
             folders.append(entry)
-    return sorted(files), sorted(folders)
+    return sorted(dsfiles), sorted(folders), sorted(mdfiles)
 
 def get_files(folder): return get_dir(folder)[0]
 def get_folders(folder): return get_dir(folder)[1]
 
-def add_dataset(folder,name,fields):
+def add_dataset(folder,name,fields,metadata):
     _add_folder(folder)
     nfiles = len(get_files(folder))
-    filename = '{:05d}-{}.tsv'.format(nfiles,name)
-    path = folder + [filename]
-    with open(format_path_list(path),'w') as f:
+    fileroot = '{:05d}-{}'.format(nfiles,name)
+    dsname = '{}.tsv'.format(fileroot)
+    mdname = '{}.bmd'.format(fileroot)
+    mdpath = folder + [mdname]
+    with open(format_path_list(mdpath),'w') as f:
+        f.write(
+            json.dumps(
+                metadata,
+                sort_keys = True,
+                indent = 4
+            )
+        )            
+    dspath = folder + [dsname]
+    with open(format_path_list(dspath),'w') as f:
         f.write(
             '# ' + '\t'.join(
                 fields
             ) + '\n'            
         )
-    return path
+    return dspath
 
 def add_data(path,data):
     with open(format_path_list(path),'a') as f:
         f.write(
             '\t'.join(
                 map(
-                    '{:e}'.format,
+                    '{:.10e}'.format,
                     data
                 )
             ) + '\n'
@@ -79,7 +96,7 @@ def add_data_multiline(path,data):
             '\n'.join(
                 '\t'.join(
                     map(
-                        '{:e}'.format,
+                        '{:.10e}'.format,
                         row
                     )
                 ) for row in data
@@ -87,8 +104,14 @@ def add_data_multiline(path,data):
         )
     return 0
 
-def dataset_status(path):
+def path_status(path):
     return pathlib.Path(format_path_list(path)).stat().st_mtime
+
+def dataset_status(path):
+    return path_status(path)
+
+def folder_status(path):
+    return path_status(path)
 
 def get_data(path):
     return list(
@@ -100,6 +123,11 @@ def get_data(path):
             ]
         )
     )
+
+def get_metadata(path):
+    raw_md = open(format_path_list(path),'r').read()
+    print(raw_md)
+    return json.loads(raw_md)
 
 def get_fields(path):
     return open(format_path_list(path),'r').readline().strip()[2:].split('\t')
@@ -114,9 +142,11 @@ commands = {
     'add-data':add_data,
     'add-data-multiline':add_data_multiline,
     'get-data':get_data,
+    'get-metadata':get_metadata,
     'get-fields':get_fields,
     'get-dir':get_dir,
-    'get-day-folder':get_day_folder
+    'get-day-folder':get_day_folder,
+    'folder-status':folder_status
 }
 
 bhs.run_beck_server(
