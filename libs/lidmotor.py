@@ -1,6 +1,10 @@
 import pyvisa as visa
 import ctypes
 
+slope = 82.5e-6 # degrees per step
+
+backlash = 30000 # steps (actually measured < 27000)
+
 MOTOR_NAME = 'COM15'
 ADDRESS = 1
 MOTOR = 0
