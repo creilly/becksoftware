@@ -30,6 +30,9 @@ def get_xy(lockin):
 def get_xya(lockin):
     return list(map(float,lockin.query('SNAP?1,2,5').split(',')))
 
+def get_xyab(lockin):
+    return list(map(float,lockin.query('SNAP?1,2,5,6').split(',')))
+
 def close_lockin(lockin):
     lockin.close()
 
