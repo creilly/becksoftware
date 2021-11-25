@@ -70,12 +70,13 @@ mapsd = {
     OSNR:float
 }
 
-NEW, OLD = 0, 1
+NEW, OLD, FETCH = 0, 1, 2
 
 def parse_sync(sync):
     return {
         NEW:'MEAS',
-        OLD:'READ'
+        OLD:'READ',
+        FETCH:'FETCH'
     }[sync]
 
 def get_measurement(wm,sync=NEW):
@@ -93,6 +94,25 @@ def get_measurement(wm,sync=NEW):
         )
     }
 
+class AsyncWavenumber:    
+    def __init__(self,wm):
+        self.wm = wm
+        self.prev_sn = self.get_sn()
+        self.wm = wm
+
+    def get_sn(self):
+        return get_measurement(self.wm,FETCH)[SCANNUM]
+
+    def _get_wavenumber(self):
+        return get_wavenumber(self.wm,FETCH)
+
+    def get_wavenumber(self):
+        sn = self.get_sn()
+        if sn > self.prev_sn:
+            return True, self._get_wavenumber()
+        else:
+            return False, None
+
 def get_wavenumber(wm,sync=NEW):
     return float(wm.query(':{}:WNUM?'.format(parse_sync(sync))))
 
@@ -101,6 +121,7 @@ def get_power(wm,sync=NEW):
 
 if __name__ == '__main__':
     import sys
+    from time import sleep
     if len(sys.argv) > 1:
         N = int(sys.argv[1])
     else:
@@ -109,6 +130,16 @@ if __name__ == '__main__':
     print('press ctrl-c to quit')
     try:
         with WavemeterHandler() as wm:
+            print('async test')
+            cb = AsyncWavenumber(wm)
+            while True:
+                ready, w = cb.get_wavenumber()                
+                if ready:
+                    print('got new w,','{:.4f} cm-1'.format(w))
+                    break
+                else:
+                    print('still waiting')
+                    sleep(0.05)
             wavg = get_wavenumber(wm)
             while True:
                 print('wavenumber:','{:.6f}'.format(wavg),'cm-1')
