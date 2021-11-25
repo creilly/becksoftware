@@ -1,191 +1,155 @@
 import serial
-from beckhttpserver import BeckError
 import re
+import json
 
-llport = 'com16'
+llport = 'com8'
 
 write_term = '\r'
 read_term = '\r\n'
 
 chunk = 256
 
+class LaseLockHandler:
+    def __init__(self):
+        self.ll = open_ll()
+
+    def __enter__(self):
+        return self.ll
+
+    def __exit__(self,*args):
+        close_ll(self.ll)
+
 def open_ll():   
-    ll = serial.Serial(llport)
-    ll.timeout = 0
-    for reg in (A,B):
-        delta = deltas[reg]
-        if delta < 0:
-            continue
-        mode = modes[reg]
-        if mode is HIGH_VOLTAGE:
-            delta = (
-                high_voltage_to_low_voltage(reg,delta)
-                -
-                high_voltage_to_low_voltage(reg,0)
-            )
-        percentage = low_voltage_to_percentage(delta)
-        # _set_reg_range(ll,reg,percentage)
+    ll = serial.Serial(llport,timeout=0.0)
     return ll
 
 def close_ll(ll):
     ll.close()
+
+def vardump(ll):
+    write_ll(ll,'vardump')
+    lr = LineReader(ll)
+    vs = {}
+    active = False
+    done = False
+    sep = '= '
+    while True:
+        resp = lr.read(chunk)
+        line = lr.get_line()
+        if line is not None:
+            line = line.lower()
+            if active:
+                if 'end of list' in line:
+                    done = True
+                else:
+                    key, value = [
+                        f(s) for f, s in zip(
+                            (str,int),line.split(sep)
+                        )
+                    ]
+                    vs[key] = value
+            else:
+                if 'variables dump' in line:
+                    active = True
+            if not resp and done:
+                return vs
+
+def save_vars(fname,vs):
+    with open(fname,'w') as f:
+        f.write(
+            json.dumps(
+                vs,
+                indent = 4
+            )
+        )
+
+def load_vars(fname):
+    with open(fname,'r') as f:
+        return json.loads(f.read())
+
+def write_vars(ll,vs):
+    for key, value in vs.items():
+        set_param(ll,key,value)
+
+def write_ll(ll,command):
+    ll.write(
+        (
+            command + write_term
+        ).encode('utf8')
+    )
+
+class LineReader:
+    def __init__(self,ll):
+        self.ll = ll
+        self.head = ''
+        self.value = None
+
+    def read(self,chunk):
+        s = self.ll.read(chunk).decode()
+        self.head += s
+        return s
+
+    def get_line(self):        
+        if read_term in self.head:
+            head, tail = self.head.split(read_term,1)
+            self.head = tail
+            return head
+        else:
+            return None
 
 def _get_regex(param):
     return re.compile(r'^{}= (-?\d+)$'.format(param).lower())
 
 def _get_param(ll,param):
     r = _get_regex(param)
-    head = ''
+    lr = LineReader(ll)
     value = None
-    i = 0
     while True:
-        i += 1
-        resp = ll.read(chunk).decode()
-        head += resp
-        while read_term in head:
-            head, tail = head.split(read_term,1)
-            m = r.match(head.lower())
+        resp = lr.read(chunk)
+        line = lr.get_line()
+        if line is not None:
+            m = r.match(line.lower())
             if m:
                 value = int(m.group(1))
-            head = tail
         if not resp and value is not None:
             return value
     
-def get_param(ll,param):    
-    ll.write(
-        (
-            param.lower() + '=' + write_term
-        ).encode('utf8')
-    )
+def get_param(ll,param):
+    write_ll(ll,param + '=')
     return _get_param(ll,param)
 
 def set_param(ll,param,value):
-    ll.write(
-        (
-            '{}= {:d}'.format(param.lower(),value)
-            +
-            write_term
-        ).encode('utf8')
-    )
+    write_ll(ll,'{}= {:d}'.format(param.lower(),value))
     return _get_param(ll,param)
 
 A, B = 0, 1
-
-X0, Y0, X1, Y1 = 0, 1, 2, 3
-
-LOW_VOLTAGE, HIGH_VOLTAGE = 0, 1
-
-modes = {
-    A:LOW_VOLTAGE,
-    B:LOW_VOLTAGE
-}
-
-LOW_MIN = -10.0
-LOW_MAX = +10.0
-
-calibs = {
-    A:{
-        X0:2.0, # volts
-        Y0:90.3, # volts HV
-        X1:-10.0, # volts
-        Y1:-7.8 # volts
-    },
-    B:{
-        X0:2.0, # volts
-        Y0:89.9, # volts HV
-        X1:-10.0, # volts
-        Y1:-7.3 # volts
-    },
-}
-
-# high voltage B settings vvvvv
-
-deltas = {
-    A:-1,
-    B:{
-        HIGH_VOLTAGE:5,
-        LOW_VOLTAGE:-1
-    }[modes[B]]
-}
-
-ranges = {
-    A:(0.2,2.6),
-    B:{        
-        HIGH_VOLTAGE:(-5,+80),
-        LOW_VOLTAGE:(-9,+9)        
-    }[modes[B]]
-}
 
 regd = {
     A:'A',
     B:'B'
 }
 
-moded = {
-    LOW_VOLTAGE:'V',
-    HIGH_VOLTAGE:'HV'
-}
+def fmt_reg_param(p,reg):
+    return '{}{}'.format(p,regd[reg])
 
-def get_calib(reg):
-    return map(
-        calibs[reg].get,
-        (X0, Y0, X1, Y1)
-    )
-
-def high_voltage_to_low_voltage(reg,hv):
-    x0, y0, x1, y1 = get_calib(reg)
-    return x0 + (hv - y0) * (x1 - x0) / (y1 - y0)
-
-def low_voltage_to_high_voltage(reg,lv):
-    x0, y0, x1, y1 = get_calib(reg)    
-    return y0 + (lv - x0) * (y1 - y0) / (x1 - x0)
-
-def low_voltage_to_percentage(lv):
-    return 100 * lv / LOW_MAX
-
-def _get_offset_param(reg):
-    return 'RegOutOffset{}'.format(regd[reg])
+frp = fmt_reg_param
 
 # in volts
 def get_reg_offset(ll,reg):
-    offset = 1e-3*get_param(
+    offset = get_param(
         ll,
-        _get_offset_param(reg)
+        frp('RegOutOffset',reg)
     )
-    if modes[reg] is HIGH_VOLTAGE:
-        offset = low_voltage_to_high_voltage(reg,offset)
-    return offset
+    return offset / 1e3
 
 # in volts
 def set_reg_offset(ll,reg,offset):
-    vmin, vmax = ranges[reg]
-    mode = modes[reg]
-    if offset > vmax:
-        raise BeckError(
-            'requested offset ({0:f} {2}) greater than max offset ({1:f} {2})'.format(
-                offset,
-                vmax,
-                moded[mode]
-            )
-        )
-    if offset < vmin:
-        raise BeckError(
-            'requested offset ({0:f} {2}) less than min offset ({1:f} {2})'.format(
-                offset,
-                vmin,
-                moded[mode]
-            )
-        )
-    if modes[reg] is HIGH_VOLTAGE:
-        offset = high_voltage_to_low_voltage(reg,offset)
-    offset = 1e-3*set_param(
+    offset = set_param(
         ll,
-        _get_offset_param(reg),
-        round(1e3*offset)
+        frp('RegOutOffset',reg),
+        int(round(1e3*offset))
     )
-    if modes[reg] is HIGH_VOLTAGE:
-        offset = low_voltage_to_high_voltage(reg,offset)
-    return offset
+    return offset / 1e3
 
 # in percentage of full range
 def _set_reg_range(ll,reg,percentage):
@@ -195,22 +159,43 @@ def _set_reg_range(ll,reg,percentage):
         round(1e3*percentage)
     )
 
-# ll = open_ll()
+# note here I use the more sensible convention of
+# defining the "setpoint" to be the voltage that the
+# regulator tries to lock on to, NOT (as LaseLock
+# defines it) the voltage we subtract from the error
+# signal and then always lock onto zero error signal.
+# the two are of course related by a minus sign, as
+# you can see from the code
+# 
+# setpoint is in volts
+def set_reg_setpoint(ll,reg,setpoint):
+    return set_param(
+        ll,
+        frp('RegSetPoint',reg),
+        -int(1000*setpoint)
+    )
 
-# ll.write('Hello\r'.encode('utf8'))
+def set_reg_on_off(ll,reg,enabled):
+    return set_param(
+        ll,
+        frp('RegOnOff',reg),
+        {
+            True:1,False:0
+        }[enabled]
+    )
 
-# print(get_reg_offset(ll,B))
-# print(set_reg_offset(ll,B,40.0))
-
-# close_ll(ll)
-
-# import time
-# N = 100
-# ll = open_ll()
-# tstart = time.time()
-# for i in range(N):
-#     if i % (N//10) == 0:
-#         print(i,'\t/\t',N)
-#     get_reg_offset(ll,A)
-# print((time.time()-tstart)/N)
-# close_ll(ll)
+if __name__ == '__main__':
+    with LaseLockHandler() as llh:
+        print(get_reg_offset(llh,A))
+        # vs = vardump(llh)
+        # fname = 'piezo-dc.llv'
+        # save_vars(fname,vs)
+        # vps = load_vars(fname)        
+        # for key in vs.keys():            
+        #     print('param:',key,'v old:',vs[key],'v new:',vps[key])
+        #     if vs[key] != vps[key]:
+        #         print('mismatch')
+        # write_vars(llh,vps)
+        # print('A sp',get_param(llh,'RegSetPointA'))
+        # set_reg_offset(llh,A,0.5)
+        # print(get_reg_offset(llh,A))
