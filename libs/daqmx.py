@@ -15,16 +15,23 @@ class DAQmxError(Exception):
         )
 
 class TaskHandler:
-    def __init__(self,channels):
-        self.task = task = create_task()
-        for channel in channels:
-            add_global_channel(task,channel)
+    def __init__(self,channels,global_task=False):
+        if global_task:
+            self.task = load_task(channels) # channels here should be global task name
+        else:
+            self.task = task = create_task()
+            for channel in channels:
+                add_global_channel(task,channel)
 
     def __enter__(self):
         return self.task
 
     def __exit__(self,*args):
         clear_task(self.task)
+
+def _pystr_to_cstr(pystr):
+    # return c_char_p(pystr.encode())
+    return pystr.encode()
 
 def daqmx(func,*args):
     result = func(*args)
@@ -150,15 +157,17 @@ def get_samp_clk_src(handle):
     )
     return source
 
+
 FINITE_SAMPS = 10178
 CONT_SAMPS = 10123
 RISING = 10280
+FALLING = 10171
 ONBOARD_CLK = None
-def cfg_samp_clk_timing(handle,rate,mode,samps):
+def cfg_samp_clk_timing(handle,rate,mode,samps,src=ONBOARD_CLK):
     daqmx(
         dll.DAQmxCfgSampClkTiming,
         handle,
-        ONBOARD_CLK,
+        src if src is None else src.encode(),
         c_double(rate),
         RISING,
         mode,
@@ -194,6 +203,8 @@ def set_co_term(handle,term):
 
 WAIT_INFINITELY = c_double(-1.0)
 def write_sample(handle,value):
+    stt = get_samp_timing_type(handle)
+    set_samp_timing_type(handle,ON_DEMAND)
     daqmx(        
         dll.DAQmxWriteAnalogScalarF64,
         handle,
@@ -202,10 +213,14 @@ def write_sample(handle,value):
         c_double(value),
         None
     )
+    set_samp_timing_type(handle,stt)
 
 GROUP_BY_CHANNEL = 0
-def write_to_buff(handle,data):
-    datasize = len(data)
+def write_to_buff(handle,*datas):
+    data = []
+    for d in datas:
+        datasize = len(d)
+        data.extend(d)
     samps_written = c_int32()
     daqmx(
         dll.DAQmxWriteAnalogF64,
@@ -214,7 +229,7 @@ def write_to_buff(handle,data):
         False,
         WAIT_INFINITELY,
         GROUP_BY_CHANNEL,
-        (c_double*datasize)(*data),
+        (c_double*(datasize*len(datas)))(*data),
         byref(samps_written),
         None
     )
@@ -246,9 +261,9 @@ def get_num_chans(handle):
     )
     return nchans.value
 
-def read_buff(handle,samps):
-    nchans = get_num_chans(handle)
-    arrsize = nchans*samps
+def read_analog_f64(handle,samps,arrsize,nchans=None):
+    if nchans is None:
+        nchans = get_num_chans(handle)
     data = (c_double*arrsize)()
     samps_read = c_int32()
     daqmx(
@@ -262,13 +277,166 @@ def read_buff(handle,samps):
         byref(samps_read),
         None
     )
+    samps_read = samps_read.value
     return [
-        data[n*samps:(n+1)*samps] for n in range(nchans)
-    ]
+        data[n*samps_read:(n+1)*samps_read] for n in range(nchans)
+    ]    
+
+def read_all(handle,arrsize,nchans=None):
+    return read_analog_f64(handle,-1,arrsize,nchans)
+    
+def read_buff(handle,samps,nchans=None):
+    if nchans is None:
+        nchans = get_num_chans(handle)
+    arrsize = nchans*samps
+    return read_analog_f64(handle,samps,arrsize,nchans)
+
+def get_samp_clk_term(handle):
+    term_name = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetSampClkTerm,
+        handle,
+        term_name,
+        bufsize
+    )
+    return term_name.value.decode('utf8')
+
+def load_task(name):
+    handle = c_voidp()
+    daqmx(
+        dll.DAQmxLoadTask,
+        name.encode(),
+        byref(handle)
+    )
+    return handle
+
+def get_sys_tasks():
+    tasklist = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetSysTasks,
+        tasklist,
+        bufsize
+    )
+    return tasklist.value.decode('utf8').split(', ')
+
+SAMP_CLK = 10388
+ON_DEMAND = 10390
+def get_samp_timing_type(handle):    
+    stt = c_int32()
+    daqmx(
+        dll.DAQmxGetSampTimingType,
+        handle,
+        byref(stt)
+    )
+    return stt.value
+
+def set_samp_timing_type(handle,stt):
+    daqmx(
+        dll.DAQmxSetSampTimingType,
+        handle,
+        stt
+    )
+
+ALLOW_REGEN = 10097
+DO_NOT_ALLOW_REGEN = 10158
+def set_regeneration_mode(handle,enabled):
+    daqmx(
+        dll.DAQmxSetWriteRegenMode,
+        handle,
+        {
+            True:ALLOW_REGEN,
+            False:DO_NOT_ALLOW_REGEN
+        }[enabled]
+    )
+
+# DAQmx_Val_FirstSample 10424 Write samples relative to the first sample. 
+# DAQmx_Val_CurrWritePos 10430 Write samples relative to the current position in the buffer.
+
+def set_ci_count_edges_term(handle,term):
+    daqmx(
+        dll.DAQmxSetCICountEdgesTerm,
+        handle,
+        None,
+        term.encode()
+    )
+
+def get_ci_count_edges_term(handle):
+    term = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetCICountEdgesTerm,
+        handle,
+        None,
+        term,
+        bufsize
+    )
+    return term.value.decode('utf8')
+
+def get_timebase_divisor(handle):
+    divisor = c_uint32()
+    daqmx(
+        dll.DAQmxGetSampClkTimebaseDiv,
+        handle,
+        byref(divisor)
+    )
+    return divisor.value
+
+def get_timebase_rate(handle):
+    rate = c_double()
+    daqmx(
+        dll.DAQmxGetSampClkTimebaseRate,
+        handle,
+        byref(rate)
+    )
+    return rate.value
+
+def set_timebase_src(handle,src):
+    daqmx(
+        dll.DAQmxSetSampClkTimebaseSrc,
+        handle,
+        src.encode()
+    )
+
+def cfg_arm_start_trig(handle,src,edge):
+    set_arm_start_trig_type(handle,DIG_EDGE)
+    set_dig_edge_arm_start_trig_src(handle,src)
+    set_dig_edge_arm_start_trig_edge(handle,edge)
+
+DIG_EDGE = 10150
+def set_arm_start_trig_type(handle,type):
+    daqmx(
+        dll.DAQmxSetArmStartTrigType,
+        handle,
+        type
+    )
+
+def set_dig_edge_arm_start_trig_src(handle,src):
+    daqmx(
+        dll.DAQmxSetDigEdgeArmStartTrigSrc,
+        handle,
+        src.encode()
+    )
+
+def set_dig_edge_arm_start_trig_edge(handle,edge):
+    daqmx(
+        dll.DAQmxSetDigEdgeArmStartTrigEdge,
+        handle,
+        edge
+    )
+
+def read_counter_u32_single_channel_non_blocking(handle,samps):
+    data = (c_uint32*samps)()
+    samps_read = c_int32()
+    daqmx(
+        dll.DAQmxReadCounterU32,
+        handle,
+        -1,
+        WAIT_INFINITELY,
+        data,
+        samps,
+        byref(samps_read),
+        None
+    )
+    return data[:samps_read.value]
 
 if __name__ == '__main__':
-    cotask = create_task()
-    add_global_channel(cotask,'topo scan trigger')
-    print(get_samp_clk_src(cotask).value)
-    print(get_phys_chan_name(cotask))
-    print(get_co_term(cotask))
+    exit(0)
