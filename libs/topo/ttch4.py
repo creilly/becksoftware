@@ -12,7 +12,13 @@ import os
 # }
 
 def get_motor(wnum):
-    return float(motor_spline(wnum))
+    spl = motor_spline(wnum)
+    return tuple(
+        [
+            num / 1000.0 for num in
+            (float(motor_spline(wnum)), float(dmotor_spline(wnum)))
+        ]
+    )
 
 def get_wnum(motor):
     return wnum_spline(motor)
@@ -33,10 +39,11 @@ def get_etalon(wnum):
                             wnum
                         )
                     )
-                )
+                ),
+                float(detalon_splines[fringenum][1](wnum))
             )
         )
-    return etalons
+    return etalons[0][1:]
 
 def _write_spline(fname,spline):
     with open(
@@ -124,7 +131,9 @@ wnum_spline = _load_spline(
 motor_spline = _load_spline(
     _fmt_fname(_motor_spline_fname)
 )
+dmotor_spline = motor_spline.derivative()
 etalon_splines = _load_etalon_splines()
+detalon_splines = {key:(bounds,spline.derivative()) for key, (bounds,spline) in etalon_splines.items()}
 
 # for wnum in np.arange(2800,3200,50):
 #     print(
