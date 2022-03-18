@@ -45,4 +45,30 @@ def decimate(xs,N):
         xp = (N-1)/N*xp + 1/N*x
         if n % N >= N - 1:
             xps.append(xp)
-    return np.array(xps)
+    return xps
+
+if __name__ == '__main__':
+    from matplotlib import pyplot as plt
+    xo = 1.5
+    dx = 2.0
+    amp = 3.0
+    off = 5.0
+    xs = np.linspace(xo-3*dx,xo+3*dx,100)
+    noiseamp = 1.0
+    ys = gaussian(xs,xo,dx,amp,off)
+    zs = ys + noiseamp * (np.random.normal(0.0,noiseamp,len(xs)))
+    plt.plot(xs,ys,label='exact')
+    plt.plot(xs,zs,'.',label='with noise')
+    guess = gaussian_guess(xs,zs)
+    plt.plot(xs,gaussian(xs,*guess),label='guess')
+    params, covariance = gaussian_fit(xs,zs,*guess)
+    plt.plot(xs,gaussian(xs,*params),label='best fit')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.title('demo of gaussian fitting')
+    plt.legend()
+    print('true params','\t',(xo,dx,amp,off))
+    print('param guesses','\t',tuple(guess))
+    print('fit params','\t',tuple(params))
+    plt.show()
+    
