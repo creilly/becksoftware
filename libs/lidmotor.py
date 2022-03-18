@@ -1,11 +1,11 @@
 import pyvisa as visa
 import ctypes
 
-slope = 82.5e-6 # degrees per step
+slope = 0.00008145689 # 82.5e-6 # degrees per step
 
 backlash = 30000 # steps (actually measured < 27000)
 
-MOTOR_NAME = 'COM15'
+MOTOR_NAME = 'lidmotor'
 ADDRESS = 1
 MOTOR = 0
 TYPE = 0
@@ -62,6 +62,37 @@ STGP = 11
 USER = 2
 
 INITIALIZED = 0
+
+class LidPositioner:
+    def __init__(self,lidmotor,phi_o):
+        self.lidmotor = lidmotor
+        self.calibrate_angle(phi_o)
+
+    def calibrate_angle(self,phi_o):
+        self.phi_o = phi_o
+        self.pos_o = self.lidmotor.get_position()
+
+    def get_angle(self):
+        return self.phi_o + (
+            self.lidmotor.get_position() - self.pos_o
+        ) * slope
+
+    def set_angle(self,phi,wait=True):
+        dphi = phi - self.phi_o
+        self.lidmotor.set_position(
+            int(
+                self.pos_o + ( phi - self.phi_o ) / slope
+            )
+        )
+        if wait:
+            self.wait()
+
+    def wait(self):
+        self.lidmotor.wait()
+        
+    @staticmethod
+    def get_backlash():
+        return abs(backlash * slope)
 
 class LidMotor:
     def __init__(self,motor):
@@ -223,6 +254,11 @@ class LidMotor:
             REL,
             displacement
         )
+
+    def wait(self,cb=None):
+        while not self.position_reached():
+            if cb is not None:
+                cb()
     
 class LidMotorHandler:
     def __init__(self,motor_name=MOTOR_NAME):
@@ -242,26 +278,11 @@ class LidMotorHandler:
 if __name__ == '__main__':
     with LidMotorHandler() as motor:
         while True:
-            pos = motor.get_position()
-            print('current position: {:d}'.format(pos))
-            resp = input('enter displacement, or q to quit: ')
-            if resp == 'q':
-                break
-            try:
-                disp = int(resp)
-            except ValueError:
-                print('invalid entry')
-            motor.set_relative_position(disp)
-            while True:
-                if motor.position_reached():
-                    break
-                leave_loop = False
-                for edge in (RIGHT,LEFT):
-                    lss = motor.get_limit_switch_state(edge)
-                    if lss:
-                        print('limit switch {:d} tripped!'.format(edge))
-                        leave_loop = True
-                        break
-                if leave_loop:
-                    break
+            phi_o = float(input('enter current angle (in degrees): '))            
+            lp = LidPositioner(motor,phi_o)
+            phi_p = input('enter desired angle (in degrees, or enter to quit): ')
+            if phi_p:
+                lp.set_angle(float(phi_p))
+                continue
+            break
             
