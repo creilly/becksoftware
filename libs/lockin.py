@@ -1,7 +1,9 @@
 import pyvisa
 from pyvisa.constants import AccessModes
 
-LOCKIN_VISA_NAME = 'bilt-lockin'
+LOCKIN_VISA_NAME = 'lockin'
+
+readterm = writeterm = '\r'
 
 class LockinHandler:
     def __init__(self,name=LOCKIN_VISA_NAME):
@@ -15,6 +17,10 @@ class LockinHandler:
 
 def load_lockin(name=LOCKIN_VISA_NAME):
     lockin = pyvisa.ResourceManager().open_resource(name)
+    lockin.baud_rate = 19200
+    lockin.parity = 1
+    lockin.read_termination = readterm
+    lockin.write_termination = writeterm
     lockin.lock_excl(timeout=5000.0)
     return lockin
 
