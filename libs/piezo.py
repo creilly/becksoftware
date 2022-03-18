@@ -30,10 +30,10 @@ def open_piezo_driver():
 def close_piezo_driver(pdh):
     pdh.close()
 
-def set_piezo_voltage(pdh,voltage):
+def set_piezo_voltage(pdh,voltage,channel=channel):
     return write(pdh,'{}voltage'.format(channel),'{:.4f}'.format(voltage))
 
-def get_piezo_voltage_act(pdh):
+def get_piezo_voltage_act(pdh,channel=channel):
     return float(
         query(
             pdh,'{}voltage'.format(channel)
