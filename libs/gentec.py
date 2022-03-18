@@ -15,7 +15,7 @@ class GentecHandler:
         close_pm(self.pm)
 
 def open_pm(visa_id=VISA_ID):
-    return pyvisa.ResourceManager().open_resource('COM4')
+    return pyvisa.ResourceManager().open_resource(visa_id)
 
 def close_pm(pm):
     pm.close()
