@@ -1,7 +1,7 @@
 import pyvisa
 from time import sleep
 
-FLAGNAME = 'COM7'
+FLAGNAME = 'flag'
 
 PARAM_S = 100
 PARAM_T = 101
@@ -72,7 +72,8 @@ UNBLOCKED = +3
 def set_position(flag,position):
     return flag.query('G{:+d}'.format(position))
 
-with FlagHandler() as flag:
-    print(get_position(flag))
+if __name__ == '__main__':
+    with FlagHandler() as flag:
+        print(get_position(flag))
     
     
