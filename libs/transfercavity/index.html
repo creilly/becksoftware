@@ -1,0 +1,303 @@
+<html>
+  <head>
+    <title>transfer cavity</title>
+    <link rel="icon" type="image/png" href="icon.png"/>
+    <script src="index.js"></script>
+    <link rel="stylesheet" href="index.css">     
+  </head>
+  <body>
+    <h1>transfer cavity</h1>
+    <table>
+      <tr>
+	<td>
+	  <h2>controls</h2>
+	  <table>
+	    <tr>
+	      <th>
+		parameter
+	      </th>
+	      <th>
+		indicator
+	      </th>
+	      <th>
+		control
+	      </th>
+	      <th>
+		submit
+	      </th>
+	    </tr>
+	    <tr>
+	      <td>
+		heater state
+	      </td>
+	      <td>
+		<div id="heater-state-indicator">
+		</div>
+	      </td>
+	      <td>
+		<input type="checkbox" id="heater-state-control">
+	      </td>
+	      <td>
+		<button id="heater-state-submit">
+		  submit
+		</button>
+	      </td>
+	    </tr>
+	    <tr>
+	      <td>
+		heater voltage
+	      </td>
+	      <td>
+		<div id="heater-voltage-indicator">
+		</div>
+	      </td>
+	      <td>
+		<input type="number" id="heater-voltage-control" max="4.999" min="0.0" value="0.0">
+	      </td>
+	      <td>
+		<button id="heater-voltage-submit">
+		  submit
+		</button>
+	      </td>
+	    </tr>
+	    <tr>
+	      <td>
+		scan state
+	      </td>
+	      <td>
+		<div id="scan-state-indicator">
+		</div>
+	      </td>
+	      <td>
+		<input type="checkbox" id="scan-state-control">
+	      </td>
+	      <td>
+		<button id="scan-state-submit">
+		  submit
+		</button>
+	      </td>
+	    </tr>
+	    <tr>
+	      <td>
+		hene fit state
+	      </td>
+	      <td>
+		<div id="hene-fit-state-indicator">
+		</div>
+	      </td>
+	      <td>
+		<input type="checkbox" id="hene-fit-state-control">
+	      </td>
+	      <td>
+		<button id="hene-fit-state-submit">
+		  submit
+		</button>
+	      </td>
+	    </tr>
+	    <tr>
+	      <td>
+		ir fit state
+	      </td>
+	      <td>
+		<div id="ir-fit-state-indicator">
+		</div>
+	      </td>
+	      <td>
+		<input type="checkbox" id="ir-fit-state-control">
+	      </td>
+	      <td>
+		<button id="ir-fit-state-submit">
+		  submit
+		</button>
+	      </td>
+	    </tr>
+	    <tr>
+	      <td>
+		peak offset (v)
+	      </td>
+	      <td>
+		<div id="peak-offset-indicator">
+		</div>
+	      </td>
+	      <td>
+		<input type="number" id="peak-offset-control" step="0.01">
+	      </td>
+	      <td>
+		<button id="peak-offset-submit">
+		  submit
+		</button>
+	      </td>
+	    </tr>
+	    <tr>
+	      <td>
+		lock state
+	      </td>
+	      <td>
+		<div id="lock-state-indicator">
+		</div>
+	      </td>
+	      <td>
+		<input type="checkbox" id="lock-state-control">
+	      </td>
+	      <td>
+		<button id="lock-state-submit">
+		  submit
+		</button>
+	      </td>
+	    </tr>
+	    <tr>
+	      <td>
+		lock setpoint (MHz)
+	      </td>
+	      <td>
+		<div id="lock-setpoint-indicator">
+		</div>
+	      </td>
+	      <td>
+		<input type="number" id="lock-setpoint-control" step="0.1">
+	      </td>
+	      <td>
+		<button id="lock-setpoint-submit">
+		  submit
+		</button>
+	      </td>
+	    </tr>	    
+	  </table>
+	  <table>
+	    <tr>
+	      <td>
+		<h2>scan data</h2>
+		<table>
+		  <tr>
+		    <th>
+		      parameter
+		    </th>
+		    <th>
+		      value
+		    </th>
+		  </tr>
+		  <tr>
+		    <td>
+		      scan index
+		    </td>
+		    <td>
+		      <div id="scan-index">
+		    </td>
+		  </tr>
+		  <tr>
+		    <td>
+		      hene peak (v)
+		    </td>
+		    <td>
+		      <div id="hene-peak">
+		    </td>
+		  </tr>
+		  <tr>
+		    <td>
+		      ir peak (v)
+		    </td>
+		    <td>
+		      <div id="ir-peak">
+		    </td>
+		  </tr>
+		</table>
+	      </td>
+	      <td>
+		<h2>lock data</h2>
+		<table>
+		  <tr>
+		    <th>
+		      parameter
+		    </th>
+		    <th>
+		      value
+		    </th>
+		  </tr>
+		  <tr>
+		    <td>
+		      error signal (MHz)
+		    </td>
+		    <td>
+		      <div id="error-signal">
+		    </td>
+		  </tr>
+		  <tr>
+		    <td>
+		      lock output (v)
+		    </td>
+		    <td>
+		      <div id="lock-output">
+		    </td>
+		  </tr>
+		</table>
+	      </td>
+	    </tr>
+	  </table>
+	  <h2>plot controls</h2>
+	  <table>
+	    <tr>
+	      <th>param</th>
+	      <th><span style="color:BB0000">hene</span> (v)</th>
+	      <th><span style="color:0000BB">ir</span> (v)</th>
+	      <th><span style="color:008800">df</span> (MHz)</th>
+	    </tr>
+	    <tr>
+	      <td>autoscale</td>
+	      <td><input id="hene-autoscale" type="checkbox" /></td>
+	      <td><input id="ir-autoscale" type="checkbox" /></td>
+	      <td><input id="df-autoscale" type="checkbox" /></td>
+	    </tr>
+	    <tr>
+	      <td>min act.</td>
+	      <td><div id="hene-min-act"></div></td>
+	      <td><div id="ir-min-act"></div></td>
+	      <td><div id="df-min-act"></div></td>
+	    </tr>
+	    <tr>
+	      <td>min con.</td>
+	      <td><input id="hene-min-con" type="number" step="0.001" value="-0.010" /></td>
+	      <td><input id="ir-min-con" type="number" step="0.001" value="0.000" /></td>
+	      <td><input id="df-min-con" type="number" step="0.1" value="-10.000" /></td>
+	    </tr>
+	    <tr>
+	      <td>max act.</td>
+	      <td><div id="hene-max-act"></div></td>
+	      <td><div id="ir-max-act"></div></td>
+	      <td><div id="df-max-act"></div></td>
+	    </tr>
+	    <tr>
+	      <td>max con.</td>
+	      <td><input id="hene-max-con" type="number" step="0.001" value="0.100" /></td>
+	      <td><input id="ir-max-con" type="number" step="0.001" value="0.175" /></td>
+	      <td><input id="df-max-con" type="number" step="0.1" value="10.000" /></td>
+	    </tr>
+	    <tr>
+	      <td>pause draw</td>
+	      <td colspan=2><input id="scan-pause" type="checkbox" /></td>
+	      <td><input id="df-pause" type="checkbox" /></td>
+	    </div>
+	  </table>
+	</td>
+	<td>
+	  <h2>scans
+	    (
+	    <span style="color:#BB0000;">hene</span>
+	     / 
+	    <span style="color:#0000BB;">ir</span>
+	    )
+	  </h2>
+	  <canvas id='scan-plot' style="width:800px;height:300px;">
+	  </canvas>
+	  <h2><span style="color:#008800;">df</span> trace</h2>
+	  <canvas id='df-plot' style="width:800px;height:300px;">
+	  </canvas>
+	  <table>
+	    <tr>
+	      <td><button id="zero-offset">zero</button></td>
+	    <tr>
+	  </table>
+	</td>
+      </tr>
+    </table>
+  </body>
+</html>

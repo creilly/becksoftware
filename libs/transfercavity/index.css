@@ -1,0 +1,63 @@
+input[type="number"] {
+    width: 70px;
+}
+td {
+    padding: 6px;
+    vertical-align:top;
+}
+th {
+    padding: 4px;
+    /* border-style: solid; */
+    /* border-width: thin; */
+    /* border-radius: 5px; */
+    text-align: left;
+    text-decoration: underline;
+}
+#lock-output {
+    width: 75px;
+}
+/* #tree { */
+/*     vertical-align: top;     */
+/* } */
+
+/* #controls { */
+/*     height: 100px; */
+/* } */
+
+/* .dataset { */
+/*     background:none; */
+/*     border:none; */
+/*     color:black; */
+/*     cursor:pointer; */
+/* } */
+
+/* .dataset.recent { */
+/*     color:red; */
+/* } */
+
+/* .dataset:hover { */
+/*     text-shadow: 1px 0 0; */
+/* } */
+
+/* .folder { */
+/*     background:none; */
+/*     border:none; */
+/*     color:green; */
+/*     cursor:pointer; */
+/* } */
+
+/* .folder.recent { */
+/*     color:blue; */
+/* } */
+
+/* .folder:hover { */
+/*     text-shadow: 1px 0 0; */
+/* } */
+
+/* ul { */
+/*     list-style-type: none; */
+/*     padding-left: 20px; */
+/* } */
+/* #root { */
+/*     padding-left: 2px; */
+/* } */
