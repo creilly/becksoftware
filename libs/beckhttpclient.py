@@ -1,10 +1,16 @@
 import http.client
 import json
 from beckhttpserver import BeckError, ERROR
+import os
 
 JSONTYPE = 'application/json'
 COMMAND = 'command'
 PARAMETERS = 'parameters'
+
+TOPOIPKEY = 'TOPOIP'
+
+def get_host():
+    return os.environ[TOPOIPKEY]
 
 def send_command(host,port,command,parameters):
     conn = http.client.HTTPConnection(host,port)
