@@ -48,6 +48,7 @@ def set_wavesource_shape(scope,shape):
     scope.write(
         'vbs app.WaveSource.Shape = {:d}'.format(shape)
     )
+    
 shaped = {
     'Sine':SINE,'Square':SQUARE,'Triangle':TRIANGLE,
     'Pulse':PULSE,'DC':DC,'Noise':NOISE,'ARB':ARB
@@ -60,6 +61,16 @@ def set_rms_noise(scope,vrms):
 
 def get_rms_noise(scope):
     return float(scope.query('vbs? \'return = app.WaveSource.StdDev\'').split(' ')[-1])
+
+LOW, HIGH = 0, 1
+def set_output_impedance(scope,impedance):
+    scope.write(
+        'vbs app.WaveSource.Load = {:d}'.format(impedance)
+    )
+    
+impedanced = {'50':LOW,'HiZ':HIGH}
+def get_output_impedance(scope):
+    return scope.query('vbs? \'return = app.WaveSource.Load\'').strip().split(' ')[-1]
 
 def get_trace(scope,channel):
     while True:
@@ -134,16 +145,36 @@ def set_cursors(scope,mode,c1,c2):
         )
     )
 
+# for tsv files
+def read_waveform_file(fname):
+    skiplines = 5
+    ts, vs = [], []
+    with open(fname,'r') as f:
+        for index, line in enumerate(f):
+            if index < skiplines:
+                continue
+            t, v = map(float,line.split('\t'))
+            ts.append(t)
+            vs.append(v)
+    return ts, vs
+
 if __name__ == '__main__':
     with ScopeHandler() as scope:
-        vrmso = get_rms_noise(scope)
-        vrmsp = vrmso+.1
-        print('vrmso',vrmso)
-        print('setting vrms to vrmsp = {:e}'.format(vrmsp))
-        set_rms_noise(scope,vrmsp)
-        print('vrmsp measured',get_rms_noise(scope))
-        print('setting vrms to vrmso = {:e}'.format(vrmso))
-        set_rms_noise(scope,vrmso)
-        print('vrmso measured',get_rms_noise(scope))
+        print(get_wavesource_shape(scope))
+        print(set_wavesource_shape(scope,NOISE))
+        print(get_wavesource_shape(scope))
+        print(set_output_impedance(scope,HIGH))
+        print(get_output_impedance(scope))
+        print(set_output_impedance(scope,LOW))
+        print(get_output_impedance(scope))
+        # vrmso = get_rms_noise(scope)
+        # vrmsp = vrmso+.1
+        # print('vrmso',vrmso)
+        # print('setting vrms to vrmsp = {:e}'.format(vrmsp))
+        # set_rms_noise(scope,vrmsp)
+        # print('vrmsp measured',get_rms_noise(scope))
+        # print('setting vrms to vrmso = {:e}'.format(vrmso))
+        # set_rms_noise(scope,vrmso)
+        # print('vrmso measured',get_rms_noise(scope))
               
       
