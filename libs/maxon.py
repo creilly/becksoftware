@@ -20,6 +20,14 @@ iname = b'USB'
 portname = b'USB0'
 nodeid = 1
 
+class MaxonHandler:
+    def __enter__(self):
+        self.h = open_motor()
+        return self.h
+
+    def __exit__(self,*args):
+        close_motor(self.h)        
+
 def get_error_info(errorcode):
     errinfo = c.create_string_buffer(bufsize)
     dll.VCS_GetErrorInfo(
@@ -74,8 +82,9 @@ M_HOMING = 6
 M_VELOCITY = -2
 M_POSITION = -1
 M_PROFILE_VELOCITY = 3
+M_PROFILE_POSITION = 1
 def get_operation_mode(handle):
-    mode = c.c_char()
+    mode = c.c_int8()
     maxon(
         dll.VCS_GetOperationMode,
         (
@@ -256,6 +265,8 @@ def get_homing_state(handle):
     )
     return homing_attained.value, homing_error.value
 
+# profile velocity mode
+
 # dt in milliseconds (integer)
 def set_velocity_window(handle,dvel,units,dt):
     return maxon(
@@ -267,7 +278,7 @@ def set_velocity_window(handle,dvel,units,dt):
             dt
         )
     )
-        
+
 def disable_velocity_window(handle):
     return maxon(
         dll.VCS_DisableVelocityWindow,
@@ -295,6 +306,43 @@ def halt_velocity_movement(handle):
             nodeid
         )
     )
+
+# profile position mode
+
+def set_position_window(handle,dpos,dt):
+    return maxon(
+        dll.VCS_EnablePositionWindow,
+        (
+            handle,
+            nodeid,
+            dpos,
+            dt
+        )
+    )
+
+def move_to_position(handle,position):
+    return maxon(
+        dll.VCS_MoveToPosition,
+        (
+            handle,
+            nodeid,
+            position,
+            1, # absolute
+            1 # immediately
+        )
+    )
+
+def get_target_position(handle):
+    tp = c.c_long()
+    maxon(
+        dll.VCS_GetTargetPosition,
+        (
+            handle,
+            nodeid,
+            c.byref(tp)
+        )
+    )
+    return tp.value
 
 def get_enabled_state(handle):
     enabled = w.BOOL()
@@ -353,72 +401,66 @@ if __name__ == '__main__':
     if not cont or cont[0].lower() != 'y':
         exit()
     from time import sleep
-    # get handle to motor
-    h = open_motor()
     v1 = 50
     v2 = 0
+    dt = 100
+    epsilonv = 2.0
     vsets = (v1,v2)
-    try:
-        # motor must be disbled before configuration
-        set_enabled_state(h,False)
-        # motor measures and sets speed accurate to milli-rpm
-        set_velocity_units(h,V_MILLI)
-        # query velocity units (should return V_MILLI)
-        units = get_velocity_units(h)
-        # set window to define when target velocity reached
-        set_velocity_window(h,2.0,units,100)
-        # put motor into velocity profile mode
-        set_operation_mode(h,M_PROFILE_VELOCITY)
-        # enable motor
-        set_enabled_state(h,True)
-        for vset in vsets:
-            # set velocity
-            move_with_velocity(h,vset,units)
-            print('starting change to velocity {:.3f} rpm'.format(vset))
-            # query motor to see if target velocity reached
-            while not get_movement_state(h):
-                # read current averaged velocity
-                vact = get_velocity_act_avg(h,units)
-                print(
-                    ',\t'.join(
-                        '{}: {:.3f} rpm'.format(label,vel)
-                        for label, vel in (
-                                ('vset',vset),
-                                ('vact',vact),
-                        )
-                    )
-                )
-                sleep(.100)
-            print('velocity of {:.3f} rpm reached.'.format(vset))
-        # disable motor to configure
-        set_enabled_state(h,False)
-        # set to homing mode
-        set_operation_mode(h,M_HOMING)
-        # enable motor
-        set_enabled_state(h,True)
-        # start homing
-        find_home(h)
-        print('starting homing')
-        while True:
-            # get status of homing procedure
-            homing_attained, homing_error = get_homing_state(h)
-            if homing_error:
-                raise Exception('homing error')
-            if homing_attained:
-                break
-            # read current position
-            pos = get_position_act(h)
-            print('position: {:d} steps'.format(pos))
-            sleep(.200)
-        print('homing successful. press enter to quit')
-        input()
-        pos = get_position_act(h)
-        print('final position: {:d} steps'.format(pos))
-    finally:
-        # make sure we turn off motor
-        set_enabled_state(h,False)
-        print('motor disabled')
-        # make sure we disconnect from motor
-        close_motor(h)
-        print('motor disconnected')
-    
+    with MaxonHandler() as h:
+        # # motor must be disbled before configuration
+        # set_enabled_state(h,False)
+        # # motor measures and sets speed accurate to milli-rpm
+        # set_velocity_units(h,V_MILLI)
+        # # query velocity units (should return V_MILLI)
+        # units = get_velocity_units(h)
+        # # set window to define when target velocity reached
+        # set_velocity_window(h,epsilonv,units,dt)
+        # # put motor into velocity profile mode
+        # set_operation_mode(h,M_PROFILE_VELOCITY)
+        # # enable motor
+        # set_enabled_state(h,True)
+        # for vset in vsets:
+        #     # set velocity
+        #     move_with_velocity(h,vset,units)
+        #     print('starting change to velocity {:.3f} rpm'.format(vset))
+        #     # query motor to see if target velocity reached
+        #     while not get_movement_state(h):
+        #         # read current averaged velocity
+        #         vact = get_velocity_act_avg(h,units)
+        #         print(
+        #             ',\t'.join(
+        #                 '{}: {:.3f} rpm'.format(label,vel)
+        #                 for label, vel in (
+        #                         ('vset',vset),
+        #                         ('vact',vact),
+        #                 )
+        #             )
+        #         )
+        #         sleep(.100)
+        #     print('velocity of {:.3f} rpm reached.'.format(vset))
+        # # disable motor to configure
+        # set_enabled_state(h,False)
+        # # set to homing mode
+        # set_operation_mode(h,M_HOMING)
+        # # enable motor
+        # set_enabled_state(h,True)
+        # # start homing
+        # find_home(h)
+        # print('starting homing')
+        # while True:
+        #     # get status of homing procedure
+        #     homing_attained, homing_error = get_homing_state(h)
+        #     if homing_error:
+        #         raise Exception('homing error')
+        #     if homing_attained:
+        #         break
+        #     # read current position
+        #     pos = get_position_act(h)
+        #     print('position: {:d} steps'.format(pos))
+        #     sleep(.200)
+        # print('homing successful. press enter to quit')
+        # input()
+        # pos = get_position_act(h)
+        # print('final position: {:d} steps'.format(pos))
+        print('homing state',get_homing_state(h))
+
