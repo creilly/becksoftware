@@ -4,6 +4,8 @@ from time import sleep
 TERM_CHAR = '\n'
 DEVNAME = 'pi'
 
+X, Y = 1, 2
+
 def open_pi():
     dev = visa.ResourceManager().open_resource(DEVNAME)
     dev.baud_rate = 115200
@@ -81,11 +83,14 @@ class PIHandler:
     def __exit__(self,*args):
         close_pi(self.dev)
 
-with PIHandler() as dev:
-    for add in (1,2):
-        set_motor_state(dev,add,True)
-        home_motor(dev,add)
-    for add in (1,2):
-        wait_motor(dev,add)
-        set_motor_state(dev,add,False)
-
+if __name__ == '__main__':
+    with PIHandler() as dev:
+        for add in (1,2):
+            set_motor_state(dev,add,True)
+            home_motor(dev,add)
+        for add in (1,2):
+            wait_motor(dev,add)
+            set_position(dev,add,25.0)
+        for add in (1,2):
+            wait_motor(dev,add)
+            set_motor_state(dev,add,False)
