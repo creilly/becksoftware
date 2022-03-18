@@ -14,6 +14,8 @@ if DATAROOTKEY not in os.environ:
     
 DATAROOT = os.environ[DATAROOTKEY]
 
+CREATED = '_created'
+
 def get_day_folder():
     now = datetime.now()
     return [
@@ -61,10 +63,13 @@ def add_dataset(folder,name,fields,metadata):
     dsname = '{}.tsv'.format(fileroot)
     mdname = '{}.bmd'.format(fileroot)
     mdpath = folder + [mdname]
+    _metadata = {CREATED:datetime.now().isoformat()}
+    if metadata is not None:
+        _metadata.update(metadata)
     with open(format_path_list(mdpath),'w') as f:
         f.write(
             json.dumps(
-                metadata,
+                _metadata,
                 sort_keys = True,
                 indent = 4
             )
@@ -129,6 +134,14 @@ def get_metadata(path):
     print(raw_md)
     return json.loads(raw_md)
 
+# added 01.03.2022. previous datasets will return None
+def get_created(path):
+    metadata = get_metadata(path)
+    if type(metadata) is dict:
+        return metadata.get(CREATED,None)
+    else:
+        return None
+
 def get_fields(path):
     return open(format_path_list(path),'r').readline().strip()[2:].split('\t')
 
@@ -143,6 +156,7 @@ commands = {
     'add-data-multiline':add_data_multiline,
     'get-data':get_data,
     'get-metadata':get_metadata,
+    'get-created':get_created,
     'get-fields':get_fields,
     'get-dir':get_dir,
     'get-day-folder':get_day_folder,
