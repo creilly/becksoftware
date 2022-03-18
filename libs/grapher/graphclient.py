@@ -1,7 +1,7 @@
 import beckhttpclient as bhc
 import numpy as np
 
-HOST = '127.0.0.1'
+HOST = bhc.get_host()
 PORT = 8000
 
 def send_command(command,parameters):
@@ -27,6 +27,9 @@ def get_data_np(path):
 
 def get_metadata(path):
     return send_command('get-metadata',{'path':path})
+
+def get_created(path):
+    return send_command('get-created',{'path':path})
 
 def get_fields(path):
     return send_command('get-fields',{'path':path})
