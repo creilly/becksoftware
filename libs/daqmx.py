@@ -29,8 +29,17 @@ class TaskHandler:
     def __exit__(self,*args):
         clear_task(self.task)
 
+class LineHandler:
+    def __init__(self,channel):
+        self.line = load_line(channel)
+
+    def __enter__(self):
+        return self.line
+
+    def __exit__(self,*args):
+        close_line(self.line)
+
 def _pystr_to_cstr(pystr):
-    # return c_char_p(pystr.encode())
     return pystr.encode()
 
 def daqmx(func,*args):
@@ -157,7 +166,6 @@ def get_samp_clk_src(handle):
     )
     return source
 
-
 FINITE_SAMPS = 10178
 CONT_SAMPS = 10123
 RISING = 10280
@@ -172,6 +180,14 @@ def cfg_samp_clk_timing(handle,rate,mode,samps,src=ONBOARD_CLK):
         RISING,
         mode,
         samps
+    )
+
+def cfg_implicit_timing(handle,mode,buffersize):
+    daqmx(
+        dll.DAQmxCfgImplicitTiming,
+        handle,
+        mode,
+        buffersize        
     )
 
 def cfg_trigger(handle,src):
@@ -270,7 +286,7 @@ def read_analog_f64(handle,samps,arrsize,nchans=None):
         dll.DAQmxReadAnalogF64,
         handle,
         samps,
-        WAIT_INFINITELY,
+        c_double(1.0), # WAIT_INFINITELY,
         GROUP_BY_CHANNEL,
         data,
         arrsize,
@@ -437,6 +453,70 @@ def read_counter_u32_single_channel_non_blocking(handle,samps):
         None
     )
     return data[:samps_read.value]
+
+def write_ticks(handle,highticks,lowticks,autostart=False,timeout=None):
+    timeout = WAIT_INFINITELY if timeout is None else c_double(timeout)
+    daqmx(
+        dll.DAQmxWriteCtrTicksScalar,
+        handle,
+        {
+            False:0,True:1
+        }[autostart],
+        timeout,
+        highticks,
+        lowticks,
+        None
+    )
+
+def set_ticks(handle,highticks,lowticks):
+    for ticks, function in (
+            (highticks,dll.DAQmxSetCOPulseHighTicks),
+            (lowticks,dll.DAQmxSetCOPulseLowTicks)
+    ):
+        daqmx(
+            function,
+            handle,
+            '',
+            ticks
+        )
+
+def get_co_type(handle):
+    co_type = c_uint32()
+    daqmx(
+        dll.DAQmxGetCOOutputType,
+        handle,
+        None,
+        byref(co_type)
+    )
+    return co_type.value
+
+IDLE_HIGH = 10192
+IDLE_LOW = 10214
+def create_co_ticks_channel(handle,global_channel,highticks,lowticks):
+    with TaskHandler([global_channel]) as dummytask:
+        physical_channel = get_physical_channel(dummytask)
+    daqmx(
+        dll.DAQmxCreateCOPulseChanTicks,
+        handle,
+        physical_channel.encode(),
+        None,
+        None,
+        IDLE_LOW,
+        0, # initial delay
+        lowticks,
+        highticks
+    )
+
+def get_physical_channel(handle):
+    pc = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetPhysicalChanName,
+        handle,
+        None,
+        pc,
+        bufsize
+    )
+    return pc.value.decode('utf8')
 
 if __name__ == '__main__':
     exit(0)
