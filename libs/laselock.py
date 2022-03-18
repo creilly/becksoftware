@@ -2,7 +2,7 @@ import serial
 import re
 import json
 
-llport = 'com8'
+llport = 'com7'
 
 write_term = '\r'
 read_term = '\r\n'
@@ -184,9 +184,26 @@ def set_reg_on_off(ll,reg,enabled):
         }[enabled]
     )
 
+# ampl in volts
+def set_li_ampl_aux(ll,ampl):
+    return set_param(
+        ll,
+        'LIAmplAux',
+        int(round(ampl*1e4))
+    )
+
+# returns dither monitor amplitude in volts
+def get_li_ampl_aux(ll):
+    return get_param(
+        ll,
+        'LIAmplAux'
+    )*1e-4
+
 if __name__ == '__main__':
     with LaseLockHandler() as llh:
-        print(get_reg_offset(llh,A))
+        # print(get_reg_offset(llh,A))
+        print(set_li_ampl_aux(llh,1.70))
+        print(get_li_ampl_aux(llh))
         # vs = vardump(llh)
         # fname = 'piezo-dc.llv'
         # save_vars(fname,vs)
