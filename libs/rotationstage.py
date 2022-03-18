@@ -301,4 +301,9 @@ def do_and_wait(sn,f,args,target_type,target_id,interval):
 
 if __name__ == '__main__':
     with RotationStageHandler() as sn:
-        print('angle:','{:.3f}'.format(get_angle(sn)),'degrees')
+        print('current angle:','{:.3f}'.format(get_angle(sn)),'degrees')
+        angle = input('enter new angle (or enter to quit): ')
+        if angle:
+            set_angle(sn,float(angle))
+            print('angle set')
+        print('quitting')
