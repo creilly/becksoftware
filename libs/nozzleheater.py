@@ -1,6 +1,7 @@
 import pyvisa
 
-VISAID = 'nozzleheaterethernet'
+# VISAID = 'nozzleheaterethernet'
+VISAID = 'nozzleheater'
 
 readterm = '\n'
 writeterm = '\r\n'
@@ -10,9 +11,10 @@ class NozzleHeaterHandler:
         self.visaid = visaid
 
     def __enter__(self):
-        self.handle = open_nozzle_heater(self.visaid)
+        self.handle = open_nozzle_heater(self.visaid)        
         self.handle.read_termination = readterm
         self.handle.write_termination = writeterm
+        self.handle.baud_rate = 9600
         return self.handle
 
     def __exit__(self,*args):
