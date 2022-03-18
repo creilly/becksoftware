@@ -70,6 +70,7 @@ import os
 import signal
 import selectors
 from socketserver import _ServerSelector
+import traceback
 
 JSONTYPE = 'application/json'
 COMMAND = 'command'
@@ -151,7 +152,6 @@ class BeckHTTPServer(http.server.HTTPServer):
                 self._handle_request_noblock()
 
 class BeckRequestHandler(http.server.BaseHTTPRequestHandler):
-
     def format_relative_path(self,relative_path):
         return os.path.join(
             self.server.rootfolder,
@@ -186,7 +186,7 @@ class BeckRequestHandler(http.server.BaseHTTPRequestHandler):
             response = self.server.app.commands[command](self.server.app,**parameters)
         except Exception as e:
             response = {
-                ERROR:repr(e)
+                ERROR:traceback.format_exc()
             }
         if self.server._debug:
             print('command received:')
