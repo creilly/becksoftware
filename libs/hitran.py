@@ -3,6 +3,7 @@ CO2   = 1
 C13O2 = 2
 CH4v3 = 3
 CH4v1 = 4
+CH42v2 = 5
 
 # A3 means I don't know
 P,Q,R = -1,0,+1
@@ -157,6 +158,54 @@ ch4v1_q_branch = {
     }
 }
 
+ch42v2_r_branch = {
+    0:{
+        3:{
+            19:3000.7313 #03312022 PF updated after first scan
+        }
+    },
+    2:{
+        3:{
+            34:3027.1753 #03312022 PF updated after first scan
+        },
+        5:{
+            41:3021.7407 #04012022 PF updated after scan 
+        }
+    },
+    3:{
+        7:{
+            53:3030.477623
+        }
+    },
+    4:{
+        6:{
+            55:3042.122837 
+        },
+        8:{
+            61:3040.227760 
+        },
+        9:{
+            63:3046.9196 #03312022 PF updated after first scan 
+
+        }
+    }
+}
+
+ch42v2_q_branch = {
+    2:{
+        5:{
+            25:2995.084458
+        }
+    },
+    4:{
+        6:{
+            54:2993.854069
+        }
+    }
+}
+
+
+
 ch4_r_branch = {
     0:{
         1:3028.75226
@@ -298,12 +347,19 @@ ch4v1_branches = {
     Q:ch4v1_q_branch
 }
 
+ch42v2_branches = {
+    R:ch42v2_r_branch,
+    Q:ch42v2_q_branch
+     
+}
+
 mols = {
     CH4:ch4_branches,
     CO2:co2_branches,
     C13O2:c13o2_branches,
     CH4v3:ch4v3_branches,
-    CH4v1:ch4v1_branches
+    CH4v1:ch4v1_branches,
+    CH42v2:ch42v2_branches
 }
 
 def get_line(mol,line):
