@@ -1,7 +1,7 @@
 import pyvisa
 from time import sleep
 
-FLAGNAME = 'flag'
+FLAGNAME = 'beamflag'
 
 PARAM_S = 100
 PARAM_T = 101
@@ -12,6 +12,7 @@ TERM_CHAR = '\r'
 class FlagHandler:
     def __init__(self,flagname=FLAGNAME):
         self.flag = flag = pyvisa.ResourceManager().open_resource(flagname)
+        flag.baud_rate = 9600
         flag.stop_bits = pyvisa.constants.StopBits.two        
         flag.data_bits = 7
         flag.parity = pyvisa.constants.Parity.odd
@@ -67,13 +68,27 @@ def initialize(flag):
 def intialize_counters(flag):
     return flag.query('I1')
 
-BLOCKED = 0
-UNBLOCKED = +3
+BLOCKED = -60 # -32
+UNBLOCKED = -56
+HOLE = -61 # -21
 def set_position(flag,position):
     return flag.query('G{:+d}'.format(position))
 
 if __name__ == '__main__':
     with FlagHandler() as flag:
+        print(get_version(flag))
         print(get_position(flag))
+        print(get_dynamic_parameters(flag))
+        setting = input('set position? (y/[n]): ')
+        if setting and setting[0].lower() == 'y':
+            print('select position:')
+            print('\t1 : blocked')
+            print('\t2 : unblocked')
+            print('\t3 : hole')
+            option_code = int(input('select position: '))
+            position = {
+                1:BLOCKED,2:UNBLOCKED,3:HOLE
+            }[option_code]
+            set_position(flag,position)
     
     
