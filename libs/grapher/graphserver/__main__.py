@@ -59,7 +59,7 @@ def get_folders(folder): return get_dir(folder)[1]
 def add_dataset(folder,name,fields,metadata):
     _add_folder(folder)
     nfiles = len(get_files(folder))
-    fileroot = '{:05d}-{}'.format(nfiles,name)
+    fileroot = '{:05d}{}'.format(nfiles,'-{}'.format(name) if name else name)
     dsname = '{}.tsv'.format(fileroot)
     mdname = '{}.bmd'.format(fileroot)
     mdpath = folder + [mdname]
@@ -130,8 +130,7 @@ def get_data(path):
     )
 
 def get_metadata(path):
-    raw_md = open(format_path_list(path),'r').read()
-    print(raw_md)
+    raw_md = open(format_path_list(path),'r').read()    
     return json.loads(raw_md)
 
 # added 01.03.2022. previous datasets will return None
@@ -146,7 +145,10 @@ def get_fields(path):
     return open(format_path_list(path),'r').readline().strip()[2:].split('\t')
 
 def format_path_list(path_list):
-    return os.path.join(DATAROOT,*path_list)
+    path = os.path.join(DATAROOT,*path_list)
+    if not bhs.check_path(DATAROOT,path):        
+        raise bhs.BeckError('illegal grapher filepath')
+    return path
 
 commands = {
     'add-folder':add_folder,
@@ -167,5 +169,5 @@ bhs.run_beck_server(
     PORT,
     os.path.dirname(__file__),
     bhs.create_app(commands),
-    _debug=False
+    _debug=True
 )
