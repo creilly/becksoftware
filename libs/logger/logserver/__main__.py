@@ -1,3 +1,4 @@
+import daqmx
 import sampleheater
 import nozzleheater
 import lakeshore
@@ -22,6 +23,7 @@ pfeiffer_channels = (
         pfeiffer.HV,
         (
             (0, 'cc P1'),
+            (1, 'cc P2'),
             (2, 'cc P3'),
             (3, 'cc P4'),
             (4, 'cc rotary seal'),
@@ -31,7 +33,7 @@ pfeiffer_channels = (
         pfeiffer.DG,
         (
             (0, 'fl LiHe'),
-            (1, 'res LiHe')
+            # (1, 'res LiHe')
         )
     )
 )
@@ -42,14 +44,30 @@ def pfeiffer_handle():
         while True:
             try:
                 with pfeiffer.PfeifferGaugeHandler(pfeiffer.visaids[gauge_id]) as ph:
+                    gauge_pressures = {
+                        index:pressure for index, pressure in enumerate(pfeiffer.get_pressures(ph))
+                    }
+                    gauge_indexes = set(list(zip(*gauge_channels))[0])
+                    if not gauge_indexes.issubset(gauge_pressures.keys()):
+                        print('error: response does not contain all gauges')
+                        print('requested indices:')
+                        print(gauge_channels)
+                        print('received indices:')
+                        print(gauge_pressures.keys())
+                        continue
                     pressures.extend(
                         [
-                            pressure for index, pressure in enumerate(pfeiffer.get_pressures(ph))
-                            if index in list(list(zip(*gauge_channels))[0])
+                            gauge_pressures[index] 
+                            for index in gauge_indexes
                         ]
                     )
                     break
             except pyvisa.errors.VisaIOError:
+                print('gauge id',gauge_id,'channels',gauge_channels)
+                print('pfeiffer io error')
+                continue
+            except pfeiffer.PfeifferError as pe:
+                print('pfeiffer format error: {}'.format(repr(pe)))
                 continue
     return pressures
 
@@ -86,15 +104,22 @@ def lakeshore_handle():
         print('lakeshore error:',repr(e))
         return [math.nan]
 
+daqmx_channels = ['snout tc']
+
+def daqmx_handle():
+    with daqmx.TaskHandler(['snout thermocouple']) as ai:
+        return [daqmx.read_analog_f64_scalar(ai)]
+
 temperature_groups = [
     (sample_heater_channels,sample_heater_handle),
     (nozzle_heater_channels,nozzle_heater_handle),
-    (lakeshore_channels,lakeshore_handle)
+    (lakeshore_channels,lakeshore_handle),
+    (daqmx_channels,daqmx_handle)
 ]
 
 def temperature_handle():
     temperatures = []
-    for channels, handle in temperature_groups:
+    for channel, handle in temperature_groups:
         temperatures.extend(handle())
     return temperatures
 
@@ -108,13 +133,13 @@ groups = [
         ls.HANDLE:pfeiffer_handle,
         ls.UNITS:'mbar'
     },
-    # {
-    #     ls.NAME:'temperatures',
-    #     ls.CHANNELS:sum([channels for channels,handle in temperature_groups],[]),
-    #     ls.DELTA:5.0,
-    #     ls.HANDLE:temperature_handle,
-    #     ls.UNITS:'kelvin'
-    # }
+    {
+        ls.NAME:'temperatures',
+        ls.CHANNELS:sum([channels for channels,handle in temperature_groups],[]),
+        ls.DELTA:5.0,
+        ls.HANDLE:temperature_handle,
+        ls.UNITS:'kelvin'
+    }
 ]
 
 # groups = [] # uncomment to disable logging (but still serve old logs)
