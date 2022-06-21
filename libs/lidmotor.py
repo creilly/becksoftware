@@ -3,7 +3,7 @@ import ctypes
 
 slope = 0.00008145689 # 82.5e-6 # degrees per step
 
-backlash = 30000 # steps (actually measured < 27000)
+backlash = 35000 # steps (actually measured < 27000)
 
 MOTOR_NAME = 'lidmotor'
 ADDRESS = 1
@@ -52,6 +52,8 @@ RLM_DISABLED, LLM_DISABLED = 12, 13
 
 RIGHT, LEFT = 0, 1
 
+MST = 3
+
 MVP = 4
 ABS, REL = 0, 1
 
@@ -63,9 +65,28 @@ USER = 2
 
 INITIALIZED = 0
 
-class LidPositioner:
-    def __init__(self,lidmotor,phi_o):
+PHI_MIN = 46 # 49
+PHI_MAX = 54 # 80
+
+ANGLE_LOW, ANGLE_OK, ANGLE_HIGH = 0, 1, 2
+class InvalidAngleError(Exception):
+    def __init__(self,angle_code,phi_req,phi_lim):
+        self.angle_code = angle_code
+        super().__init__(
+            'requested angle {} degs {} than limit angle of {} degs.'.format(
+                phi_req,
+                {
+                    ANGLE_LOW:'less',
+                    ANGLE_HIGH:'greater'
+                }[angle_code],
+                phi_lim
+            )
+        )
+class LidPositioner:    
+    def __init__(self,lidmotor,phi_o,phi_min=PHI_MIN,phi_max=PHI_MAX):
         self.lidmotor = lidmotor
+        self.phi_min = phi_min
+        self.phi_max = phi_max
         self.calibrate_angle(phi_o)
 
     def calibrate_angle(self,phi_o):
@@ -77,15 +98,53 @@ class LidPositioner:
             self.lidmotor.get_position() - self.pos_o
         ) * slope
 
-    def set_angle(self,phi,wait=True):
-        dphi = phi - self.phi_o
-        self.lidmotor.set_position(
-            int(
-                self.pos_o + ( phi - self.phi_o ) / slope
-            )
+    def _get_position(self,phi):        
+        pos = int(
+            self.pos_o + ( phi - self.phi_o ) / slope
         )
+        print('_get_position:','phi:',phi,'pos:',pos)
+        return pos
+
+    def set_phi_min(self,phi_min):
+        self.phi_min = phi_min
+
+    def set_phi_max(self,phi_max):
+        self.phi_max = phi_max
+
+    def get_phi_min(self):
+        return self.phi_min
+    
+    def get_phi_max(self):
+        return self.phi_max    
+
+    def _set_angle(self,phi): 
+        if phi < self.phi_min:
+            raise InvalidAngleError(ANGLE_LOW,phi,self.phi_min)
+        if phi > self.phi_max:
+            raise InvalidAngleError(ANGLE_HIGH,phi,self.phi_max)
+        self.lidmotor.set_position(
+            self._get_position(phi)
+        )
+
+    # always blocks on negative moves
+    # def set_angle(self,phi,wait=True):
+    #     dphi = phi - self.get_angle()
+    #     if dphi < 0:
+    #         print('negative move requested! backlash compensating...')
+    #         phi_bl = phi - self.get_backlash()
+    #         self._set_angle(phi_bl)            
+    #         self.wait()
+    #         print('backlash compensation complete')
+    #     print('going forward to requested angle.')
+    #     self._set_angle(phi)    
+    #     if wait:
+    #         self.wait()
+    #         print('done.')
+
+    def set_angle(self,phi,wait=True):        
+        self._set_angle(phi)    
         if wait:
-            self.wait()
+            self.wait()            
 
     def wait(self):
         self.lidmotor.wait()
@@ -98,7 +157,7 @@ class LidMotor:
     def __init__(self,motor):
         self.motor = motor
 
-    def send_command(self,command,type,data=0,bank=MOTOR):
+    def send_command(self,command,type=0,data=0,bank=MOTOR):
         command = [ADDRESS,command,type,bank] + self.uint32_to_bytes(
             self.int32_to_uint32(
                 data
@@ -254,6 +313,9 @@ class LidMotor:
             REL,
             displacement
         )
+
+    def stop_motor(self):
+        self.send_command(MST)
 
     def wait(self,cb=None):
         while not self.position_reached():
