@@ -16,12 +16,12 @@ class LockinHandler:
         close_lockin(self.lockin)
 
 def load_lockin(name=LOCKIN_VISA_NAME):
-    lockin = pyvisa.ResourceManager().open_resource(name)
+    lockin = pyvisa.ResourceManager().open_resource(name,open_timeout=1000,timeout=1000)
     lockin.baud_rate = 19200
     lockin.parity = 1
     lockin.read_termination = readterm
-    lockin.write_termination = writeterm
-    lockin.lock_excl(timeout=5000.0)
+    lockin.write_termination = writeterm    
+    lockin.lock_excl(timeout=5000.0)    
     return lockin
 
 def load_lockin_preset(lockin,preset_number):
@@ -29,6 +29,9 @@ def load_lockin_preset(lockin,preset_number):
 
 def read_lockin(lockin):
     return float(lockin.query('OUTP ? 1').strip())
+
+def get_rt(lockin):
+    return list(map(float,lockin.query('SNAP?3,4').split(',')))
 
 def get_xy(lockin):
     return list(map(float,lockin.query('SNAP?1,2').split(',')))
@@ -176,7 +179,77 @@ def get_display_type(lockin,channel):
 def set_display_type(lockin,channel,type):
     lockin.write('DDEF {:d}, {:d}, 0'.format(channel,type))
 
+STS_INPUTRESRV = 0
+STS_FILTR = 1
+STS_OUTPT = 2
+STS_UNLK = 3
+
+def clear_status_registers(lockin):
+    lockin.write('*CLS')
+
+def get_status_byte(lockin):
+    return int(lockin.query('LIAS?'))
+
+def get_status_bit(lockin,bit):
+    return bool(
+        (
+            get_status_byte(lockin) / 2**bit
+         ) % 2
+    )
+
+def get_unlocked(lockin):
+    return get_status_bit(lockin,STS_UNLK)
+
+def get_overloaded(lockin):
+    return any(
+        [
+            get_status_bit(lockin,bit)
+            for bit in (STS_INPUTRESRV,STS_FILTR,STS_OUTPT)
+        ]
+    )
+
+def set_aux_out(lockin,channel,voltage):
+    lockin.write('AUXV {:d}, {:f}'.format(channel,voltage))
+
+def get_aux_out(lockin,channel):
+    return float(lockin.query('AUXV? {:d}'.format(channel)))
+
+EXTERNAL, INTERNAL = 0, 1
+def get_ref_source(lockin):
+    return int(lockin.query('FMOD?'))
+
+def set_ref_source(lockin,ref_source):
+    return lockin.write('FMOD {:d}'.format(ref_source))
+
 if __name__ == '__main__':
     with LockinHandler() as lockin:
+        rs = get_ref_source(lockin)
+        print('rs:',rs)
+        print({INTERNAL:'int',EXTERNAL:'ext'}[rs])
+        print('setting ref source to opposite...')
+        set_ref_source(lockin,{EXTERNAL:INTERNAL,INTERNAL:EXTERNAL}[rs])
+        print('rs:',get_ref_source(lockin))
+        print('setting back')
+        set_ref_source(lockin,rs)
+        print('rs:',get_ref_source(lockin))
         tau = get_time_constant(lockin)
         print('lockin time constant: {:.1g} seconds'.format(tau))
+        clear_status_registers(lockin)
+        sb = get_status_byte(lockin)
+        print('status byte:',sb)
+        print(
+            '\n'.join(
+                [
+                    '{: 2d} : {: 2d} : {: 2d}'.format(
+                        i,2**i,(sb//2**i)%2
+                    ) for i in range(8)
+                ]
+            )
+        )
+        print('unlocked?:',get_unlocked(lockin))
+        print('overloaded?:',get_overloaded(lockin))
+        print('aux 1?:',get_aux_out(lockin,1))
+        print('setting aux 1 to 2.0 volts')
+        set_aux_out(lockin,1,2.0)
+        print('aux 1?:',get_aux_out(lockin,1))
+        input('press enter to quit: ')
