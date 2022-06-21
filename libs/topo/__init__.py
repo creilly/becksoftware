@@ -5,7 +5,7 @@ import struct
 import math
 import time
 
-IP = '10.10.10.10'
+IP = '192.168.2.3'
 commandport = 1998
 monitoringport = 1999
 

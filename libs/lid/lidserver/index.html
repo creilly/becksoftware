@@ -1,0 +1,135 @@
+<html>
+  <head>
+    <title>bilt lid</title>
+    <link rel="icon" type="image/png" href="icon.png"/>    
+	<script src="beckhttp.js"></script>
+    <script src="index.js"></script>
+    <link rel="stylesheet" href="index.css">     
+  </head>
+  <body>
+    <h2>bilt lid</h2>	
+	<h3>position</h3>		  
+	<table>
+		<tr>
+			<td>
+				current angle:
+			</td>
+			<td id="angle">				
+			</td>
+			<td>
+				degrees
+			</td>
+		</tr>
+		<tr>
+			<td>
+				set angle:
+			</td>
+			<td>
+				<input id="angle-input" type="number" min="48" max="52" value="50">
+			</td>
+			<td>
+				<button id="set-angle">submit</button>
+			</td>
+		</tr>	
+	</table>
+	<h3>motion</h3>
+	<table>
+		<tr>
+			<td>moving?</td>
+			<td id="moving"></td>
+		</tr>
+		<tr>
+			<td colspan="2">
+				<button id="stop">stop</button>
+			</td>
+		</tr>
+	</table>
+	<h3>limits</h3>
+	<table>
+		<tr>
+			<th>
+				limit
+			</th>
+			<th>
+				current
+			</th>
+			<th>
+				set
+			</th>
+			<th>
+
+			</th>
+		</tr>
+		<tr>
+			<td>
+				min:
+			</td>
+			<td id="min">
+			</td>
+			<td>
+				<input id="min-input" type="number" min="45" value="45">
+			</td>
+			<td>
+				<button id="set-min">submit</button>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				max:
+			</td>
+			<td id="max">
+			</td>
+			<td>
+				<input id="max-input" type="number" max="185" value="55">
+			</td>
+			<td>
+				<button id="set-max">submit</button>
+			</td>
+		</tr>		
+	</table>
+	<h3>status</h3>
+	<table>
+		<tr>
+			<th>
+				date
+			</th>
+			<th>
+				time
+			</th>
+			<th>
+				last command
+			</th>
+			<th>
+				result
+			</th>
+			<th>
+				details
+			</th>
+			<th>
+				polling
+			</th>
+		</tr>		
+		<tr>
+			<td id="status-date">
+				none
+			</td>
+			<td id="status-time">
+				none
+			</td>
+			<td id="status-command">
+				none
+			</td>
+			<td id="status-result">
+				none
+			</td>
+			<td id="status-details">
+				none
+			</td>
+			<td id="status-poll">
+				0
+			</td>
+		</tr>
+	</table>
+	<a href="calib.html">calibrate lid</a>
+  </body>
+</html>

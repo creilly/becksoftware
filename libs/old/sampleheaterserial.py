@@ -1,14 +1,15 @@
 # remote mode must be enabled to write to device
 # (reading works in either mode)
 
-from pickle import PROTO
 import struct
 import pyvisa
 from time import time
 
-VISAID = 'sampleheaterethernet'
+VISAID = 'sampleheater'
 ADDRESS = 1
-PROTOCOL = 0
+
+baudrate = 57600 # per second
+waittime = 4 * 10 / baudrate # seconds
 
 crco = 0xffff
 overflow = 0xa001
@@ -25,16 +26,36 @@ setpoint_add = 14
 
 d1_diode_type_add = 27
 
+# test = b'\x01\x03\x06:\x83\x12o\x00\x00'
+
+def crc16(data):
+    crc = crco
+    for b in data:
+        crc ^= b
+        n = 0
+        while n < 8:
+            carry = crc & 1
+            crc >>= 1
+            if carry:
+                crc ^= overflow
+            n += 1
+    return crc
+
+def format_word(word):
+    return 
+
 class SampleHeaterError(Exception):
     pass
 
 class SampleHeaterHandler:
     def __init__(self,visaid=VISAID,device_address=ADDRESS):
         self.visaid = visaid
-        self.message_index = 0              
+        self.device_address = device_address                
 
     def __enter__(self):
         self.handle = pyvisa.ResourceManager().open_resource(self.visaid)
+        self.handle.baud_rate = baudrate
+        self.start = time()
         return self
 
     def __exit__(self,*args):
@@ -64,60 +85,62 @@ class SampleHeaterHandler:
     def parse_crc(bytestr):
         return struct.unpack('<H',bytestr)[0]
 
-    def write_message(self,function,data):
+    def write_message(self,function,data,cb):
         message = b''
-        message += self.format_word(self.message_index) # transaction id
-        message += self.format_word(PROTOCOL) # protocol id
-        # data length:        
-        # * 1 byte for device address
-        # * 1 byte for function code
-        # * len(data) bytes for message data
-        message += self.format_word(1 + 1 + len(data)) 
-        message += self.format_byte(ADDRESS) # device address        
-        message += function # function code
-        message += data # message data
-        # print('out message data',data)
-        # print('out message',message)
+        message += self.format_byte(self.device_address)
+        message += function
+        message += data
+        crc = crc16(message)
+        message += self.format_crc(crc)
+        while time() - self.start < waittime:
+            continue
         self.handle.write_raw(message)
+        self.start = time()                
         head = b''
-        tid = self.parse_word(self.handle.read_bytes(2))
-        assert tid == self.message_index
-        # print('message index',self.message_index,'tid',tid)
-        pid = self.parse_word(self.handle.read_bytes(2))
-        # print('protocol',PROTOCOL,'pid',pid)
-        datalen = self.parse_word(self.handle.read_bytes(2))
-        # print('datalen',datalen)
-        devadd = self.parse_byte(self.handle.read_bytes(1))
-        # print('address',ADDRESS,'devadd',devadd)
-        func_code = self.handle.read_bytes(1)
-        # print('function',function,'func_code',func_code)
-        # message data length is equal to:
-        # * + data length 
-        # * - 1 byte for device address
-        # * - 1 byte for func code
-        messagedatalen = datalen-1-1
-        self.message_index = (self.message_index + 1) % 2**16
+        dev_add = self.handle.read_bytes(1)
+        head += dev_add        
+        func_code = self.handle.read_bytes(1)        
+        head += func_code
         error = self.parse_byte(func_code) // 128
+        in_message = head
         if error:
             err_code = self.handle.read_bytes(1)
+            in_message += err_code
             err_str = '0x{:02X}'.format(self.parse_byte(err_code))
+        else:
+            tail, response = cb()
+            in_message += tail        
+        crcread = self.parse_crc(self.handle.read_bytes(2))
+        crccalc = crc16(in_message)
+        assert crcread == crccalc
+        if error:
             raise SampleHeaterError(err_str)
-        messagedata = self.handle.read_bytes(messagedatalen)
-        return messagedata
+        return response
+
+    def read_n_words_cb(self):
+        message = b''        
+        n_bytes_read_raw = self.handle.read_bytes(1)
+        message += n_bytes_read_raw
+        n_bytes_read = self.parse_byte(n_bytes_read_raw)
+        data = self.handle.read_bytes(n_bytes_read)
+        message += data        
+        return message, data
 
     def read_n_words(self,start_address,n_words):
         message = b''
         message += self.format_word(start_address)
         message += self.format_word(n_words)        
-        data = self.write_message(
+        return self.write_message(
             read_n_words,
-            message            
+            message,
+            self.read_n_words_cb
         )
-        # print('message data to read n words',data)
-        n_bytes_read_raw = data[0:1]
-        n_bytes_read = self.parse_byte(n_bytes_read_raw)
-        # print('message data len',len(data),'n bytes read',n_bytes_read)
-        return data[1:][:n_bytes_read]
+
+    def write_n_words_cb(self):
+        message = b''
+        message += self.handle.read_bytes(2) # first word address
+        message += self.handle.read_bytes(2) # num written words
+        return message, None
 
     def write_n_words(self,start_address,data):
         n_bytes = len(data)
@@ -127,25 +150,22 @@ class SampleHeaterHandler:
         message += self.format_word(n_words)
         message += self.format_byte(n_bytes)
         message += data
-        indata = self.write_message(
-            write_n_words,message
+        return self.write_message(
+            write_n_words,message,self.write_n_words_cb
         )
-        # print('expected mess data len',4,'actual mess data len',len(data))
-        first_word_add = self.parse_word(data[:2])
-        # print('start add',start_address,'first word add',first_word_add)
-        num_words_written = self.parse_word(data[2:])
-        # print('expect num words written',len(data)//2,'num words written',num_words_written)
+
+    def write_word_cb(self):
+        message = b''
+        message += self.handle.read_bytes(2) # address
+        message += self.handle.read_bytes(2) # val to be written
+        return message, None
 
     def write_word(self,address,data):
         message = b''
         message += self.format_word(address)
         message += data
-        indata = self.write_message(write_word,message)
-        add_written = self.parse_word(data[:2])
-        # print('add to write',address,'add written',add_written)
-        val_written = data[2:]
-        # print('data to write',data,'data written',val_written)
-        
+        self.write_message(write_word,message,self.write_word_cb)
+
     # return temperature in kelvin from binary temperature from parameter table
     @staticmethod
     def parse_temperature(raw_temperature):
@@ -181,12 +201,5 @@ class SampleHeaterHandler:
 
 if __name__ == '__main__':
     with SampleHeaterHandler() as shh:
-        print('\t','temperature',shh.get_temperature())
-        print('\t','setpoint',shh.get_setpoint())
-        print('\t','diode type',shh.get_d1_diode_type())
-        shh.set_d1_diode_type(1)
-        print('\t set diode type to 1')
-        print('\t','diode type',shh.get_d1_diode_type())
-        shh.set_d1_diode_type(0)
-        print('\t set diode type to 0')
-        print('\t','diode type',shh.get_d1_diode_type())
+        print(shh.get_temperature())
+        print(shh.get_setpoint())        

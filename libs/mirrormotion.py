@@ -28,11 +28,10 @@ import pi
 
 xc = -25.812800000141785     #x offset (mm)
 yc = -39.51900000014259     #y offset (mm)
-r = 14.962259999773522      # - circle radius (mm)
+r = 16.0 # 14.962259999773522      # - circle radius (mm)
 a =  -5.603500000056165      #- angle offset (degs)
 e = 1.010219999972917      # -squish (unitless)
 s = -1.910800000003037     #- slant (degs)
-    
 
 def get_xmirr(A):
     xo  =   r * e * np.cos((A + a)*np.pi/180.)

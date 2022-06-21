@@ -1,13 +1,14 @@
 import pyvisa
 
 VISA_ID = 'gentec'
+read_term = '\n'
 
 class GentecHandler:
     def __init__(self,visa_id=VISA_ID):
         self.pm = pm = open_pm(visa_id)
         pm.baud_rate = 115200
-        pm.write_termination = '\r'
-        pm.read_termination = '\r'
+        # pm.write_termination = '\r'
+        pm.read_termination = read_term # '\r'
         
     def __enter__(self):
         return self.pm
@@ -36,6 +37,6 @@ if __name__ == '__main__':
         with GentecHandler() as pm:
             while True:
                 print(get_power(pm))
-                sleep(0.200)
+                sleep(0.001)
     except KeyboardInterrupt:
         print('interrupt received quitting...')

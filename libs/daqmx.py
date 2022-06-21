@@ -152,7 +152,7 @@ IMPLICIT_TIMING = 10451
 def set_samp_timing_type(handle,timing_type):
     daqmx(
         dll.DAQmxSetSampTimingType,
-        taskhandle,
+        handle,
         timing_type
     )
 
@@ -276,6 +276,17 @@ def get_num_chans(handle):
         byref(nchans)
     )
     return nchans.value
+
+def read_analog_f64_scalar(handle):
+    scalar = c_double()
+    daqmx(
+        dll.DAQmxReadAnalogScalarF64,
+        handle,
+        WAIT_INFINITELY,
+        byref(scalar),
+        None
+    )
+    return scalar.value
 
 def read_analog_f64(handle,samps,arrsize,nchans=None):
     if nchans is None:

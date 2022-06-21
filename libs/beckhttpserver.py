@@ -133,17 +133,23 @@ def create_app(commands):
         )
     return _
     
+DEF_INTERFACE = ''
 class BeckHTTPServer(http.server.HTTPServer):
     commands = {}
     _DEBUG = '_debug'
+    _INTERFACE = '_interface'
     def __init__(self,port,rootfolder,appcls,*args,**kwargs):
         if self._DEBUG in kwargs:
             self._debug = kwargs.pop(self._DEBUG)
         else:
             self._debug = True
+        if self._INTERFACE in kwargs:
+            interface = kwargs.pop(self._DEBUG)
+        else:
+            interface = DEF_INTERFACE
         self.rootfolder = rootfolder
         self.app = set_commands(appcls)(*args,**kwargs)
-        super().__init__(('',port),BeckRequestHandler)
+        super().__init__((interface,port),BeckRequestHandler)
 
     def handle_requests(self):
         with _ServerSelector() as selector:
@@ -151,18 +157,35 @@ class BeckHTTPServer(http.server.HTTPServer):
             while selector.select(0):
                 self._handle_request_noblock()
 
+def check_path(folder,path):    
+    realfolder = os.path.realpath(folder) 
+    realpath = os.path.realpath(path)         
+    matches = realfolder == os.path.commonpath((realfolder,realpath)) 
+    # print('folder',folder)
+    # print('path',path)
+    # print('real folder',realfolder)
+    # print('real path',realpath)
+    # print('matches',matches)
+    # print('matches',matches)
+    return matches
+
 class BeckRequestHandler(http.server.BaseHTTPRequestHandler):
     def format_relative_path(self,relative_path):
         return os.path.join(
             self.server.rootfolder,
             relative_path
         )
+
+    def check_path(self,path):
+        return check_path(self.server.rootfolder,path)        
         
     def do_GET(self):
         path = self.path.split('/',1)[1]
         if not path:
             path = 'index.html'
         path = self.format_relative_path(path)
+        if not self.check_path(path):
+            self.send_error(HTTPStatus.UNAUTHORIZED)
         if os.path.isfile(path):
             self.send_response(HTTPStatus.OK)
             self.send_header('Content-type',mimetypes.guess_type(path)[0])
@@ -183,7 +206,7 @@ class BeckRequestHandler(http.server.BaseHTTPRequestHandler):
         command = data[COMMAND]
         parameters = data[PARAMETERS]
         try:
-            response = self.server.app.commands[command](self.server.app,**parameters)
+            response = self.server.app.commands[command](self.server.app,**parameters)        
         except Exception as e:
             response = {
                 ERROR:traceback.format_exc()

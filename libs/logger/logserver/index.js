@@ -139,10 +139,10 @@ function get_log() {
 		    log_units = units;
 		    params = get_data_params();
 		    send_command(
-			'get-data',
-			params,
-			(data) => update_plot(data,false),
-			data_hook
+				'get-data',
+				params,
+				(data) => update_plot(data,false),
+				data_hook
 		    );
 		}
 	    )
@@ -153,14 +153,14 @@ function get_log() {
 function update_plot(data,extend) {
     var ys = [];
     for (var i = 1; i < data[0].length; i++){
-	ys.push([]);
+		ys.push([]);
     }
     var x = [];
     data.forEach(
 	(line) => {
-	    x.push(dummy_date + 'T' + line[0]);
+		    x.push(dummy_date + 'T' + line[0]);
 	    for (var i = 1; i < line.length; i++) {
-		ys[i-1].push(line[i]);
+			ys[i-1].push(line[i]);
 	    }
 	}
     );
@@ -259,14 +259,14 @@ function data_hook(s) {
 
 function update_data(group,date,start) {
     if (group == log_group && date == log_date) {
-	params = get_data_params();
-	params['start'] = start;
-	send_command(
-	    'get-data',
-	    params,
-	    (data) => update_plot(data,true),
-	    data_hook
-	);
+		params = get_data_params();
+		params['start'] = start;
+		send_command(
+			'get-data',
+			params,
+			(data) => update_plot(data,true),
+			data_hook
+		);
     }
 }
 

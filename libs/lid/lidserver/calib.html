@@ -1,0 +1,35 @@
+<html>
+  <head>
+    <title>bilt lid calibration</title>
+    <link rel="icon" type="image/png" href="icon.png"/>    
+    <script src="beckhttp.js"></script>
+    <script src="calib.js"></script>
+    <link rel="stylesheet" href="index.css">     
+  </head>
+  <body>
+    <h2>bilt lid calibration</h2>			  
+	<table>		
+		<tr>
+			<td>
+				calibrate angle:
+			</td>
+			<td>
+				<input id="calib-input" type="number" min="48" max="52" value="50">
+			</td>
+			<td>
+				<button id="set-calib">submit</button>
+			</td>
+		</tr>	
+        <tr>
+            <td>
+                result:
+            </td>
+            <td id="result">
+            </td>
+            <td id="details">
+            </td>
+        </tr>	
+    </table>
+    <a href="index.html">home</a>
+  </body>
+</html>
