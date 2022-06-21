@@ -85,32 +85,27 @@ def decode_scan(b64scan):
         bs
     )
 
+def check_transfer_cavity(fset,epsilonf):
+    scan_index = get_scan_index()
+    while True:
+        samples = get_samples(scan_index)
+        if samples:
+            for sample in samples:
+                scan_index = sample[tcs.SCANINDEX]
+                f = sample[tcs.DELTAF]
+                # print(
+                #     '\t,\t'.join(
+                #         '{}: {}'.format(
+                #             label,'{:.2f} MHz'.format(freq).rjust(12)
+                #         ) for label,freq in (
+                #             ('fset',fset),('fmeas',f),('epf',epsilonf),('df',f-fset)
+                #         )
+                #     )
+                # )
+                if abs(f-fset) < epsilonf:
+                    # print('setpoint reached')
+                    return True
+
 if __name__ == '__main__':
     from . import transfercavityserver as tcs
-    print('lock setpoint: {:.3f} MHz'.format(get_setpoint()))
-    # from matplotlib import pyplot as plt
-    # import numpy as np
-    # from time import sleep
-    # wait = 0.25 # seconds
-    # famp = 10.0 # MHz
-    # df = 0.1 # MHz
-    # N = 4 * int(famp / df)
-    # ns = np.arange(N)
-    # fs = famp * np.sin(2. * np.pi * ns / N)
-    # fexps = []
-    # scanindex = -1
-    # for n,f in zip(ns,fs):
-    #     set_setpoint(f)
-    #     sleep(wait)
-    #     while True:
-    #         samples = get_samples(scanindex)
-    #         if samples:
-    #             break            
-    #     sample = samples[-1]
-    #     scanindex = sample[tcs.SCANINDEX]
-    #     fexp = sample[tcs.DELTAF]
-    #     fexps.append(fexp)
-    #     print(n,f,fexp)
-    # plt.plot(ns,fs)
-    # plt.plot(ns,fexps,'.')
-    # plt.show()
+    print('lock setpoint: {:.3f} MHz'.format(get_setpoint()))    
