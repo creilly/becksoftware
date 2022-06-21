@@ -1,4 +1,5 @@
 import pyvisa
+from sympy import arg
 
 wmid = 'wavemeter'
 
@@ -122,14 +123,26 @@ def get_power(wm,sync=NEW):
 if __name__ == '__main__':
     import sys
     from time import sleep
-    if len(sys.argv) > 1:
-        N = int(sys.argv[1])
-    else:
-        N = int(input('enter number of samples to average: '))
+    import argparse
+    parser = argparse.ArgumentParser(description='bristol wavemeter utility')
+    parser.add_argument(
+        '-w','--wavemeter',default='wavemeter',
+        choices=['wavemeter','argos-wavemeter'],
+        help='visa id of wavemeter'
+    )
+    parser.add_argument(
+        '-n','--samples',
+        default=1,type=int,
+        help='number of samples to average per measurement'
+    )
+    args = parser.parse_args()
+    wmid = args.wavemeter
+    N = args.samples
     print('{:d} sample running average of wavenumber.'.format(N))
     print('press ctrl-c to quit')
     try:
-        with WavemeterHandler() as wm:
+        print('opening wavemeter with visa id {}'.format(wmid))
+        with WavemeterHandler(wmid) as wm:
             print('async test')
             cb = AsyncWavenumber(wm)
             while True:
