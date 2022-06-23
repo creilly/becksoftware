@@ -5,6 +5,7 @@ from . import beam
 from . import gamma
 from . import doppler
 
+# vvv this function is parallelizable
 def get_line_saturation(line,power,diameter,gamma,deltaomega,tau,N,muomega=0.0):
     lined = hitran.lookup_line(line)
     w = lined[hitran.WNUM]
@@ -15,13 +16,13 @@ def get_line_saturation(line,power,diameter,gamma,deltaomega,tau,N,muomega=0.0):
     m = 0
     n = 0
     prob_sum = 0.0
+    # vvv this sum over m is parallelizable
     while True:
         if m > lj:
             break
         omegabar = rabi.rabi_rad_freq(lj,uj,m,w,a,beam.get_intensity(power,diameter))
         degen = {True:2,False:1}[bool(m)]
-        prob = bloch.get_exc_prob(tau,omegabar,gamma,deltaomega,N,muomega) * degen
-        # print('m',m,'prob','{:.3f}'.format(prob))
+        prob = bloch.get_exc_prob(tau,omegabar,gamma,deltaomega,N,muomega) * degen        
         prob_sum += prob
         n += degen
         m += 1

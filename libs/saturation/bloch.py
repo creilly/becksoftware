@@ -54,6 +54,7 @@ def get_taus(tau,N):
     taup = tau/rtpi
     return 2 * np.sqrt(taup**2 - np.random.uniform(0,taup,N)**2)
 
+# vvv this average over N is parallelizable
 def get_exc_prob(
     tau,omegabar,gamma,sigmaomega,N,muomega=0.0
 ):
