@@ -25,6 +25,13 @@ def radial_frequency(wavenumber):
     omega = 2*np.pi * freq
     return omega
 
+def mubar(w,a):
+    return np.sqrt(
+        3 * epsilon_o * h * c**3 / (
+            2 * radial_frequency(w)**3
+        ) * a
+    )
+
 # dipole moment (SI units)
 def mu(lj,uj,m,w,a):
     cgc_sym = CG(
@@ -33,11 +40,7 @@ def mu(lj,uj,m,w,a):
     cgc = float(np.abs(sympy.N(cgc_sym.doit())))    
     if cgc == 0.0:
         return 0.0
-    return cgc * np.sqrt(
-        3 * epsilon_o * h * c**3 / (
-            2 * radial_frequency(w)**3
-        ) * a
-    )
+    return cgc * mubar(w,a)
 
 # Hz
 def rabi_freq(lj,uj,m,w,a,i):
