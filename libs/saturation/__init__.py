@@ -19,12 +19,15 @@ def get_line_saturation(line,power,diameter,gamma,deltaomega,tau,N,muomega=0.0):
     # vvv this sum over m is parallelizable
     while True:
         if m > lj:
-            break
-        omegabar = rabi.rabi_rad_freq(lj,uj,m,w,a,beam.get_intensity(power,diameter))
+            break            
         degen = {True:2,False:1}[bool(m)]
+        n += degen        
+        if m > uj:
+            m += 1 
+            continue
+        omegabar = rabi.rabi_rad_freq(lj,uj,m,w,a,beam.get_intensity(power,diameter))        
         prob = bloch.get_exc_prob(tau,omegabar,gamma,deltaomega,N,muomega) * degen        
         prob_sum += prob
-        n += degen
         m += 1
     prob_sum /= n
     return prob_sum
