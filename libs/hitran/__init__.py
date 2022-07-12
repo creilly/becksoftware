@@ -353,7 +353,6 @@ ch4v1_branches = {
 ch42v2_branches = {
     R:ch42v2_r_branch,
     Q:ch42v2_q_branch
-     
 }
 
 mols = {
@@ -393,7 +392,17 @@ def lookup_line(folders):
         key:float(fields[key]) for key in (WNUM,EIN_COEFF)
     }
 
-MOL, ISO, GLQ, GUQ, LLQ, LUQ, W, A = 0, 1, 2, 3, 4, 5, 6, 7
+MOL, ISO, GLQ, GUQ, LLQ, ULQ, W, A = 0, 1, 2, 3, 4, 5, 6, 7
+fields = {
+    MOL:(0,2),
+    ISO:(2,1),
+    GLQ:(82,15),
+    GUQ:(67,15),
+    LLQ:(112,15),
+    ULQ:(97,15),
+    W:(3,12),
+    A:(25,10)
+}
 def format_line(mol,iso,glq,guq,llq,luq):
     return [
         formatters[key](field) for key, field in sorted(
@@ -403,12 +412,16 @@ def format_line(mol,iso,glq,guq,llq,luq):
                 GLQ:glq,
                 GUQ:guq,
                 LLQ:llq,
-                LUQ:luq
+                ULQ:luq
             }.items()
         )
     ]
 
 NBS = chr(0xA0)
+def parse_line(rawline):    
+    return {
+        key:rawline[offset:offset+width] for key, (offset, width) in fields.items()
+    }
 def replace_whitespace(s):
     return s.replace(' ',NBS)
 def rws(f):
@@ -417,6 +430,32 @@ def rws(f):
             f(*args,**kwargs)
         )
     return g
+
+froot = 'db'
+fname = 'line.txt'
+headers = {
+    W:'wavenumber (cm-1)',A:'einstein coefficient (s-1)'
+}
+entries = (W,A)
+def add_entry(lined):
+    *folders, w, a = list(zip(*sorted(lined.items())))[1]
+    folder = os.path.join(os.path.dirname(__file__),froot,*folders)   
+    if not os.path.exists(folder):        
+        os.makedirs(folder)    
+    path = os.path.join(folder,fname)
+    with open(path,'w') as f:
+        f.write(
+            '\n'.join(
+                [
+                    '\t'.join(
+                        headers[key] for key in entries
+                    ),                
+                    '\t'.join(
+                        {W:w,A:a}[key].replace(NBS,' ') for key in entries
+                    )
+                ]
+            )
+        )
 
 @rws
 def format_int(j,width):    
@@ -455,7 +494,7 @@ formatters = {
     GLQ:format_gq,
     GUQ:format_gq,
     LLQ:format_lq,
-    LUQ:format_lq
+    ULQ:format_lq
 }
 
 def parse_lq(raw_lq):
