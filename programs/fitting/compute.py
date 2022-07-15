@@ -280,10 +280,8 @@ def finish_get_data():
                 jobindex += 1
         # finish data transfers
         wait_recvs()
-    # all cores clear their send requests    
-    print('rank {:d} clearing sends...'.format(rank))
-    clear_sends()
-    print('rank {:d} sends cleared.'.format(rank))    
+    # all cores clear their send requests        
+    clear_sends()    
 
 def init():
     get_data()
@@ -407,17 +405,13 @@ def main():
     # load input data for this core
     init()
     if rank == masterrank:
-        # initialize communication with client process
-        print('connecting to pipes...')
+        # initialize communication with client process        
         server = communicator.Server(
             *communicator.get_pipes()
-        )
-        print('connected to pipes.')
+        )        
         while True:
-            # get next command
-            print('getting command...')
-            command = server.get_int() 
-            print('command received: {:d}'.format(command))           
+            # get next command            
+            command = server.get_int()             
             if command == communicator.QUIT:
                 # fill factors with quitting signal to other cores
                 _factors = [-1]*4
