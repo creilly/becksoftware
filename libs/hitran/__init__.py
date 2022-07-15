@@ -498,12 +498,24 @@ formatters = {
 }
 
 def parse_lq(raw_lq):
-    raw_lq = raw_lq.replace(NBS,' ')[lq_lmargin:]
-    j = int(raw_lq[:j_width])
-    raw_lq = raw_lq[j_width:]
-    sym = raw_lq[:sym_width] 
-    raw_lq = raw_lq[sym_width:]   
-    level = int(raw_lq[:lq_level_width])
+    # need to modify to compensate for 
+    # irregularities in boudon database    
+    raw_lq = raw_lq.strip()
+    rawj = ''
+    nj = 1
+    while raw_lq[:nj].isdigit():
+        nj += 1
+    j = int(raw_lq[:nj])
+    raw_lq = raw_lq[nj:].strip()
+    sym, rawlevel = raw_lq.split()
+    level = int(rawlevel)    
+    return j, sym, level
+    # raw_lq = raw_lq.replace(NBS,' ')[lq_lmargin:]
+    # j = int(raw_lq[:j_width])
+    # raw_lq = raw_lq[j_width:]
+    # sym = raw_lq[:sym_width] 
+    # raw_lq = raw_lq[sym_width:]   
+    # level = int(raw_lq[:lq_level_width])
     return j, sym, level
 
 symd = {
@@ -523,7 +535,7 @@ def search_db(mol,iso,glq,guq,b,j,oldsym=None,ll=None,ul=None):
         )
     ]    
     raw_llqs = os.listdir(format_path(folders))
-    for raw_llq in raw_llqs:
+    for raw_llq in raw_llqs:        
         _j, _sym, _level = parse_lq(raw_llq)        
         if _j == j and (
             oldsym is None or symd[oldsym] is None or _sym == symd[oldsym]
