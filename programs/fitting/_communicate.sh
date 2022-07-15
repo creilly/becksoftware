@@ -13,7 +13,9 @@ function get_cmp () {
 }
 
 cores=$(get_cmp cores)
+corespernode=28
+nodes=$(((cores-1)/corespernode+1))
 partition=$(get_cmp partition)
 time=$(get_cmp time)
 
-sbatch -t $time -n $cores --partition=$partition communicate.sh $@
+sbatch -t $time -n $cores -N $nodes --partition=$partition communicate.sh $@
