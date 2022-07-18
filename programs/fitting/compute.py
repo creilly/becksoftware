@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 from saturation import communicator
 import configparser
 
-debug = True
+debug = False
 
 # get command line arguments
 # argument list:
@@ -70,7 +70,7 @@ M_deltaomega, M_gamma, M_omegabar = map(np.array,(M_deltaomega,M_gamma,M_omegaba
 comm = MPI.COMM_WORLD
 size = comm.Get_size() # number of cores
 rank = comm.Get_rank() # core id
-masterrank = size - 1 # core id of master core
+masterrank = 0 # size - 1 # core id of master core
 
 md = sanitize.load_metadata(datafolder) # dataset metadata
 cgcd = sanitize.load_cgc(datafolder) # pre-computed clebsch gordan coefficients

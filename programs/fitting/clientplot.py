@@ -5,7 +5,7 @@ import json
 import numpy as np
 from matplotlib import pyplot as plt
 
-imagefolder = 'images'
+imagefoldertail = 'images'
 mdfname = 'metadata.json'
 
 parser = communicator.get_parser()
@@ -13,6 +13,11 @@ parser = communicator.get_parser()
 parser.add_argument('-f','--factors',nargs=4,type=float)
 
 args = parser.parse_args()
+
+imagefolder = os.path.join(
+    communicator.get_output_folder(args),
+    '{}-{}'.format(communicator.get_timestamp(args),imagefoldertail)
+)
 
 factors = args.factors
 
@@ -23,14 +28,15 @@ datad = client.get_data(factors)
 try:
     config = communicator.get_config(args)
     configmd = {s:dict(config.items(s)) for s in config.sections()}
-
+    datafolder = communicator.get_data_folder(args)
     md = {
         'factors':{
             key:value for key, value in zip(
                 ('power','gamma','sigmaomega','tau'),
                 factors
             )
-        }
+        },
+        'datafolder':datafolder
     }
 
     md.update(configmd)
@@ -40,8 +46,6 @@ try:
 
     with open(os.path.join(imagefolder,mdfname),'w') as f:
         json.dump(md,f,indent=2)
-
-    datafolder = communicator.get_data_folder(args)
 
     for lineindex, lined in datad.items():
         for mode, computeds in lined.items():
