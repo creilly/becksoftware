@@ -31,8 +31,12 @@ def rephase_data(x,y):
         z *= -1
     return z
 
+# takes in an array z and returns a pair (zscale, zp)
+# where zscale is a scalar and 
+# zp is an array and
+# z = zscale * zp
 def rescale_data(z):
-    return z / z.sum()
+    return z.sum(), z / z.sum()
 
 DFDW = 30e3 # MHz / cm-1
 def rescale_frequency(zs,fs,ws):
@@ -183,8 +187,10 @@ def sanitize_experiment(
         linemd['j2'] = j2
         linemd['grapher datasets'] = lined
         linemd['hitran line'] = htline
-        lengths = {}
+        lengths = {}        
         linemd['lengths'] = lengths
+        scales = {}
+        linemd['scales'] = scales
         for mode in MODES:
             path = lined[mode]
             if mode is FC:
@@ -193,7 +199,7 @@ def sanitize_experiment(
                         xoffs, yoffs, iroffs, woffs, \
                             *_ = gc.get_data_np(path)
                 zs = rephase_data(xons-xoffs,yons-yoffs)
-                zs = rescale_data(zs)
+                zscale, zs = rescale_data(zs)
                 ps = pc(phis,irons)
                 omegas = np.zeros(zs.shape)
                 if debug:
@@ -208,8 +214,8 @@ def sanitize_experiment(
                 zs = rephase_data(xs,ys)              
                 fs = rescale_frequency(zs,fs,ws)                
                 fs, zs, sigma = remove_baseline(fs,zs,irs)                
-                omegas, zs, ps = clip_data(fs,zs,irs,pc,sigma,phio)
-                zs = rescale_data(zs)
+                omegas, zs, ps = clip_data(fs,zs,irs,pc,sigma,phio)                
+                zscale, zs = rescale_data(zs)
                 if debug:
                     plt.plot(omegas,zs,'.')                    
                     plt.xlabel('radial frequency (rads / microsec, calibrated)')
@@ -218,6 +224,7 @@ def sanitize_experiment(
                     plt.savefig(os.path.join(imagefolder,'{:03d}-{:d}.png'.format(lineindex,FS)))
                     plt.cla()            
             lengths[mode] = len(zs)
+            scales[mode] = zscale
             np.savetxt(
                 os.path.join(outfolder,modefolderd[mode],'{:03d}.tsv'.format(lineindex)),
                 np.vstack([omegas,ps,zs]).transpose()
