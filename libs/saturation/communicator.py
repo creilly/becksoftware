@@ -26,6 +26,14 @@ def get_parser():
     parser.add_argument(
         'datafolder',
         help='name of folder of sanitized data'
+    )   
+    parser.add_argument(
+        'outfolder',
+        help='name of folder to put output data into'
+    )   
+    parser.add_argument(
+        'timestamp',
+        help='root for filenames of output files'
     )    
     return parser
 
