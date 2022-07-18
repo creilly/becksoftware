@@ -191,9 +191,18 @@ def sanitize_experiment(
         linemd['lengths'] = lengths
         scales = {}
         linemd['scales'] = scales
-        for mode in MODES:
+        for mode in MODES:            
             path = lined[mode]
             if mode is FC:
+                head, tail = os.path.splitext(path)
+                mdpath = '.'.join([head,'bmd'])
+                graphermd = gc.get_metadata(mdpath)
+                signalgain = graphermd['bolometer gain'][0]
+                refd = graphermd['sensitivity']
+                refgain = refd['bolo gain'][0]
+                refamp = refd['measurement']['r'][0]
+                sensfactor = refgain / signalgain / refamp 
+                linemd['sensitivity factor'] = sensfactor
                 phis, \
                     xons, yons, irons, wons, \
                         xoffs, yoffs, iroffs, woffs, \
