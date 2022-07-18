@@ -54,7 +54,7 @@ try:
                 *sorted(
                     zip(
                         {sanitize.FC:powers,sanitize.FS:deltaomegas/(2.*np.pi)}[mode],
-                        measureds,
+                        measureds*computeds.sum(),
                         computeds
                     )
                 )
@@ -76,7 +76,7 @@ try:
                     sanitize.FC:'laser power (watts)'
                 }[mode]
             )
-            plt.ylabel('bolometer signal (normalized)') 
+            plt.ylabel('excitation probability') 
             imagename = '{:03d}-{:d}.png'.format(lineindex,mode)     
             print(imagename,flush=True)
             plt.savefig(

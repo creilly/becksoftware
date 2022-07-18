@@ -380,9 +380,9 @@ def get_outdata():
                 # get freshly computed curve data
                 computed = moded[COMPUTED]
                 # normalize computed data 
-                computed /= computed.sum()
+                normalized = computed / computed.sum()
                 # compute sum squared error, add to running total                
-                sse += ((measured - computed)**2).sum() / len(measured)        
+                sse += ((measured - normalized)**2).sum()
     else:
         sse = None
     # wait for indication of successful send    
