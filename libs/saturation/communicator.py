@@ -28,11 +28,11 @@ def get_parser():
         help='name of folder of sanitized data'
     )   
     parser.add_argument(
-        'outfolder',
+        '-o','--outfolder',
         help='name of folder to put output data into'
     )   
     parser.add_argument(
-        'timestamp',
+        '-t','--timestamp',
         help='root for filenames of output files'
     )    
     return parser
@@ -58,6 +58,16 @@ def get_data_folder(args=None):
     if args is None:
         args = get_args()
     return args.datafolder
+
+def get_output_folder(args=None):
+    if args is None:
+        args = get_args()
+    return args.outfolder
+
+def get_timestamp(args=None):
+    if args is None:
+        args = get_args()
+    return args.timestamp
 
 class Communicator:
     def __init__(self,inpipe_fname,outpipe_fname):        
