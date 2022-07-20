@@ -1,9 +1,9 @@
 import pyvisa as visa
 import ctypes
 
-slope = 0.00008145689 # 82.5e-6 # degrees per step
+slope = 8.13211285167e-5 # measured 2022-07-20 # 0.00008145689 # 82.5e-6 # degrees per step
 
-backlash = 35000 # steps (actually measured < 27000)
+backlash = 13000 # steps (measured 2022-07-20)
 
 MOTOR_NAME = 'lidmotor'
 ADDRESS = 1
