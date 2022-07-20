@@ -1,5 +1,3 @@
-# let there be a install-specific scripts folder
-scripts/
 dlls/
 
 # -*- mode: gitignore; -*-
