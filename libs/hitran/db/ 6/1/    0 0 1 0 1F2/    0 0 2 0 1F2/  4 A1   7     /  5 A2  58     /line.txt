@@ -1,0 +1,2 @@
+wavenumber (cm-1)	einstein coefficient (s-1)
+ 3037.604334	 3.145e+1 
