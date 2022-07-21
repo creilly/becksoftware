@@ -10,27 +10,24 @@ debug = False
 
 # get command line arguments
 # argument list:
-#   1. input filename
-#   2. output filename
-#   3. data folder
-#   4. config file
-parser = communicator.get_parser().parse_args()
+#   -a, --infile        : input filename for inter-process communcation
+#   -b, --outfile       : output filename for ipc
+#   -c, --configfile    : filename of computation and experimental params
+parser = communicator.Parser()
 
-# number of monte carlo samples per quantum state probability calculation (qspc)
-datafolder = parser.datafolder
-configfile = parser.configfile
-
-cp = configparser.ConfigParser()
-with open(configfile,'r') as f:
-    cp.read_file(f)
+# config file storing
+config = parser.get_config()
 
 # computational parameters
-N = cp.getint('computational','N')
+# number of monte carlo samples per quantum state probability calculation (qspc)
+N = config.get_N()
+# folder containing sanitized data and metadata
+datafolder = config.get_datafolder()
 
 # experimental parameters
-beam_diameter = cp.getfloat('experimental','diameter') # meters
-noise_amplitude = cp.getfloat('experimental','vrms') # millivolts rms
-velocity = cp.getfloat('experimental','velocity') # meters per second
+beam_diameter = config.get_diameter() # meters
+noise_amplitude = config.get_vrms() # millivolts rms
+velocity = config.get_velocity() # meters per second
 
 # model parameter computation
 gamma = gamma.get_gamma(noise_amplitude) * 1e-6 # rads / us
@@ -405,10 +402,9 @@ def main():
     # load input data for this core
     init()
     if rank == masterrank:
-        # initialize communication with client process        
-        server = communicator.Server(
-            *communicator.get_pipes()
-        )        
+        # get interprocess communication handles from command line arguments        
+        # initialize communication with client process                
+        server = communicator.Server(parser.get_infile(),parser.get_outfile())
         while True:
             # get next command            
             command = server.get_int()             

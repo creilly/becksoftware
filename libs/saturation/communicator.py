@@ -9,65 +9,93 @@ nfactors = 4
 ndouble = ctypes.sizeof(ctypes.c_double())
 nint = ctypes.sizeof(ctypes.c_int())
 
-def get_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        'infile',
-        help='name of input file'
-    )
-    parser.add_argument(
-        'outfile',
-        help='name of output file'
-    )    
-    parser.add_argument(
-        'configfile',
-        help='name of config file with experimental and computation parameters'
-    )
-    parser.add_argument(
-        'datafolder',
-        help='name of folder of sanitized data'
-    )   
-    parser.add_argument(
-        '-o','--outfolder',
-        help='name of folder to put output data into'
-    )   
-    parser.add_argument(
-        '-t','--timestamp',
-        help='root for filenames of output files'
-    )    
-    return parser
+class Parser:
+    IN, OUT = 0, 1
+    def __init__(self,parser=None):
+        if parser is None:
+            parser = argparse.ArgumentParser()
+        parser.add_argument(
+            '-a','--infile',
+            help='name of input file'
+        )
+        parser.add_argument(
+            '-b','--outfile',
+            help='name of output file'
+        )    
+        parser.add_argument(
+            '-c','--configfile',
+            help='name of config file with experimental and computation parameters'
+        )        
+        parser.add_argument(
+            '-t','--timestamp',
+            help='root for filenames of output files'
+        )
+        self.parser = parser
 
-def get_args():
-    parser = get_parser()
-    return parser.parse_args()
+    def get_arg(self,key):
+        return getattr(self.parser.parse_args(),key)
 
-def get_pipes(args=None):
-    if args is None:
-        args = get_args()
-    return args.infile, args.outfile    
+    def get_config(self):        
+        return get_config(self.get_arg('configfile'))        
 
-def get_config(args=None):
-    if args is None:
-        args = get_args()
-    with open(args.configfile,'r') as f:
+    def get_infile(self):
+        return self.get_file(self.IN)
+    def get_outfile(self):
+        return self.get_file(self.OUT)
+    def get_file(self,dir):
+        return self.get_arg({self.IN:'infile',self.OUT:'outfile'}[dir])
+
+    def get_timestamp(self):
+        return self.get_arg('timestamp')
+
+def get_config(config_fname):
+    with open(config_fname,'r') as f:
         cp = configparser.ConfigParser()
         cp.read_file(f)
-    return cp
+    return Config(cp)
 
-def get_data_folder(args=None):
-    if args is None:
-        args = get_args()
-    return args.datafolder
+class Config:
+    COMP = 'computational'
+    EXP = 'experimental'
+    def __init__(self,cp):
+        self.cp = cp
 
-def get_output_folder(args=None):
-    if args is None:
-        args = get_args()
-    return args.outfolder
+    def get_value(self,section,key,type=None):
+        rawvalue = self.cp.get(section,key)
+        return rawvalue if type is None else type(rawvalue)
 
-def get_timestamp(args=None):
-    if args is None:
-        args = get_args()
-    return args.timestamp
+    def get_comp(self,key,type=None):
+        return self.get_value(self.COMP,key,type)
+
+    def get_exp(self,key,type=None):
+        return self.get_value(self.EXP,key,type)
+
+    def get_datafolder(self):
+        return self.get_comp('datafolder')
+
+    def get_factors(self):
+        return [float(f) for f in self.get_comp('factors').split(',')]
+
+    def get_outputfolder(self):
+        return self.get_comp('outputfolder')
+
+    def get_N(self):
+        return self.get_comp('N',int)
+
+    def get_step_size(self):
+        return self.get_comp('step size',float)
+
+    def get_max_iters(self):
+        return self.get_comp('M',int)
+
+    def get_velocity(self):
+        return self.get_exp('velocity',float)
+
+    def get_diameter(self):
+        return self.get_exp('diameter',float)
+
+    def get_vrms(self):
+        return self.get_exp('vrms',float)
 
 class Communicator:
     def __init__(self,inpipe_fname,outpipe_fname):        
