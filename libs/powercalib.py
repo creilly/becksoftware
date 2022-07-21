@@ -1,8 +1,7 @@
 from scipy.optimize import curve_fit
 from grapher import graphclient as gc
 import numpy as np
-
-mirrorloss = 0.1
+from matplotlib import pyplot as plt
 
 def hwpfit(phi,phimax,phimin,pmax,pmin):
     amplitude = 1/2 * (pmax - pmin)
@@ -11,9 +10,14 @@ def hwpfit(phi,phimax,phimin,pmax,pmin):
         2 * np.pi * (phi - phimax) / (2 * (phimax-phimin))
     )
 
-def get_power_calib(path,phimin,phimax):    
+def get_even_powers(nphis,phimax,phimin):
+    return phimax + (phimin-phimax) / np.pi * np.arccos(
+        np.linspace(1,-1,nphis)
+    )
+
+def get_fit_params(path,phimin,phimax):
     phis, powers, irpds = gc.get_data_np(path)
-    powers *= (1-mirrorloss)
+
     irpdo = np.average(irpds)
 
     fitphis, fitpowers = map(
@@ -33,17 +37,57 @@ def get_power_calib(path,phimin,phimax):
 
     guess = (phimaxo,phimino,pmaxo,pmino)
 
-    ps, covs = curve_fit(hwpfit,fitphis,fitpowers,guess)
+    ps, cov = curve_fit(hwpfit,fitphis,fitpowers,guess)
 
+    return irpdo, (ps,cov)
+
+def get_power_calib(irpdo,params):
     def power(phi,irpd):
-        return irpd / irpdo * hwpfit(phi,*ps)
-
+        return irpd / irpdo * hwpfit(phi,*params)
     return power
 
-if __name__ == '__main__':
-    from grapher import graphclient as gc
-    from matplotlib import pyplot as plt
+def run_demo(path,phimin,phimax,nphis):
+    irpdo, (params,cov) = get_fit_params(path,phimin,phimax)
+    pcalib = get_power_calib(irpdo,params)    
+    phis, powers, irpds = gc.get_data_np(path)
+    plt.plot(phis,powers,'.',label='data')
+    plt.plot(phis,pcalib(phis,irpdo),label='fit')
+    phimax, phimin, pmax, pmin = params
+    phips = get_even_powers(nphis,phimax,phimin)
+    first = True
+    powerprev = None
+    deltapowers = []
+    for phi in phips:
+        power = pcalib(phi,irpdo)
+        plt.plot(
+            [0,phi],
+            [power]*2,
+            color='black',
+            **(
+                {
+                    'label':'fc points'
+                } if first else {}
+            )   
+        )
+        if powerprev is not None:
+            deltapowers.append(power-powerprev)
+        powerprev = power
+        first = False
+        plt.plot([phi]*2,[pcalib(phi,irpdo),0],color='black')    
+    plt.xlabel('hwp angle (degrees)')
+    plt.ylabel('power (watts)')
+    plt.title(
+        'power calibration - {}'.format(
+            r'${} = {} \times 10^{{{}}}$ watts'.format(
+                r'\sigma_{\Delta P}',
+                *'{:.2e}'.format(np.std(deltapowers)).split('e')
+            )
+        )
+    )
+    plt.legend()
+    plt.show()
 
+if __name__ == '__main__':    
     folder = ['2022','05','25']
     ds = 1
 
@@ -52,16 +96,6 @@ if __name__ == '__main__':
 
     path = folder + [gc.get_dir(folder)[0][ds]]
 
-    phis, ps, irpds = gc.get_data_np(path)
+    nphis = 10
 
-    plt.plot(phis,(1-mirrorloss)*ps,'.',label='data')
-
-    power = get_power_calib(path,phimin,phimax)
-
-    plt.plot(phis,power(phis,np.average(irpds)),label='fit')
-
-    plt.legend()
-    plt.xlabel('hwp angle (degs)')
-    plt.ylabel('transmission-corrected power (watts)')
-    plt.title('power calibration')
-    plt.show()
+    run_demo(path,phimin,phimax,nphis)

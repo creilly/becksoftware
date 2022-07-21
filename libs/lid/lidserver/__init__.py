@@ -4,29 +4,35 @@ import lidmotor
 class LidApp(bhs.BeckApp):
     def __init__(self,lidmotor_handle: lidmotor.LidMotor,phi_o):        
         self.lmh = lidmotor_handle
-        self.lp = lidmotor.LidPositioner(self.lmh,phi_o)        
+        self.lp = lidmotor.LidPositioner(self.lmh,phi_o)
+        self.backlash = self.lp.get_backlash()
+        self.backlash_buffer = 0.50
         self.backlashing = False
-        self.phi_p = None
+        self.backlashing_phis = []        
 
     @bhs.command('calibrate-lid')
     def calibrate_lid(self,phi_o):
         self.lp.calibrate_angle(phi_o)
 
     @bhs.command('set-lid')
-    def set_lid(self,phi):                
+    def set_lid(self,phi):           
         if self.backlashing:
-            raise bhs.BeckError('set lid command forbidden during backlash correction!')
+            raise bhs.BeckError('set lid command forbidden during backlash correction!')        
         if self._get_moving():
-            raise bhs.BeckError('set lid command forbidden while lid is moving!')        
-        dphi = phi - self.lp.get_angle()        
-        if dphi < 0:
+            raise bhs.BeckError('set lid command forbidden while lid is moving!') 
+        phio = self.lp.get_angle()
+        dphi = phi - phio
+        if dphi < 0:            
             print('negative move requested, backlash compensating...')       
-            phi_next = phi                 
-            phi = phi-self.lp.get_backlash()
-        self.lp.set_angle(phi,wait=False)
-        if dphi < 0:
             self.backlashing = True
-            self.phi_p = phi_next            
+            self.backlashing_phis = [
+                phio-self.backlash,
+                phi-self.backlash*(1+self.backlash_buffer),
+                phi-self.backlash*self.backlash_buffer,
+                phi
+            ]            
+            phi = self.backlashing_phis.pop(0)
+        self.lp.set_angle(phi,wait=False)
 
     @bhs.command('get-lid')
     def get_lid(self):        
@@ -61,7 +67,9 @@ class LidApp(bhs.BeckApp):
 
     def loop(self):        
         if self.backlashing:
-            if self.lmh.position_reached():                
-                self.backlashing = False
-                self.set_lid(self.phi_p)
-                self.phi_p = None
+            if self.lmh.position_reached():   
+                if self.backlashing_phis:
+                    phi = self.backlashing_phis.pop(0)
+                    self.lp.set_angle(phi,wait=False)                    
+                else:
+                    self.backlashing = False
