@@ -1,24 +1,17 @@
 from scipy.optimize import minimize
 from saturation import communicator
 
-parser = communicator.get_parser()
+parser = communicator.Parser()
+config = parser.get_config()
 
-parser.add_argument('-f','--factors',nargs=4,type=float)
-
-args = parser.parse_args()
-
-xo = args.factors
-
-client = communicator.Client(*communicator.get_pipes(args))
-
-cp = communicator.get_config(args)
-
-step_size = cp.getfloat('computational','step size')
-M = cp.getint('computational','M')
+xo = config.get_factors()
+step_size = config.get_step_size()
+M = config.get_max_iters()
 
 def sse(factors):
     return client.get_sse(factors)
 
+client = communicator.Client(parser.get_infile(),parser.get_outfile())
 res = minimize(
     sse,
     xo,
@@ -30,5 +23,4 @@ res = minimize(
     }
 )    
 print(res)
-
 client.quit()

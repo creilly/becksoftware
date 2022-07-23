@@ -6,85 +6,86 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 imagefoldertail = 'images'
-mdfname = 'metadata.json'
+popfname = 'pops.json'
 
-parser = communicator.get_parser()
-
-parser.add_argument('-f','--factors',nargs=4,type=float)
-
-args = parser.parse_args()
+parser = communicator.Parser()
+config = parser.get_config()
 
 imagefolder = os.path.join(
-    communicator.get_output_folder(args),
-    '{}-{}'.format(communicator.get_timestamp(args),imagefoldertail)
+    config.get_outputfolder(),
+    parser.get_timestamp(),
+    imagefoldertail
 )
 
-factors = args.factors
+factors = config.get_factors()
 
-client = communicator.Client(*communicator.get_pipes(args))
+client = communicator.Client(parser.get_infile(),parser.get_outfile())
 
 datad = client.get_data(factors)
 
-try:
-    config = communicator.get_config(args)
-    configmd = {s:dict(config.items(s)) for s in config.sections()}
-    datafolder = communicator.get_data_folder(args)
-    md = {
-        'factors':{
-            key:value for key, value in zip(
-                ('power','gamma','sigmaomega','tau'),
-                factors
-            )
-        },
-        'datafolder':datafolder
-    }
+client.quit()
 
-    md.update(configmd)
+popsd = {}
 
-    if not os.path.exists(imagefolder):
-        os.makedirs(imagefolder)
+datafolder = config.get_datafolder()
+datamd = sanitize.load_metadata(datafolder)
 
-    with open(os.path.join(imagefolder,mdfname),'w') as f:
-        json.dump(md,f,indent=2)
+if not os.path.exists(imagefolder):
+    os.makedirs(imagefolder)
 
-    for lineindex, lined in datad.items():
-        for mode, computeds in lined.items():
-            deltaomegas, powers, measureds = sanitize.load_data(lineindex,mode,datafolder).transpose()
-            xs, yms, ycs = zip(
+for lineindex, lined in datad.items():
+    for mode, computeds in lined.items():
+        deltaomegas, powers, measureds = sanitize.load_data(lineindex,mode,datafolder).transpose()
+        xs, yms, ycs = map(
+            np.array,
+            zip(
                 *sorted(
                     zip(
                         {sanitize.FC:powers,sanitize.FS:deltaomegas/(2.*np.pi)}[mode],
-                        measureds*computeds.sum(),
+                        measureds*sum(computeds),
                         computeds
                     )
                 )
-            )          
-            plt.plot(xs,yms,'.')
-            plt.plot(xs,ycs)
-            plt.title(
-                'line {:d} {}'.format(
-                    lineindex,{
-                        sanitize.FC:'fluence curve',
-                        sanitize.FS:'frequency scan'
-                    }[mode]
-                )
-                
             )
-            plt.xlabel(
-                {
-                    sanitize.FS:'frequency offset (megahertz)',
-                    sanitize.FC:'laser power (watts)'
+        )
+        if mode == sanitize.FC:     
+            linemd = datamd[lineindex]           
+            maxindex = xs.argmax()
+            maxprob = ycs[maxindex]
+            maxamp = yms[maxindex]
+            maxratio = maxamp * linemd['scales'][str(sanitize.FC)] * linemd['sensitivity factor']
+            pop = maxratio / maxprob
+            popsd[lineindex] = pop
+        plt.plot(xs,yms,'.')
+        plt.plot(xs,ycs)
+        plt.title(
+            'line {:d} {}'.format(
+                lineindex,{
+                    sanitize.FC:'fluence curve',
+                    sanitize.FS:'frequency scan'
                 }[mode]
             )
-            plt.ylabel('excitation probability') 
-            imagename = '{:03d}-{:d}.png'.format(lineindex,mode)     
-            print(imagename,flush=True)
-            plt.savefig(
-                os.path.join(
-                    imagefolder,
-                    imagename
-                )
+            
+        )
+        plt.xlabel(
+            {
+                sanitize.FS:'frequency offset (megahertz)',
+                sanitize.FC:'laser power (watts)'
+            }[mode]
+        )
+        plt.ylabel('excitation probability') 
+        imagename = '{:03d}-{:d}.png'.format(lineindex,mode)     
+        print(imagename,flush=True)
+        plt.savefig(
+            os.path.join(
+                imagefolder,
+                imagename
             )
-            plt.cla()
-finally:
-    client.quit()
+        )
+        plt.cla()
+with open(os.path.join(imagefolder,popfname),'w') as f:    
+    json.dump(
+        [ popsd[key] for key in sorted(popsd.keys()) ],
+        f, indent=2
+    )
+    
