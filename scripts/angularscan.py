@@ -10,7 +10,7 @@ import interrupthandler
 import maxon
 import datetime
 
-def_bolo_sens = 200.0e-3
+def_bolo_sens = 10.0e-3
 
 ap = argparse.ArgumentParser()
 ap.add_argument('-s','--bolosens',type=float,default=def_bolo_sens,help='bolometer sensitivity')
@@ -28,7 +28,7 @@ with lockin.LockinHandler() as lih:
 
 centerangle = float(input('enter the center lid angle: '))
 
-bologain = bologainserver.X10
+bologain = bologainserver.X200
 
 theta_lim = 48.0
 
@@ -36,16 +36,18 @@ delta_theta = 4.0
 theta_spec = centerangle
 theta_min = max(theta_lim,theta_spec-delta_theta)
 theta_max = theta_spec+delta_theta
-    
-dtheta = 0.5
+theta_min = 51
+theta_max = 105
+
+dtheta = 2
 
 thetas = np.arange(theta_min,theta_max + dtheta/2,dtheta)
 
 wait_time = 1.0
 
-measure_time = 1.0
+measure_time = 2.5
 maxon_open = 0
-f_chop = 280 #Hz
+f_chop = 237 #Hz
 
 folder = gc.get_day_folder() + ['lidscan']
 
