@@ -23,13 +23,7 @@ modenamed = {
     FS:'frequency scans'
 }
 
-DPHI = 0.01 # radians
-def rephase_data(x,y):
-    phi = fit.auto_phase(x,y,DPHI)
-    z = fit.rephase(x,y,phi)
-    if max(np.abs(z)) > max(z):
-        z *= -1
-    return z
+DTHETA = 0.01 # radians
 
 # takes in an array z and returns a pair (zscale, zp)
 # where zscale is a scalar and 
@@ -135,6 +129,7 @@ def_imagefolder = 'images'
 def sanitize_experiment(
     pcpath,phimin,phimax,phio,
     lines,outfolder=def_outfolder,imagefolder=def_imagefolder,
+    autophase = True,
     _debug = None
 ):
     if not os.path.exists(outfolder):
@@ -150,7 +145,8 @@ def sanitize_experiment(
         debug = _debug
         if not os.path.exists(imagefolder):
             os.mkdir(imagefolder)
-    pc = powercalib.get_power_calib(pcpath,phimin,phimax)    
+    irpdo, (params,cov) = powercalib.get_fit_params(pcpath,phimin,phimax)
+    pc = powercalib.get_power_calib(irpdo,params)
     for lineindex, (htline, lined) in enumerate(lines.items()):        
         linemd = {}
         metadata.append(linemd)
@@ -194,8 +190,10 @@ def sanitize_experiment(
         for mode in MODES:            
             path = lined[mode]
             if mode is FC:
-                head, tail = os.path.splitext(path)
-                mdpath = '.'.join([head,'bmd'])
+                *folder, dsname = path
+                dshead, dstail = os.path.splitext(dsname)
+                mdname = '.'.join([dshead,'bmd'])
+                mdpath = folder + [mdname]
                 graphermd = gc.get_metadata(mdpath)
                 signalgain = graphermd['bolometer gain'][0]
                 refd = graphermd['sensitivity']
@@ -207,7 +205,16 @@ def sanitize_experiment(
                     xons, yons, irons, wons, \
                         xoffs, yoffs, iroffs, woffs, \
                             *_ = gc.get_data_np(path)
-                zs = rephase_data(xons-xoffs,yons-yoffs)
+                if autophase:
+                    xdiffs = xons-xoffs
+                    ydiffs = yons-yoffs
+                    theta = fit.auto_phase(xdiffs,ydiffs,DTHETA)                    
+                    zs = fit.rephase(xdiffs,ydiffs,theta)
+                    if zs.sum() < 0:
+                        zs *= -1
+                        theta += (+1 if theta < np.pi else -1) * np.pi
+                else:
+                    zs = xons - xoffs
                 zscale, zs = rescale_data(zs)
                 ps = pc(phis,irons)
                 omegas = np.zeros(zs.shape)
@@ -220,7 +227,10 @@ def sanitize_experiment(
                     plt.cla()
             if mode is FS:
                 fs, xs, ys, irs, ws = gc.get_data_np(path)                
-                zs = rephase_data(xs,ys)              
+                if autophase:
+                    zs = fit.rephase(xs,ys,theta)
+                else:
+                    zs = xs
                 fs = rescale_frequency(zs,fs,ws)                
                 fs, zs, sigma = remove_baseline(fs,zs,irs)                
                 omegas, zs, ps = clip_data(fs,zs,irs,pc,sigma,phio)                
