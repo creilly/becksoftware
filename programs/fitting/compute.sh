@@ -22,7 +22,7 @@ instancefolder="${outputfolder}/${ts}"
 mkdir -p "${instancefolder}"
 
 # generate
-function get_outputfname() {
+function get_outputfname {
     echo "${instancefolder}/${1}"
 }
 
@@ -37,17 +37,29 @@ touch "${clientcommandlog}"
 echo "${clientcommand}" > "${clientcommandlog}"
 
 # make named pipes for interprocess communication
-p1=/home/reilly/tmp/pipes/pipe1
-p2=/home/reilly/tmp/pipes/pipe2
+piperoot=/home/reilly/tmp/pipes/pipe
+pipeindex=1
 
-for pipe in $p1 $p2
-do
-    if [ -e $pipe ]
+function get_pipe {
+    if [ -z $1 ]
     then
-        rm $pipe
+        local pipeindex=1
+    else
+        local pipeindex=$1
+    fi    
+    pipename="${piperoot}$(printf %03d $pipeindex)"    
+    if [ -e $pipename ]
+    then        
+        pipeindex=$((pipeindex + 1))
+        get_pipe $pipeindex
+    else
+        mkfifo $pipename
+        echo $pipename
     fi
-    mkfifo $pipe
-done
+}
+
+p1=$(get_pipe)
+p2=$(get_pipe)
 
 module purge
 module load intel intel-mkl intel-mpi python
