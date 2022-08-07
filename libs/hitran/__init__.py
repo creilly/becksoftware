@@ -50,7 +50,7 @@ def format_line(mol,iso,glq,guq,llq,luq):
 NBS = chr(0xA0)
 def parse_line(rawline):    
     return {
-        key:rawline[offset:offset+width] for key, (offset, width) in fields.items()
+        key:replace_whitespace(rawline[offset:offset+width]) for key, (offset, width) in fields.items()
     }
 def replace_whitespace(s):
     return s.replace(' ',NBS)
@@ -76,7 +76,7 @@ headers = {
 entries = (W,A,WB)
 def add_entry(lined):
     *folders, wdb, a, wbeck = list(zip(*sorted(lined.items())))[1]    
-    folder = os.path.join(os.path.dirname(__file__),froot,*folders)   
+    folder = os.path.join(os.path.dirname(__file__),froot,*folders)
     if not os.path.exists(folder):        
         os.makedirs(folder)    
     path = os.path.join(folder,fname)
