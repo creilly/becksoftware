@@ -29,7 +29,13 @@ with open(outfile,'w') as f:
     while True:
         htline, po, eo, mo = lines.pop(0)        
         print('next line->',hitran.fmt_line(htline))
-        wp, pmax, ep, mp = ls.set_line(htline,dw,em=(eo,mo))
+        if eo < 0 or mo < 0:
+            # this indicates that we should use initial 
+            # eo and mo recommended by topotools
+            emo = None
+        else:
+            emo = (eo, mo)
+        wp, pmax, ep, mp = ls.set_line(htline,dw,em=emo)
         pp = ic.get_piezo()
         f.write(emfile.fmt_em_line(htline,pp,ep,mp))
         f.flush()

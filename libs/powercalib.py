@@ -15,6 +15,14 @@ def get_even_powers(nphis,phimax,phimin):
         np.linspace(1,-1,nphis)
     )
 
+def get_preview(path):
+    phis, powers, irpds = gc.get_data_np(path)
+    plt.plot(phis,powers,'.',color='black')
+    plt.xlabel('half wave plate angle (degs)')
+    plt.ylabel('power meter signal (watts)')
+    plt.title('power calib curve preview')
+    plt.show()
+
 def get_fit_params(path,phimin,phimax):
     phis, powers, irpds = gc.get_data_np(path)
 
