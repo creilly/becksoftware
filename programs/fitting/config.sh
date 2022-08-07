@@ -1,14 +1,13 @@
+#!/bin/bash
+
 source ini-file-parser.sh
 
-process_ini_file config.ini
+configfile=$1
 
-cmp="computational"
-exp=experimental
+process_ini_file $configfile
+
+cmp=computational
 
 function get_cmp() {
     echo $(get_value $cmp "${1}")
 }
-
-echo $(get_value $cmp 'cores')
-
-echo $(get_cmp velocity)
