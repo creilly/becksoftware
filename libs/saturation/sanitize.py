@@ -215,9 +215,13 @@ def sanitize_experiment(
                     if zs.sum() < 0:
                         zs *= -1
                         theta += (+1 if theta < np.pi else -1) * np.pi
-                    print('phase:',np.rad2deg(theta))
+                    thetadegs = np.rad2deg(theta)
+                    print('phase:',thetadegs)
+                    
                 else:
                     zs = xons - xoffs
+                    thetadegs = 0.0
+                linemd['software phase'] = (thetadegs,'degrees')
                 zscale, zs = rescale_data(zs)
                 ps = pc(phis,irons)
                 omegas = np.zeros(zs.shape)
