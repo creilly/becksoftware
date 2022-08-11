@@ -16,8 +16,7 @@ damping = 2.0
 deltawmax = 0.05 # cm-1
 epsilonw = 0.005 # cm-1
 
-def locktc(htline,dw,em=None,ih=None):
-    wtarget = hitran.lookup_line(htline)[hitran.WNUMBECK] + dw
+def disable_lock():
     tcc.set_locking(False)
     tcc.set_setpoint(0.0)
     for channel in (tcs.HENE,tcs.IR):
@@ -25,7 +24,11 @@ def locktc(htline,dw,em=None,ih=None):
     tcc.set_scanning(False)
     with ll.LaseLockHandler() as llh:        
         ll.set_reg_on_off(llh,ll.A,False)
-    wp, pmax, e, m = ls.set_line(htline,dw,em=em,ih=None)
+
+def locktc(htline,dw,em=None,ih=None):
+    wtarget = hitran.lookup_line(htline)[hitran.WNUMBECK] + dw
+    disable_lock()
+    wp, pmax, e, m = ls.set_line(htline,dw,em=em,ih=ih)
     tcc.set_scanning(True)
     tl.lock_topo()
     for channel in (tcs.HENE,tcs.IR):
@@ -60,7 +63,7 @@ def locktc(htline,dw,em=None,ih=None):
     return True, (e, m, fp, wp)
 
 def unlocktc():
-    pass
+    disable_lock()
 
 if __name__ == '__main__':
     import linescan as ls
