@@ -22,27 +22,27 @@ def ls(folders):
     path = format_path(folders)
     return os.listdir(path)
 
-MOL, ISO, GLQ, GUQ, LLQ, ULQ, W, A, WB = 0, 1, 2, 3, 4, 5, 6, 7, 8
+MOL, ISO, LGQ, UGQ, LLQ, ULQ, W, A, WB = 0, 1, 2, 3, 4, 5, 6, 7, 8
 fields = {
     MOL:(0,2),
     ISO:(2,1),
-    GLQ:(82,15),
-    GUQ:(67,15),
+    LGQ:(82,15),
+    UGQ:(67,15),
     LLQ:(112,15),
     ULQ:(97,15),
     W:(3,12),
     A:(25,10)
 }
-def format_line(mol,iso,glq,guq,llq,luq):
+def format_line(mol,iso,lgq,ugq,llq,ulq):
     return [
         formatters[key](field) for key, field in sorted(
             {
                 MOL:mol,
                 ISO:iso,
-                GLQ:glq,
-                GUQ:guq,
+                LGQ:lgq,
+                UGQ:ugq,
                 LLQ:llq,
-                ULQ:luq
+                ULQ:ulq
             }.items()
         )
     ]
@@ -50,7 +50,7 @@ def format_line(mol,iso,glq,guq,llq,luq):
 NBS = chr(0xA0)
 def parse_line(rawline):    
     return {
-        key:rawline[offset:offset+width] for key, (offset, width) in fields.items()
+        key:replace_whitespace(rawline[offset:offset+width]) for key, (offset, width) in fields.items()
     }
 def replace_whitespace(s):
     return s.replace(' ',NBS)
@@ -74,11 +74,17 @@ headers = {
     W:'wavenumber (cm-1)',A:'einstein coefficient (s-1)',WB:'measured wavenumber (cm-1)'
 }
 entries = (W,A,WB)
-def add_entry(lined):
+def add_entry(lined, overwrite = False):
     *folders, wdb, a, wbeck = list(zip(*sorted(lined.items())))[1]    
-    folder = os.path.join(os.path.dirname(__file__),froot,*folders)   
+    folder = os.path.join(os.path.dirname(__file__),froot,*folders)    
     if not os.path.exists(folder):        
-        os.makedirs(folder)    
+        os.makedirs(folder)
+    elif not overwrite:
+        raise Exception(
+            'can not overwrite entry {}!'.format(
+                fmt_line(folders)
+            )
+        )    
     path = os.path.join(folder,fname)
     filetxt = '\n'.join(
         [
@@ -127,11 +133,25 @@ def format_lq(lq):
 formatters = {
     MOL:format_mol,
     ISO:format_iso,
-    GLQ:format_gq,
-    GUQ:format_gq,
+    LGQ:format_gq,
+    UGQ:format_gq,
     LLQ:format_lq,
     ULQ:format_lq
 }
+
+def parse_gq(raw_gq):    
+    raw_gq = raw_gq[gq_lmargin:]
+    nmodes = 4
+    nmode = 0
+    quanta = []
+    while nmode < nmodes:
+        raw_quanta, raw_gq = raw_gq[:gq_int_width], raw_gq[gq_int_width:]
+        quanta.append(int(raw_quanta))
+        nmode += 1
+    raw_level, raw_gq = raw_gq[:gq_int_width], raw_gq[gq_int_width:]
+    level = int(raw_level)
+    sym = raw_gq[:sym_width].strip()
+    return quanta, sym, level
 
 def parse_lq(raw_lq):
     # need to modify to compensate for 
@@ -167,7 +187,7 @@ def search_db(mol,iso,glq,guq,b,j,oldsym=None,ll=None,ul=None):
     folders = [
         formatters[key](field) for key, field in sorted(
             {
-                MOL:mol,ISO:iso,GLQ:glq,GUQ:guq
+                MOL:mol,ISO:iso,LGQ:glq,UGQ:guq
             }.items()
         )
     ]    
