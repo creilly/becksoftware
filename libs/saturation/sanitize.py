@@ -33,15 +33,17 @@ def rescale_data(z):
     return z.sum(), z / z.sum()
 
 DFDW = 30e3 # MHz / cm-1
-def rescale_frequency(zs,fs,ws):
+def rescale_frequency(zs,fs,ws,freqcalib):
     max_index = zs.argmax()
     fmax = fs[max_index]
-    wmax = ws[max_index]
     fs -= fmax
-    ws -= wmax
-    ws *= DFDW # MHz
-    slope, intercept = np.polyfit(fs,ws,1)
-    fs *= slope
+    if freqcalib:
+        wmax = ws[max_index]        
+        ws -= wmax
+        ws *= DFDW # MHz
+        slope, intercept = np.polyfit(fs,ws,1)
+        print('slope:',slope)
+        fs *= slope
     return fs
 
 N_BASELINE = 10
@@ -129,7 +131,7 @@ def_imagefolder = 'images'
 def sanitize_experiment(
     pcpath,phimin,phimax,phio,
     lines,outfolder=def_outfolder,imagefolder=def_imagefolder,
-    autophase = True,
+    autophase = True,freqcalib = False,
     _debug = None
 ):
     if not os.path.exists(outfolder):
@@ -213,6 +215,7 @@ def sanitize_experiment(
                     if zs.sum() < 0:
                         zs *= -1
                         theta += (+1 if theta < np.pi else -1) * np.pi
+                    print('phase:',np.rad2deg(theta))
                 else:
                     zs = xons - xoffs
                 zscale, zs = rescale_data(zs)
@@ -230,8 +233,8 @@ def sanitize_experiment(
                 if autophase:
                     zs = fit.rephase(xs,ys,theta)
                 else:
-                    zs = xs
-                fs = rescale_frequency(zs,fs,ws)                
+                    zs = xs                
+                fs = rescale_frequency(zs,fs,ws,freqcalib)
                 fs, zs, sigma = remove_baseline(fs,zs,irs)                
                 omegas, zs, ps = clip_data(fs,zs,irs,pc,sigma,phio)                
                 zscale, zs = rescale_data(zs)
