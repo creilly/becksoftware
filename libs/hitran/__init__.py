@@ -76,7 +76,7 @@ headers = {
 entries = (W,A,WB)
 def add_entry(lined, overwrite = False):
     *folders, wdb, a, wbeck = list(zip(*sorted(lined.items())))[1]    
-    folder = os.path.join(os.path.dirname(__file__),froot,*folders)    
+    folder = os.path.join(os.path.dirname(__file__),froot,*folders)   
     if not os.path.exists(folder):        
         os.makedirs(folder)
     elif not overwrite:

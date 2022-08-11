@@ -77,30 +77,49 @@ if __name__ == '__main__':
     M = 100000
     from matplotlib import pyplot as plt
     from time import time
-    n_samples = get_deltaomegas_normal(0,1,M)
-    sigma_n = np.std(n_samples)
-    print('normal stddev:',sigma_n)
-    plt.hist(
-        n_samples,
-        color=(0.0,0.0,1.0,0.5),
-        bins=50,
-        label = 'normal'
-    )
-    g_samples = get_deltaomegas_geometric(0,1,M)
+    from saturation import doppler
+    # n_samples = get_deltaomegas_normal(0,1,M)
+    # sigma_n = np.std(n_samples)
+    # print('normal stddev:',sigma_n)
+    # plt.hist(
+    #     n_samples,
+    #     color=(0.0,0.0,1.0,0.5),
+    #     bins=50,
+    #     label = 'normal'
+    # )
+    v = 1.0e3 # m / s
+    g_samples = get_deltaomegas_geometric(0,doppler.get_deltaomega(v),M)
     
-    sigma_g = np.std(g_samples)
-    print('geometric stddev:',sigma_g)
-    print('factor:',1/sigma_g)
+    # sigma_g = np.std(g_samples)
+    # print('geometric stddev:',sigma_g)
+    # print('factor:',1/sigma_g)
+    # plt.hist(
+    #     g_samples,
+    #     color=(0.0,1.0,0.0,0.5),
+    #     bins=50,
+    #     label = 'geometric'
+    # )
     plt.hist(
-        g_samples,
-        color=(0.0,1.0,0.0,0.5),
-        bins=50,
-        label = 'geometric'
+        1e-6 * g_samples / (2. * np.pi),
+        edgecolor='black',
+        color='white',
+        bins=50        
     )
-    plt.legend()
+    # plt.legend()
+    plt.xlabel('doppler shift (MHz)')
+    plt.ylabel('probability (unnormalized)')
+    plt.title(
+        '\n'.join(
+            [
+                'doppler shift distribution - geometric model',
+                'velocity : {:d} meters per second'.format(int(round(v)))
+            ]
+        )
+        
+    )
     plt.show()
-    N = 1000
-    start = time()
-    get_exc_prob(1.0,1.0,1.0,1.0,N)
-    stop = time()
-    print('delta t for {:d} calculations:'.format(N),stop-start)
+    # N = 1000
+    # start = time()
+    # get_exc_prob(1.0,1.0,1.0,1.0,N)
+    # stop = time()
+    # print('delta t for {:d} calculations:'.format(N),stop-start)
