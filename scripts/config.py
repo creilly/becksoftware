@@ -65,24 +65,32 @@ def get_wavesource_params():
         'wavesource impedance':ws_load
     }
 
-def get_lockin_params():
-    with lockin.LockinHandler() as lia:
+def get_lockin_params(lia=None):
+    try:
+        if lia is None:
+            lia = lockin.load_lockin()
+            close = True
+        else:
+            close = False
         lockin_frequency = lockin.get_frequency(lia)
         lockin_phase = lockin.get_phase(lia)
         lockin_amplitude = lockin.get_mod_amp(lia)
         lockin_time_constant = lockin.get_time_constant(lia)
         lockin_sensitivity = lockin.get_sensitivity(lia)
-    return {
-        'mod frequency':(lockin_frequency,'hertz'),
-        'phase':(lockin_phase,'degrees'),
-        'mod amplitude':(lockin_amplitude,'volts'),
-        'sensitivity':(lockin_sensitivity,'volts'),
-        'time constant':(lockin_time_constant,'seconds')
-    }
+        return {
+            'mod frequency':(lockin_frequency,'hertz'),
+            'phase':(lockin_phase,'degrees'),
+            'mod amplitude':(lockin_amplitude,'volts'),
+            'sensitivity':(lockin_sensitivity,'volts'),
+            'time constant':(lockin_time_constant,'seconds')
+        }
+    finally:
+        if close:
+            lockin.close_lockin(lia)
 
-def get_config(folder='.'):
+def get_config(fname='config.ini'):
     cp = configparser.ConfigParser(allow_no_value=True)
-    cp.read(os.path.join(folder,'config.ini'))
+    cp.read(fname)
     return cp
 
 def get_config_parameter(

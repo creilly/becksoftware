@@ -1,2 +1,2 @@
 wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
-3113.380273	29.31	3113.380273
+ 3113.380273	 2.931E+01	 3113.380273

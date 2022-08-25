@@ -65,8 +65,8 @@ USER = 2
 
 INITIALIZED = 0
 
-PHI_MIN = 46 # 49
-PHI_MAX = 54 # 80
+PHI_MIN = 48
+PHI_MAX = 60
 
 ANGLE_LOW, ANGLE_OK, ANGLE_HIGH = 0, 1, 2
 class InvalidAngleError(Exception):
