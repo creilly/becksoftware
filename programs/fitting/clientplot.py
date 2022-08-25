@@ -34,6 +34,10 @@ if not os.path.exists(imagefolder):
     os.makedirs(imagefolder)
 
 for lineindex, lined in datad.items():
+    print('*'*20)
+    print('line index: {:d}'.format(lineindex))
+    print('*'*20)
+    print('')
     for mode, computeds in lined.items():
         deltaomegas, powers, measureds = sanitize.load_data(lineindex,mode,datafolder).transpose()
         xs, yms, ycs = map(
@@ -42,21 +46,49 @@ for lineindex, lined in datad.items():
                 *sorted(
                     zip(
                         {sanitize.FC:powers,sanitize.FS:deltaomegas/(2.*np.pi)}[mode],
-                        measureds*sum(computeds),
+                        measureds,
                         computeds
                     )
                 )
             )
+        )        
+        # get line entry from sanitization output  
+        linemd = datamd[lineindex]           
+        # get data point of max excitation probability
+        maxindex = ycs.argmax()
+        # get computed excitation probability for tagging conditions of point of max amplitude
+        maxprob = ycs[maxindex]
+        # get normalized bolometer signal for point of max amplitude
+        maxnormamp = yms[maxindex]
+        # scale by normalizing factor to recover original measured bolometer signal
+        maxamp = maxnormamp * linemd['scales'][str(mode)]
+        # 1. divide tagging signal by tagging bolometer gain
+        # 2. divide by measured chopping reference signal
+        # 3. multiply by chopping reference bolometer gain
+        maxratio = maxamp * linemd['sensitivity factor']
+        # divide by excitation probability to get level population proxy
+        pop = maxratio / maxprob
+        # print sequence to log
+        print(
+            'm:',mode,'\t','i:',maxindex,
+            ', '.join(
+                [
+                    '{}: {:.2e}'.format(label,num) for label, num in (
+                        ('prob',maxprob),
+                        ('nmap',maxnormamp),
+                        ('ampl',maxamp),
+                        ('rati',maxratio),
+                        ('popu',pop)
+                    )
+                ]
+            )
         )
-        if mode == sanitize.FC:     
-            linemd = datamd[lineindex]           
-            maxindex = xs.argmax()
-            maxprob = ycs[maxindex]
-            maxamp = yms[maxindex]
-            maxratio = maxamp * linemd['scales'][str(sanitize.FC)] * linemd['sensitivity factor']
-            pop = maxratio / maxprob
+        if mode == sanitize.FC:   
+            # add to dictionary of populations
             popsd[lineindex] = pop
-        plt.plot(xs,yms,'.')
+        # y_measureds = yms * linemd['scales'][str(mode)]
+        # y_calcs = ycs / ycs.sum() * y_measureds.sum()
+        plt.plot(xs,yms*ycs.sum(),'.')
         plt.plot(xs,ycs)
         plt.title(
             'line {:d} {}'.format(
@@ -64,8 +96,17 @@ for lineindex, lined in datad.items():
                     sanitize.FC:'fluence curve',
                     sanitize.FS:'frequency scan'
                 }[mode]
-            )
-            
+            ) + '\n' + ', '.join(
+                [
+                    '{}: {:.2e}{}'.format(
+                        label,num,'' if units is None else ' {}'.format(units)
+                    ) for label, num, units in (
+                        ('exc prob',maxprob,None),
+                        ('max amp',1e3*maxamp,'mv'),
+                        ('sens fact',1e-3*linemd['sensitivity factor'],'mv-1')
+                    )
+                ]
+            )      
         )
         plt.xlabel(
             {
