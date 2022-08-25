@@ -131,22 +131,17 @@ def_imagefolder = 'images'
 def sanitize_experiment(
     pcpath,phimin,phimax,phio,
     lines,outfolder=def_outfolder,imagefolder=def_imagefolder,
-    autophase = True,freqcalib = False,
-    _debug = None
+    autophase = True,freqcalib = False    
 ):
-    if not os.path.exists(outfolder):
-        os.mkdir(outfolder)
+    for folder in (outfolder,imagefolder):
+        if not os.path.exists(folder):
+            os.makedirs(folder)
     for mode in (FC,FS):
         mf = os.path.join(outfolder,modefolderd[mode])
         if not os.path.exists(mf):
-            os.mkdir(mf)
+            os.makedirs(mf)
     cgcd = {}
-    metadata = []
-    if _debug is not None:
-        global debug
-        debug = _debug
-        if not os.path.exists(imagefolder):
-            os.mkdir(imagefolder)
+    metadata = []    
     irpdo, (params,cov) = powercalib.get_fit_params(pcpath,phimin,phimax)
     pc = powercalib.get_power_calib(irpdo,params)
     for lineindex, (htline, lined) in enumerate(lines.items()):        
