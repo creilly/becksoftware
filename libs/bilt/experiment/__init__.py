@@ -71,15 +71,16 @@ commandd = {
 def measure_line(line,cfg,phis,handlerd):
     breaking = False
     trial = 0
-    need_ref = not trial
+    need_ref = not trial    
     while True:                
         print('starting set line trial {:d}'.format(trial))
         end_tagging(handlerd)
-        try:
+        token = [None]
+        try:   
             hwp_promise = start_hwp_init(cfg,handlerd,phis[0])
             if need_ref:
                 print('first trial, taking chopped beam measurement.')
-                sens_promise = start_sensitivity(cfg,handlerd)
+                sens_promise = start_sensitivity(cfg,handlerd,token)
             print('setting line')
             e, m, fo, wo = set_line(cfg,handlerd,line)
             # e, m, fo, wo = 700, 8.1, 0.0, 3028.7416
@@ -91,6 +92,7 @@ def measure_line(line,cfg,phis,handlerd):
             if need_ref:
                 print('waiting for sensitivity measurement')
                 sens_md = end_thread(sens_promise)
+                need_ref = False
                 print('sentivity measurement complete.')
             print('waiting for hwp / mirror init')
             deltax, deltay = end_thread(hwp_promise)
@@ -105,6 +107,18 @@ def measure_line(line,cfg,phis,handlerd):
             )
         except interrupthandler.InterruptException:
             print('interrupt received during line set.')
+            print('notifying thread(s) of interrupt.')
+            token.pop()
+            print('waiting for threads to complete')
+            print('waiting for hwp thread')
+            hwpthread, _ = hwp_promise
+            hwpthread.join()
+            print('hwp thread complete')
+            if need_ref:
+                print('waiting for reference thread to complete')
+                refthread, _ = hwp_promise
+                refthread.join()
+                print('reference thread complete')
             command = parse_response(
                 input('[q]uit, [r]eset, or [c]ontinue (default)?: '),
                 'c'
@@ -137,16 +151,23 @@ def measure_line(line,cfg,phis,handlerd):
             print('wavemeter handle obtained')
             try:
                 path_creator = get_path_creator(line,cfg,sens_md,trial,handlerd)
-                searchpath = path_creator(LS,{})
-                success, result = search_line(cfg,handlerd,wmh,topoic,fo,wo,searchpath,sens_md)
-                if not success:                
-                    error = result                    
-                    if error == OUT_OF_RANGE_ERROR:
-                        print('line search failed! continuing to next line.')
-                        break
-                fp = result
+                if gcp(cfg,'experiment','line search',bool):                    
+                    searchpath = path_creator(LS,{})
+                    success, result = search_line(cfg,handlerd,wmh,topoic,fo,wo,searchpath,sens_md)
+                    if not success:                
+                        error = result                    
+                        if error == OUT_OF_RANGE_ERROR:
+                            print('line search failed! continuing to next line.')
+                            break
+                    fp = result
+                else:
+                    fp = 0.0
                 scanpath = path_creator(FS,{'fo':(fp,'MHz')})
-                fmax = scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fp,scanpath)                
+                success, result = scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fp,scanpath)                
+                if not success:
+                    print('frequency scan failed to find peak! continuing')
+                    break
+                fmax = result
                 fshift = gcp(cfg,'frequency scan','off resonance shift',float)
                 fmin = fmax + (
                     -1 if fmax > 0 else + 1
@@ -161,7 +182,9 @@ def measure_line(line,cfg,phis,handlerd):
                 get_fluence_curve(
                     cfg,handlerd,topoic,wmh,
                     phis,fmax,fmin,fo,wo,fluencepath
-                )                
+                )  
+                if not gcp(cfg,'experiment','angular scan',bool):
+                    break
                 starttime = time()
                 angularmd = {
                     'start time':starttime
@@ -258,11 +281,11 @@ def start_hwp_init(cfg,handlerd,phi):
     )
     thread.start()
     return thread, rescon
-def start_sensitivity(cfg,handlerd):
+def start_sensitivity(cfg,handlerd,token):
     rescon = []
     thread = threading.Thread(
         target=get_sensitivity,
-        args=(cfg,handlerd,rescon)
+        args=(cfg,handlerd,rescon,token)
     )
     thread.start()
     return thread, rescon
@@ -282,7 +305,7 @@ def set_line(cfg,handlerd,line):
         print('eo: {:d}, mo: {:.4f}'.format(e,m))
         emo = (e,m)    
     while True:                
-        success, result = tclock.locktc(htline,dw,em=emo,ih=ih)
+        success, result = tclock.locktc(htline,dw,em=emo,pv=piezo,ih=ih)
         if success:
             break
         else:

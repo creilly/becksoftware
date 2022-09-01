@@ -23,159 +23,167 @@ chopped_beam_bolo_gain = bologainserver.X1000
 # so for epsilon_theta = 10 degrees, we have 
 # error = (10 / 180 * 3.14)^2 ~ 4 percent, which is ok
 deltaphi_tagged_chopped = -145.0 # degrees
+
+class TokenEmpty(Exception):
+    pass
     
-def get_sensitivity(cfg,handlerd,rescon):        
+def get_sensitivity(cfg,handlerd,rescon,token):        
+    try:
+        # token to interrupt handler
+        ih = token
 
-    # get handles to hardware and interrupt handler
-    ih, lih, mh = handlerd[IH], handlerd[LI], handlerd[MA]
+        # get handles to hardware and interrupt handler
+        lih, mh = handlerd[LI], handlerd[MA]
 
-    # for metrics
-    sens_start_time = time()
+        # for metrics
+        sens_start_time = time()
 
-    # set mol beam chopping frequency 
-    # equal to tagging laser chopping frequency
-    f_chop = lockin.get_frequency(lih) # hz
-    v_chop = f_chop * 60 / 2 # rpm
+        # set mol beam chopping frequency 
+        # equal to tagging laser chopping frequency
+        f_chop = lockin.get_frequency(lih) # hz
+        v_chop = f_chop * 60 / 2 # rpm
 
-    # position lid to reference angle
-    print('requesting lid positioning to reference angle')
-    lid_angle = gcp(cfg,'scattering','lid angle',float)
-    lidclient.set_lid(lid_angle,wait=False)
+        # position lid to reference angle
+        print('requesting lid positioning to reference angle')
+        lid_angle = gcp(cfg,'scattering','lid angle',float)
+        lidclient.set_lid(lid_angle,wait=False)
 
-    # start motor spin up
-    print('starting up motor')
-    check_fault(mh)
-    start_spin(mh,v_chop)
+        # start motor spin up
+        print('starting up motor')
+        check_fault(mh)
+        start_spin(mh,v_chop)
 
-    # set lockin sensitivity for chopped beam
-    lockin.set_sensitivity(lih,chopped_beam_lia_sens)
+        # set lockin sensitivity for chopped beam
+        lockin.set_sensitivity(lih,chopped_beam_lia_sens)
 
-    print('setting bolo gain to {:d}'.format(chopped_beam_bolo_gain))
-    # set bologain to minimum gain
-    bologainclient.set_gain(chopped_beam_bolo_gain)    
-    
-    print('blocking tagging and pumping beams')
-    # set NI DAQ box digital lines to shut the shutters
-    for channel_name in ('pump shutter', 'tag shutter'):
-        with daqmx.LineHandler(channel_name) as line:
-            daqmx.write_line(line,SHUTTER_SHUT)
+        print('setting bolo gain to {:d}'.format(chopped_beam_bolo_gain))
+        # set bologain to minimum gain
+        bologainclient.set_gain(chopped_beam_bolo_gain)    
+        
+        print('blocking tagging and pumping beams')
+        # set NI DAQ box digital lines to shut the shutters
+        for channel_name in ('pump shutter', 'tag shutter'):
+            with daqmx.LineHandler(channel_name) as line:
+                daqmx.write_line(line,SHUTTER_SHUT)
 
-    print('waiting for motor to reach chopping speed...')
-    finish_spin(mh,ih,get_spin_cb(v_chop))
-    print('chopping speed reached.')
+        print('waiting for motor to reach chopping speed...')
+        finish_spin(mh,ih,get_spin_cb(v_chop))
+        print('chopping speed reached.')
 
-    # set lockin to external
-    print('setting lockin to external sync')
-    lockin.set_ref_source(lih,lockin.EXTERNAL)
+        # set lockin to external
+        print('setting lockin to external sync')
+        lockin.set_ref_source(lih,lockin.EXTERNAL)
 
-    # wait for lockin to sync
-    print('waiting for lockin to sync')
-    while lockin.get_unlocked(lih):
-        print('lockin unlocked! waiting...')
-        check_ih(ih)
-        sleep(poll_time)
-    print('lockin locked.')
+        # wait for lockin to sync
+        print('waiting for lockin to sync')
+        while lockin.get_unlocked(lih):
+            print('lockin unlocked! waiting...')
+            check_ih(ih)
+            sleep(poll_time)
+        print('lockin locked.')
 
-    # wait to lid positioning to complete
-    print('waiting for lid move to finish')
-    lidclient.wait_lid()
-    print('lid in position')
+        # wait to lid positioning to complete
+        print('waiting for lid move to finish')
+        lidclient.wait_lid()
+        print('lid in position')
 
-    # wait 10 time constants
-    print('waiting for fresh data.')
-    sleep(
-        gcp(cfg,'lockin','time constant',float)*10
-    )
-    print('wait completed.')
+        # wait 10 time constants
+        print('waiting for fresh data.')
+        sleep(
+            gcp(cfg,'lockin','time constant',float)*10
+        )
+        print('wait completed.')
 
-    # measure signal
-    starttime = time()
-    R = T = n = 0
-    while True:
-        check_ih(ih)
-        r, t = lockin.get_rt(lih)
-        R += r
-        if n:
-            # handle wrap-around phase errors
-            while t - T > 90:
-                t -= 180
-            while t - T < -90:
-                t += 180
-        n += 1
-        T = ((n-1) * T + t)/n        
-        if time() - starttime > meas_time:
-            break
-    R /= n    
-    print('sensitivity measurement:')
-    print('r : {:.2e} volts'.format(R))
-    print('t : {:.2f} degrees'.format(T))
+        # measure signal
+        starttime = time()
+        R = T = n = 0
+        while True:
+            check_ih(ih)
+            r, t = lockin.get_rt(lih)
+            R += r
+            if n:
+                # handle wrap-around phase errors
+                while t - T > 90:
+                    t -= 180
+                while t - T < -90:
+                    t += 180
+            n += 1
+            T = ((n-1) * T + t)/n        
+            if time() - starttime > meas_time:
+                break
+        R /= n    
+        print('sensitivity measurement:')
+        print('r : {:.2e} volts'.format(R))
+        print('t : {:.2f} degrees'.format(T))
 
-    # rephase the lockin
-    # from measurements on 2022-08-04,
-    # tagging phase is approximately -35 degrees
-    # shifted from chopped phase at 237 Hz
-    phio = lockin.get_phase(lih)
-    phichopped = phio + T
-    phitagged = phichopped + deltaphi_tagged_chopped
-    while phitagged <= -360.0:
-        phitagged += 180.0
-    while phitagged >= 729.99:
-        phitagged -= 180.0
-    lockin.set_phase(lih,phitagged)
-    phip = lockin.get_phase(lih)
-    
-    # get timestamp for sensitivity measurement
-    sens_dt_str = datetime.datetime.now().isoformat()
+        # rephase the lockin
+        # from measurements on 2022-08-04,
+        # tagging phase is approximately -35 degrees
+        # shifted from chopped phase at 237 Hz
+        phio = lockin.get_phase(lih)
+        phichopped = phio + T
+        phitagged = phichopped + deltaphi_tagged_chopped
+        while phitagged <= -360.0:
+            phitagged += 180.0
+        while phitagged >= 729.99:
+            phitagged -= 180.0
+        lockin.set_phase(lih,phitagged)
+        phip = lockin.get_phase(lih)
+        
+        # get timestamp for sensitivity measurement
+        sens_dt_str = datetime.datetime.now().isoformat()
 
-    # construct metadata for sensitivity measurement
-    sens_md = {
-        'timestamp':sens_dt_str,
-        'measurement':{
-            'r':[R,'volts'],
-            't':[T,'degrees']
-        },
-        'chopping frequency':[f_chop,'Hz'],
-        'lockin sensitivity':[chopped_beam_lia_sens,'volts'],
-        'lockin phase before':[phio,'degrees'],
-        'lockin phase after':[phip,'degrees'],
-        'bolo gain':[chopped_beam_bolo_gain,'X']        
-    }
-    rescon.append(sens_md)
+        # construct metadata for sensitivity measurement
+        sens_md = {
+            'timestamp':sens_dt_str,
+            'measurement':{
+                'r':[R,'volts'],
+                't':[T,'degrees']
+            },
+            'chopping frequency':[f_chop,'Hz'],
+            'lockin sensitivity':[chopped_beam_lia_sens,'volts'],
+            'lockin phase before':[phio,'degrees'],
+            'lockin phase after':[phip,'degrees'],
+            'bolo gain':[chopped_beam_bolo_gain,'X']        
+        }
+        rescon.append(sens_md)
 
-    # set lockin to internal mode
-    print('setting lockin to internal mode')
-    lockin.set_ref_source(lih,lockin.INTERNAL)
+        # set lockin to internal mode
+        print('setting lockin to internal mode')
+        lockin.set_ref_source(lih,lockin.INTERNAL)
 
-    # halt motor
-    print('spinning down motor.')
-    start_spin(mh,0)
-    print('waiting for motor to stop.')
-    finish_spin(mh,ih,get_spin_cb(0))
-    
-    print('stop complete.')
-    maxon.set_enabled_state(mh,False)
-    
-    # home motor
-    print('setting motor to homing mode.')
-    home_motor(mh,ih)
+        # halt motor
+        print('spinning down motor.')
+        start_spin(mh,0)
+        print('waiting for motor to stop.')
+        finish_spin(mh,ih,get_spin_cb(0))
+        
+        print('stop complete.')
+        maxon.set_enabled_state(mh,False)
+        
+        # home motor
+        print('setting motor to homing mode.')
+        home_motor(mh,ih)
 
-    print('changing motor to profile position mode')
-    # set to profile position mode        
-    maxon.set_operation_mode(mh,maxon.M_PROFILE_POSITION)  
-    
-    print('blocking beam while other operations finish')
-    maxon.move_to_position(mh,maxon_closed)
+        print('changing motor to profile position mode')
+        # set to profile position mode        
+        maxon.set_operation_mode(mh,maxon.M_PROFILE_POSITION)  
+        
+        print('blocking beam while other operations finish')
+        maxon.move_to_position(mh,maxon_closed)
 
-    print('unblocking tagging and pumping beams')
-    # set NI DAQ box digital lines to open the shutters
-    for channel_name in ('pump shutter', 'tag shutter'):
-        with daqmx.LineHandler(channel_name) as line:
-            daqmx.write_line(line,SHUTTER_OPEN)            
+        print('unblocking tagging and pumping beams')
+        # set NI DAQ box digital lines to open the shutters
+        for channel_name in ('pump shutter', 'tag shutter'):
+            with daqmx.LineHandler(channel_name) as line:
+                daqmx.write_line(line,SHUTTER_OPEN)            
 
-    print('sensitivity measurement over')
-    sens_stop_time = time()
-    sens_delta_time = sens_stop_time - sens_start_time
-    print('sensitivity measurement time: {:.1f} seconds'.format(sens_delta_time))    
+        print('sensitivity measurement over')
+        sens_stop_time = time()
+        sens_delta_time = sens_stop_time - sens_start_time
+        print('sensitivity measurement time: {:.1f} seconds'.format(sens_delta_time))    
+    except TokenEmpty:
+        return
 
 maxon_open = 0
 maxon_closed = 20
@@ -248,8 +256,8 @@ def check_fault(mh):
     return faulting
 
 def check_ih(ih):
-    if ih.interrupt_received():
-        ih.raise_interrupt()
+    if not ih:
+        raise TokenEmpty()
 
 _print = print
 def print(*args):
