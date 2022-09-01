@@ -62,7 +62,7 @@ def get_dither_measurement(
     for f in (fmax,fmin):
         tcc.set_setpoint(f)
         tcc.check_transfer_cavity(f,epsilonf)                            
-        success, (x,y,pd,w) = get_measurement(
+        success, result = get_measurement(
             cfg,handlerd,topoic,wmh,                           
             wo + dwdf * (
                 f - fo
@@ -71,5 +71,6 @@ def get_dither_measurement(
         )                            
         if not success:            
             return False, None
+        x,y,pd,w = result
         data.extend([x,y,pd,w])
     return True, data
