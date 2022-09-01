@@ -1,7 +1,12 @@
 import pyvisa
 from pyvisa.constants import AccessModes
+from time import time
 
 LOCKIN_VISA_NAME = 'lockin'
+
+OPEN_TIMEOUT = 2.0 # seconds
+
+TIMEOUT = 1000 # milliseconds
 
 readterm = writeterm = '\r'
 
@@ -15,14 +20,19 @@ class LockinHandler:
     def __exit__(self,*args):
         close_lockin(self.lockin)
 
-def load_lockin(name=LOCKIN_VISA_NAME):
-    lockin = pyvisa.ResourceManager().open_resource(name,open_timeout=1000,timeout=1000)
-    lockin.baud_rate = 19200
-    lockin.parity = 1
-    lockin.read_termination = readterm
-    lockin.write_termination = writeterm    
-    lockin.lock_excl(timeout=5000.0)    
-    return lockin
+def load_lockin(name=LOCKIN_VISA_NAME,open_timeout=OPEN_TIMEOUT):
+    starttime = time()
+    while True:
+        try:
+            lockin = pyvisa.ResourceManager().open_resource(name,open_timeout=TIMEOUT,timeout=TIMEOUT)
+            lockin.baud_rate = 19200
+            lockin.parity = 1
+            lockin.read_termination = readterm
+            lockin.write_termination = writeterm    
+            return lockin
+        except pyvisa.errors.VisaIOError:
+            if time() - starttime > OPEN_TIMEOUT:
+                raise    
 
 def load_lockin_preset(lockin,preset_number):
     lockin.write('RSET {:d}'.format(preset_number))
@@ -222,19 +232,7 @@ def set_ref_source(lockin,ref_source):
     return lockin.write('FMOD {:d}'.format(ref_source))
 
 if __name__ == '__main__':
-    with LockinHandler() as lockin:
-        rs = get_ref_source(lockin)
-        print('rs:',rs)
-        print({INTERNAL:'int',EXTERNAL:'ext'}[rs])
-        print('setting ref source to opposite...')
-        set_ref_source(lockin,{EXTERNAL:INTERNAL,INTERNAL:EXTERNAL}[rs])
-        print('rs:',get_ref_source(lockin))
-        print('setting back')
-        set_ref_source(lockin,rs)
-        print('rs:',get_ref_source(lockin))
-        tau = get_time_constant(lockin)
-        print('lockin time constant: {:.1g} seconds'.format(tau))
-        clear_status_registers(lockin)
+    with LockinHandler() as lockin:        
         sb = get_status_byte(lockin)
         print('status byte:',sb)
         print(
@@ -245,11 +243,5 @@ if __name__ == '__main__':
                     ) for i in range(8)
                 ]
             )
-        )
-        print('unlocked?:',get_unlocked(lockin))
-        print('overloaded?:',get_overloaded(lockin))
-        print('aux 1?:',get_aux_out(lockin,1))
-        print('setting aux 1 to 2.0 volts')
-        set_aux_out(lockin,1,2.0)
-        print('aux 1?:',get_aux_out(lockin,1))
+        )        
         input('press enter to quit: ')
