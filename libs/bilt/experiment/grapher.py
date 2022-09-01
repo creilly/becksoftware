@@ -70,6 +70,7 @@ def create_dataset(mode,namer,line,cfg,trial,sens_md,handlerd,do):
     return path
 
 def create_metadata(cfg,line,trial,sens_md,handlerd,do={}):
+    exp_desc = gcp(cfg,'experiment','description')
     inc_angle = gcp(cfg,'scattering','incident angle',float) # degrees
     dir_angle = gcp(cfg,'scattering','direct angle',float)
     spc_angle = gcp(cfg,'scattering','specular angle',float)
@@ -81,6 +82,7 @@ def create_metadata(cfg,line,trial,sens_md,handlerd,do={}):
     w_ref_line = gcp(cfg,'reference line','line')
     dw = get_wavemeter_offset(cfg)
     metadata = {
+        'experiment':exp_desc,
         'sensitivity':sens_md,
         'hitran line':line[0],
         'scattering':{
