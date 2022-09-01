@@ -1,9 +1,11 @@
+from saturation.sanitize import fit_baseline
 from transfercavity import transfercavityclient as tcc
 from grapher import graphclient as gc
 from bilt import gcp, dwdf
 from bilt.experiment import measure
 from bilt.experiment.modehop import ModeHopDetected
 import numpy as np
+from scipy.optimize import OptimizeWarning
 
 def search_line(cfg,handlerd,wmh,topoic,fo,wo,path,sens_md):
     sens_scalar = sens_md['measurement']['r'][0]
@@ -12,13 +14,14 @@ def search_line(cfg,handlerd,wmh,topoic,fo,wo,path,sens_md):
     deltaxthresh = gcp(cfg,'line search','step threshold',float)
 
     data = {}    
+    irs = {}
     index = 0
 
     ABOVE, BELOW = 0, 1    
 
     searcher = Searcher(
         cfg,handlerd,wmh,topoic,
-        deltat,fo,wo,deltaf,data,path
+        deltat,fo,wo,deltaf,data,irs,path
     )
     try:
         print('starting gradient detection')
@@ -61,9 +64,60 @@ def search_line(cfg,handlerd,wmh,topoic,fo,wo,path,sens_md):
         )
         return True, fp
     except OutOfRange:
-        # todo! implement curve fitting extra protection
-        # return True, 0.0
-        return False, OUT_OF_RANGE_ERROR    
+        indices = sorted(data.keys())
+        fs = fo + deltaf * np.array(indices)
+        zs, irs = map(
+            np.array,[
+                [
+                    d[index] for index in indices
+                ] for d in (data,irs)
+            ]   
+        )      
+        success, result = find_weakling(cfg,fs,zs,irs,sens_scalar)
+        return success, result
+
+def find_weakling(cfg,fs,zs,irs,sens_scalar):      
+    try:
+        _, params = fit_baseline(fs,zs,irs)
+    except (RuntimeError, OptimizeWarning):
+        return False, OUT_OF_RANGE_ERROR
+    print(
+        'ls wk sc ps:',
+        ', '.join(
+            [
+                '{} : {} {}'.format(
+                    label,'{:.2e}'.format(val).rjust(10),unit
+                ) for label, val, unit in zip(
+                    ('mu','sigma','amp','offset'),
+                    params,
+                    ('MHz','MHz','volts','volts')
+                )
+            ]
+        )
+    )
+    mu, sigma, amp, offset = params
+
+    sigma = abs(sigma)
+
+    sigmamin = gcp(cfg,'line search','min width',float)
+    sigmamax = gcp(cfg,'line search','max width',float)
+    peakmin = gcp(cfg,'line search','peak threshold',float)
+
+    if (
+        (
+            mu < fs.min()
+        ) or (
+            mu > fs.max()
+        ) or (
+            sigma < sigmamin
+        ) or (
+            sigma > sigmamax
+        ) or (
+            amp / sens_scalar < peakmin
+        ) 
+    ):
+        return False, OUT_OF_RANGE_ERROR
+    return True, mu
 
 MODE_HOP_ERROR, OUT_OF_RANGE_ERROR = 0, 1
 
@@ -76,7 +130,7 @@ class Searcher:
     def __init__(
         self,cfg,handlerd,
         wmh,topoic,deltat,
-        fo,wo,deltaf,data,
+        fo,wo,deltaf,data,irs,
         path
     ):        
         self.dfmax = gcp(cfg,'line search','search range',float)
@@ -89,7 +143,8 @@ class Searcher:
         self.fo = fo
         self.wo = wo        
         self.deltaf = deltaf
-        self.data = data        
+        self.data = data    
+        self.irs = irs    
         self.path = path
 
     def get_measurement(self,jump_index):
@@ -117,7 +172,8 @@ class Searcher:
         if success:
             x, y, pd, w = result
             print(format_step(df,x))
-            self.data[jump_index] = x            
+            self.data[jump_index] = x  
+            self.irs[jump_index] = pd
             gc.add_data(self.path,[f,*result])
         else:
             raise ModeHopDetected()
