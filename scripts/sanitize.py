@@ -39,7 +39,14 @@ def get_folder(mode):
     year = input(fp('year'))
     month = input(fp('month')).rjust(2,'0')
     day = input(fp('day')).rjust(2,'0')
-    return [year,month,day]
+    extras = []
+    while True:
+        extra = input('enter extra folder (enter to continue): ')
+        if extra:
+            extras.append(extra)
+            continue
+        break
+    return [year,month,day,*extras]
 
 paths = {}
 for pathkey in pathkeys:
@@ -106,21 +113,21 @@ dds, _, dmd = gc.get_dir(fsfolder)
 
 skipindices = []
 while True:
-    if args.lines is not None:
-        skipindices = parse_number_list(args.lines)
-        print('line skip indices:',args.lines)
-        break
-    print(
-        fmt_dir(
-            [
-                ds for n, ds in enumerate(dds) if n not in skipindices
-            ]
+    if args.lines is not None:        
+        rawskipindicesp = args.lines
+        print('line skip indices:',rawskipindicesp)        
+    else:
+        print(
+            fmt_dir(
+                [
+                    ds for n, ds in enumerate(dds) if n not in skipindices
+                ]
+            )
         )
-    )
-    skipindicesp = input('enter *ht lines* to skip by freq scan index (enter to continue): ')
-    if not skipindicesp:
-        break    
-    skipindicesp = parse_number_list(skipindicesp)
+        rawskipindicesp = input('enter *ht lines* to skip by freq scan index (enter to continue): ')
+        if not rawskipindicesp:
+            break    
+    skipindicesp = parse_number_list(rawskipindicesp)
     for skipindex in skipindicesp:
         root, leaf = dds[skipindex].split('-',1)
         for dsp in dds:
@@ -129,31 +136,34 @@ while True:
             if leafp == leaf:                
                 if indexp not in skipindices:
                     skipindices.append(indexp)
+    if args.lines is not None:
+        break
+
 while True:
     if args.datasets is not None:
-        skipindicesp = parse_number_list(args.datasets)
-        skipindices += skipindicesp
-        print('skip indices:',args.datasets)
-        break
-    print(
-        fmt_dir(
-            [
-                ds for n, ds in enumerate(dds) if n not in skipindices
-            ]
+        rawskipindices = args.datasets        
+        print('skip indices:',rawskipindicesp)
+    else:
+        print(
+            fmt_dir(
+                [
+                    ds for n, ds in enumerate(dds) if n not in skipindices
+                ]
+            )
         )
-    )
-    skipindex = input('enter *datasets* to skip by freq scan index (enter to continue): ')
-    if not skipindex:
+        rawskipindices = input('enter *datasets* to skip by freq scan index (enter to continue): ')
+    if not rawskipindices:
         break
-    skipindex = int(skipindex)
-    skipindices.append(skipindex)
+    skipindicesp = parse_number_list(rawskipindices)
+    skipindices += skipindicesp  
+    if args.datasets is not None:
+        break  
 
 fsdsl, _, fsmdl = gc.get_dir(fsfolder)
 fcdsl, _, fcmdl = gc.get_dir(fcfolder)
 
 fslines = {}
-for index, (fsds, fsmd) in enumerate(zip(fsdsl,fsmdl)):
-    print(index,len(fsdsl))
+for index, (fsds, fsmd) in enumerate(zip(fsdsl,fsmdl)):    
     if index in skipindices:
         continue
     fsmdpath = fsfolder + [fsmd]
@@ -224,24 +234,21 @@ def get_bool(prompt,default):
         )
     )
     return {'y':True,'n':False}[response.lower()[0]] if response else default
-
-if args.autophase:
-    autophase = {
-        'y':True,'n':False
-    }[arg.autophase]
-    print('autophasing?:',args.autophase)
-else:
-    autophase = get_bool('autophasing?',False)
-if args.freqcalib:
-    freqcalib = {
-        'y':True,'n':False
-    }[args.freq]
-    print('frequency calibrating?:',args.freq)
-else:
-    freqcalib = get_bool('frequency calibrating?',False)
+bools = []
+for boolname, boolkey, booldef in (('autophasing','autophase',False),('frequency calibrating','freq',False)):
+    arg = getattr(args,boolkey)
+    if arg:
+        boolval = {
+            'y':True,'n':False
+        }[arg]
+        print('{}?:'.format(boolname),arg)
+    else:
+        boolval = get_bool('autophasing?',booldef)
+    bools.append(boolval)
+autophase, freqcalib = bools
     
 sanitize.sanitize_experiment(
     pcpath,phimin,phimax,phio,
     sanitized,    
-    autophase=False,freqcalib=False
+    autophase=autophase,freqcalib=freqcalib
 )
