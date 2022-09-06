@@ -4,6 +4,7 @@ from saturation import sanitize
 import json
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.optimize import curve_fit
 
 imagefoldertail = 'images'
 popfname = 'pops.json'
@@ -33,6 +34,13 @@ datamd = sanitize.load_metadata(datafolder)
 if not os.path.exists(imagefolder):
     os.makedirs(imagefolder)
 
+deltaf = 10
+N = 4
+def fit(x,xo,*a):
+    return sum(
+        an * (x-xo)**(2*n) for n, an in 
+        enumerate(a)
+    )
 for lineindex, lined in datad.items():
     print('*'*20)
     print('line index: {:d}'.format(lineindex))
@@ -60,6 +68,25 @@ for lineindex, lined in datad.items():
         maxprob = ycs[maxindex]
         # get normalized bolometer signal for point of max amplitude
         maxnormamp = yms[maxindex]
+        if mode == sanitize.FS:
+            maxfreq = xs[maxindex]             
+            ffs, fyms, fycs = map(
+                np.array,
+                zip(
+                    *filter(
+                        lambda x: abs(x[0] - maxfreq) < deltaf,
+                        sorted(
+                            zip(
+                                xs,yms,ycs                        
+                            )
+                        )
+                    )
+                )
+            )
+            m_ps, _ = curve_fit(fit,ffs,fyms,[maxfreq,maxnormamp,-1/2*maxnormamp,*[0]*(N-2)])
+            _, maxnormamp, *_ = m_ps
+            c_ps, _ = curve_fit(fit,ffs,fyms,[maxfreq,maxprob,-1/2*maxprob,*[0]*(N-2)])
+            _, maxprob, *_ = c_ps
         # scale by normalizing factor to recover original measured bolometer signal
         maxamp = maxnormamp * linemd['scales'][str(mode)]
         # 1. divide tagging signal by tagging bolometer gain
@@ -116,7 +143,7 @@ for lineindex, lined in datad.items():
         )
         plt.ylabel('excitation probability') 
         imagename = '{:03d}-{:d}.png'.format(lineindex,mode)     
-        print(imagename,flush=True)
+        print(imagename,flush=True)        
         plt.savefig(
             os.path.join(
                 imagefolder,
