@@ -97,6 +97,12 @@ class Config:
     def get_vrms(self):
         return self.get_exp('vrms',float)
 
+    def get_mask(self):
+        return [{'0':False,'1':True}[b.strip()] for b in self.get_comp('mask').strip().split(',')]
+
+    def get_weights(self):
+        return [float(f) for f in self.get_comp('weights').split(',')]
+
 class Communicator:
     def __init__(self,inpipe_fname,outpipe_fname):        
         fd = os.open(
