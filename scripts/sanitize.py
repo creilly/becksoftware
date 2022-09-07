@@ -151,6 +151,64 @@ while True:
 fsdsl, _, fsmdl = gc.get_dir(fsfolder)
 fcdsl, _, fcmdl = gc.get_dir(fcfolder)
 
+def get_htline(metadata,dsname):
+    if 'hitran line' not in metadata:
+        dsindex, dsname = dsname.split('-',1)
+        dsname, ext = dsname.split('.')
+        nu, branch, j, ll, ul = map(int,dsname.split(' '))
+        if nu == 0:
+            lq = [0,0,0,0]
+            lsym = 'A1'
+            lgl = 1
+            lgq = (lq,lsym,lgl)
+
+            uq = [0,0,1,0]
+            usym = 'F2'
+            ugl = 1
+            ugq = (uq,usym,ugl)
+
+            ugqs = (ugq,)
+
+        if nu == 3:
+            lq = [0,0,1,0]
+            lsym = 'F2'
+            lgl = 1
+            lgq = (lq,lsym,lgl)
+
+            uq1 = [0,0,2,0]
+            usym1 = 'F2'
+            ugl1 = 1
+            ugq1 = (uq1,usym1,ugl1)
+
+            uq2 = [0,0,2,0]
+            usym2 = 'E'
+            ugl2 = 1
+            ugq2 = (uq2,usym2,ugl2)
+
+            ugqs = (ugq1,ugq2)
+
+        if nu == 4:
+            lq = [1,0,0,0]
+            lsym = 'A1'
+            lgl = 1
+            lgq = (lq,lsym,lgl)
+
+            uq = [1,0,1,0]
+            usym = 'F2'
+            ugl = 1
+            ugq = (uq,usym,ugl)
+
+            ugqs = (ugq,)
+        for ugq in ugqs:
+            htline = hitran.search_db(6,1,lgq,ugq,branch,j,ll=ll,ul=ul)
+            if htline is None:
+                continue
+            break
+        assert htline is not None
+        htline = htline
+    else:
+        htline = metadata['hitran line']
+    return tuple(htline)
 fslines = {}
 for index, (fsds, fsmd) in enumerate(zip(fsdsl,fsmdl)):
     print(index,len(fsdsl))
@@ -159,7 +217,7 @@ for index, (fsds, fsmd) in enumerate(zip(fsdsl,fsmdl)):
     fsmdpath = fsfolder + [fsmd]
     fsdspath = fsfolder + [fsds]
     fsmetadata = gc.get_metadata(fsmdpath)
-    htline = tuple(fsmetadata['hitran line'])
+    htline = get_htline(fsmetadata,fsds)
     created = datetime.datetime.fromisoformat(fsmetadata['_created']).timestamp()    
     fslines[htline] = (created,(fsdspath,fsmdpath))
 print('fslines:')
@@ -180,7 +238,7 @@ for htline, (created,(fsdspath,fsmdpath)) in sorted(fslines.items(),key=lambda x
         createdp = datetime.datetime.fromisoformat(fcmetadata['_created']).timestamp()
         if createdp < created:
             continue
-        htlinep = tuple(fcmetadata['hitran line'])           
+        htlinep = get_htline(fcmetadata,fcds)        
         if htlinep != htline:
             continue                
         fclines[htlinep] = (createdp,(fcdspath,fcmdpath))
@@ -228,11 +286,11 @@ def get_bool(prompt,default):
 if args.autophase:
     autophase = {
         'y':True,'n':False
-    }[arg.autophase]
+    }[args.autophase]
     print('autophasing?:',args.autophase)
 else:
     autophase = get_bool('autophasing?',False)
-if args.freqcalib:
+if args.freq:
     freqcalib = {
         'y':True,'n':False
     }[args.freq]
@@ -243,5 +301,5 @@ else:
 sanitize.sanitize_experiment(
     pcpath,phimin,phimax,phio,
     sanitized,    
-    autophase=False,freqcalib=False
+    autophase=autophase,freqcalib=freqcalib
 )
