@@ -199,6 +199,10 @@ def get_htline(metadata,dsname):
             ugq = (uq,usym,ugl)
 
             ugqs = (ugq,)
+            if j == 8 and branch == 1 and ll == 8 and ul == 10:
+                ll = 10
+                ul = 81
+
         for ugq in ugqs:
             htline = hitran.search_db(6,1,lgq,ugq,branch,j,ll=ll,ul=ul)
             if htline is None:
