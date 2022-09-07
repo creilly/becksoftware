@@ -91,6 +91,14 @@ arrays = [] # stores job division information
 dataarrays = {} # stores computed and measured scientific data
 indexbuffer = np.empty(4,dtype=np.int64) # stores job division tranmission data
 
+fcweight, fsweight = config.get_weights()
+weightsd = {
+    mode:weight for mode, weight in (
+        (sanitize.FC,fcweight),
+        (sanitize.FS,fsweight)
+    )
+}
+
 # synchronous buffer send (thin wrapper)
 def send(buffer,dest):
     comm.Send(buffer,dest)
@@ -289,10 +297,13 @@ def get_outdata():
     # start performance monitor clock
     start = perf_counter()
     # adjust model parameters with fudge factors
-    power_factor, gamma_factor, sigmaomega_factor, tau_factor = factors
-    sigmaomegap = sigmaomega_factor * sigmaomega
-    taup = tau_factor * tau
-    gammap = gamma_factor * gamma
+    power_factor, vrms_factor, velocity_factor, diameter_factor = factors    
+
+    # model parameter computation
+    gammap = vrms_factor**2*gamma # rads / us
+    taup = diameter_factor / velocity_factor * tau # us
+    sigmaomegap = velocity_factor * sigmaomega # rads / us    
+    
     # initiate data transfers of updated computed curves
     if rank == masterrank:        
         for _rank, rankarrays in enumerate(arrays):
@@ -316,7 +327,7 @@ def get_outdata():
         M_deltaomegasp = np.einsum('ijk,lm->ijklm',deltaomegasp,M_deltaomega)
         # assemble dynamical matrix for each rfd
         # shape : (N,n_mu,n_points,3,3)
-        Ms = (gammap * M_gamma + power_factor * M_omegabars) + M_deltaomegasp
+        Ms = (gammap * M_gamma + np.sqrt(power_factor) * M_omegabars) + M_deltaomegasp
         # compute eigenvalues (lambdas) and eigenvectors (Ss) for each rfd
         # shape (lambdas) : (N,n_mu,n_points,3)
         # shape (Ss) : (N,n_mu,n_points,3,3)
@@ -379,7 +390,7 @@ def get_outdata():
                 # normalize computed data 
                 normalized = computed / computed.sum()
                 # compute sum squared error, add to running total                
-                sse += ((measured - normalized)**2).sum()
+                sse += ((measured - normalized)**2).sum()*weightsd[mode]
     else:
         sse = None
     # wait for indication of successful send    
