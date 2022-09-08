@@ -6,13 +6,13 @@ import rotationstage as rs
 
 def set_hwp(cfg,handlerd,hwp_angle,lid_angle,phimaxp):
     pih, rsh = handlerd[PI], handlerd[RS]    
-    mir_angle = gcp(cfg,'scattering','mirror angle',float)
-    lid_angle = gcp(cfg,'scattering','lid angle',float)
-    delta_theta_mirror_lid = mir_angle - lid_angle
+    mir_angle_o = gcp(cfg,'scattering','mirror angle',float)
+    lid_angle_o = gcp(cfg,'scattering','lid angle',float)
+    delta_theta_mirror_lid = mir_angle_o - lid_angle_o
 
-    mirror_angle = lid_angle + delta_theta_mirror_lid
-    xo = mm.get_xmirr(mirror_angle)
-    yo = mm.get_ymirr(mirror_angle)
+    mir_angle = lid_angle + delta_theta_mirror_lid
+    xo = mm.get_xmirr(mir_angle)
+    yo = mm.get_ymirr(mir_angle)
     dx, dy = [deltaz(hwp_angle,phimaxp) for deltaz in (deltax,deltay)]
     x = xo + dx
     y = yo + dy
