@@ -7,7 +7,8 @@ class GentecHandler:
     def __init__(self,visa_id=VISA_ID):
         self.pm = pm = open_pm(visa_id)
         pm.baud_rate = 115200
-        # pm.write_termination = '\r'
+        if visa_id != VISA_ID:
+            pm.write_termination = '\r'
         pm.read_termination = read_term # '\r'
         
     def __enter__(self):
@@ -32,6 +33,9 @@ def get_power(pm):
 
 if __name__ == '__main__':
     from time import sleep
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-v','--visa-id',default=VISA_ID)
     try:
         print('gentec power monitor. press ctrl-c to quit.')
         with GentecHandler() as pm:
