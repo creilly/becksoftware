@@ -26,20 +26,37 @@ import pi
     
 # latest calibration data: 05/01/2022, analyzed AND UPDATED 06/01/2022
 
+calibdate = '2022.01.05'
+
+ro = 16.0
+
 xc = -25.812800000141785     #x offset (mm)
 yc = -39.51900000014259     #y offset (mm)
-r = 16.0 # 14.962259999773522      # - circle radius (mm)
+r = 14.962259999773522      # - circle radius (mm), calibrated at r=15.0
 a =  -5.603500000056165      #- angle offset (degs)
 e = 1.010219999972917      # -squish (unitless)
 s = -1.910800000003037     #- slant (degs)
 
-def get_xmirr(A):
+def get_calibration_metadata():
+    return {
+        'calibration parameters':{
+            'xc':xc,
+            'yc':yc,
+            'r':r,
+            'a':a,
+            'e':e,
+            's':s
+        },
+        'calibration date':calibdate
+    }
+
+def get_xmirr(A,r=ro):
     xo  =   r * e * np.cos((A + a)*np.pi/180.)
     yo  =   r / e * np.sin((A + a)*np.pi/180.)
     x   =   xc + np.cos(s*np.pi/180.) * xo + np.sin(s*np.pi/180.) * yo
     return -x
 	
-def get_ymirr(A):
+def get_ymirr(A,r=ro):
     xo  =   r * e * np.cos((A + a)*np.pi/180.)
     yo  =   r / e * np.sin((A + a)*np.pi/180.)
     y 	= 	yc + np.cos(s*np.pi/180.) * yo - np.sin(s*np.pi/180.) * xo
@@ -49,9 +66,9 @@ def move_pi(handle,axis,position):
     pi.set_position(handle,axis,position)
     pi.wait_motor(handle,axis)
 
-def set_mirrors(handle,angle,wait=True):
-    pi.set_position(handle,pi.X,get_xmirr(angle))
-    pi.set_position(handle,pi.Y,get_ymirr(angle))
+def set_mirrors(handle,angle,wait=True,r=ro):
+    pi.set_position(handle,pi.X,get_xmirr(angle,r))
+    pi.set_position(handle,pi.Y,get_ymirr(angle,r))
     if wait:
         wait_mirrors(handle)
 
