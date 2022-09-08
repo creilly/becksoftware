@@ -478,11 +478,14 @@ def get_quick_stop_state(handle):
 
 if __name__ == '__main__':    
     from time import time
+    # with MaxonHandler() as h:
+    #     print('v units:',get_velocity_units(h))
+    # exit()
     cont = input('continue to velocity + homing test? (y/(n)): ')
     if not cont or cont[0].lower() != 'y':
         exit()
     from time import sleep
-    vset = 1000
+    vset = 8000
     dt = 100
     epsilonv = 2.0    
     with MaxonHandler() as h:        
