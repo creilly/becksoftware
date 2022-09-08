@@ -6,7 +6,8 @@ class ModeHopDetected(Exception):
     pass
 
 def check_pump_wavelength(cfg,handlerd):
-    return
+    if not gcp(cfg,'pump','pumping',bool):
+        return
     awmh = handlerd[AWM]
     pumpw = gcp(cfg,'pump','wavenumber',float) # cm-1
     epsilonw = gcp(cfg,'mode hop','error',float) # cm-1
