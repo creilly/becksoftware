@@ -5,7 +5,11 @@ from time import sleep
 import topo
 import argparse
 import numpy as np
+from matplotlib import pyplot as plt
 import fit
+from bologain import bologainclient, bologainserver
+
+bologainclient.set_gain(bologainserver.X1000)
 
 meastime = 0.25 # seconds
 df = 1.0
@@ -72,6 +76,13 @@ def find_peak(deltaf):
         try:
             params, cov = fit.gaussian_fit(fs,xs,*fit.gaussian_guess(fs,xs))
             print('params',params)
+
+            plt.plot(fs,xs,'k+',label='data')
+            plt.plot(fs,fit.gaussian(fs,*params),'r--',label='fit')
+            plt.xlabel('tcc setpint / MHz')
+            plt.ylabel('lock-in signal r / mV')
+            plt.legend()
+            plt.show()
         except Exception as err:
             print('error!')
             print(repr(err))
