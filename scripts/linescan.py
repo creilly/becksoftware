@@ -6,8 +6,10 @@ import daqmx
 from topo import topotoolsplus as ttp
 import numpy as np
 import hitran
-from time import sleep
+from time import time
 import argparse
+
+np.random.seed()
 
 To = 25.0
 Io = 95.0
@@ -77,7 +79,7 @@ def optimize_motor(mo,ih):
                         trial += 1
                         if trial > 4:
                             print('number of trials > 4. jostling TOPO cavity piezo...')
-                            topo.set_piezo(20.0+5.0*np.random.random())
+                            dither_piezo()
                         ps = []
                         ms = []
                         pos = []
@@ -86,6 +88,14 @@ def optimize_motor(mo,ih):
             po = pp
             m += sign * dm
     return pmax, mmax
+
+def dither_piezo():
+    pv = get_random_piezo()
+    topo.set_piezo(pv)
+    return pv
+
+def get_random_piezo():
+    return 5.0 + 20.0*np.random.random()
 
 def get_stable_w(wmh,ih):
     wo = None
@@ -110,9 +120,10 @@ def get_stable_w(wmh,ih):
                 print('wavemeter reading unstable (dw {:.4f} cm-1). rereading...'.format(dw))
                 wo = w
 
-def set_etalon_motor(wtarget,eo,mo,es,ms,wmh,ih):
-    print('setting initial e + m pair:',eo,round(mo,3))
+def set_etalon_motor(wtarget,eo,mo,es,ms,pv,wmh,ih):
+    print('setting initial e + m pair:',eo,round(mo,3))    
     topo.set_etalon_pos(eo)
+    topo.set_piezo(pv)
     e = eo
     m = mo
     while True:
@@ -128,38 +139,50 @@ def set_etalon_motor(wtarget,eo,mo,es,ms,wmh,ih):
         else:
             de = -int(round(es * dw))
             e += de
-            pv = 20.0+5.0*np.random.random()
+            pv = dither_piezo()
             print('dithering piezo to {:.2f} volts'.format(pv))
             topo.set_piezo(pv)
             print('adding',de,'to etalon. now etalon is',e)
             topo.set_etalon_pos(e)
-            
+
+T_MAX = 30.0 # seconds     
 def tune_diode_temperature(wtarget,winit,wmh,ih):
+    finedeltawthresh = 0.030 # cm-1
+    finedwthresh = 0.015 # cm-1
     deltawthresh = 0.2 # cm-1, detect mode hops
-    dwthresh = 0.0005 # cm-1, desired accuracy    
+    dwthresh = 0.00075 # cm-1, desired accuracy    
     damping = 5.0
+    dampingthresh = 0.005 # cm-1
     dwdt = -1.0 # cm-1 per deg C (fix this!)
     wo = winit
-    while True:
+    starttime = time()
+    while time() - starttime < T_MAX:
         if ih.interrupt_received():
             ih.raise_interrupt()
         werr = wo - wtarget
-        dT = -werr/dwdt/damping
+        dT = -werr/dwdt/(damping if abs(werr) > dampingthresh else abs(werr) / dampingthresh * (damping - 1.0) + 1.0)
         Tp = topo.get_diode_act_temperature()+dT
-        print('werr','{:.4f} cm-1'.format(werr),'Tp','{:.5f} deg C'.format(Tp))
         topo.set_diode_temperature(Tp)
         w = wm.get_wavenumber(wmh)
-        deltaw = w - wo
+        deltaw = w - wo        
+        dw = w-wtarget
+        print('dw','{:.4f} cm-1'.format(dw),'Tp','{:.5f} deg C'.format(Tp))
         if abs(deltaw) > deltawthresh:
             print('mode hop detected')
             return (False,None)
-        dw = w-wtarget
+        if abs(werr) < finedeltawthresh and abs(deltaw) > finedwthresh:
+            print('small mode hop detected')
+            return (False,None)        
         if abs(dw) < dwthresh and topo.get_diode_temperature_ready():
             print('tuning successful')
             return (True,w)
         wo = w
+    print('max tune time exceded.')
+    return (False, None)
 
-def set_line(htline,dw,wmh=None,em=None,ih=None):
+def set_line(htline,dw,wmh=None,em=None,ih=None,pv=None):
+    if pv is None:
+        pv = Vo
     class DummyIH:
         def __init__(self,ih):
             self.ih = ih
@@ -216,10 +239,12 @@ def set_line(htline,dw,wmh=None,em=None,ih=None):
                 while True:
                     topo.set_diode_temperature(To)
                     topo.set_diode_current(Io)
-                    wp, pmax, e, m = set_etalon_motor(w,eo,mo,es,ms,wmh,ih)
+                    wp, pmax, e, m = set_etalon_motor(w,eo,mo,es,ms,pv,wmh,ih)
                     result, wp = tune_diode_temperature(w,wp,wmh,ih)                
                     if result:
                         return wp, pmax, e, m
+                    else:
+                        pv = get_random_piezo()
             finally:
                 with scope.ScopeHandler() as sh:
                     scope.set_wavesource_enabled(sh,ws_enabled)
@@ -282,6 +307,7 @@ def line_wizard():
         stage += 1
     dw = float(input('enter wavemeter offset (cm-1) : '))
     return htline, dw
+
 if __name__ == '__main__':
     import pprint
     htline, dw = line_wizard()
