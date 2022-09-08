@@ -35,8 +35,7 @@ def format_step(f,x,y,pd,w):
         ]
     )
 
-def scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fc,path):
-    deltaf = gcp(cfg,'frequency scan','scan width',float) # MHz
+def scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fc,deltaf,path):    
     df = gcp(cfg,'frequency scan','scan increment',float)
     deltat_tc = gcp(cfg,'frequency scan','measure time',float)
     epsilonf = gcp(cfg,'frequency scan','setpoint error',float)
