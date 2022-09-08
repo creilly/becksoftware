@@ -21,6 +21,8 @@ def get_angular_scan(
     li_sens = gcp(cfg,'lockin','sensitivity',float)
 
     bolo_gain = gcp(cfg,'bolometer','gain',int) # degrees
+
+    lockin.clear_status_registers(lih)
     for theta in thetas:
         bologainclient.set_gain(bologainserver.X10)
         lockin.set_sensitivity(lih,1e-0)
@@ -33,7 +35,7 @@ def get_angular_scan(
                 )
             )
         )
-        print('angle:',int(1000*theta),'milldegrees')                    
+        # print('angle:',int(1000*theta),'milldegrees')                    
         data = [] 
         data.append(theta)
         lockin.set_sensitivity(lih,li_sens)
