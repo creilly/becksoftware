@@ -1,4 +1,4 @@
-from time import time
+from time import sleep, time
 import lockin
 import topo
 from bilt import LI, IH, gcp, dwdf
@@ -61,7 +61,8 @@ def get_dither_measurement(
     data = []
     for f in (fmax,fmin):
         tcc.set_setpoint(f)
-        tcc.check_transfer_cavity(f,epsilonf)                            
+        tcc.check_transfer_cavity(f,epsilonf)   
+        sleep(gcp(cfg,'lockin','time constant',float)*10.0)
         success, result = get_measurement(
             cfg,handlerd,topoic,wmh,                           
             wo + dwdf * (
