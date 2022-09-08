@@ -158,12 +158,18 @@ def measure_line(line,cfg,phis,handlerd):
                         error = result                    
                         if error == OUT_OF_RANGE_ERROR:
                             print('line search failed! continuing to next line.')
+                            fp = fo
+                            deltaf = gcp(cfg,'frequency scan','scan width long',float) # MHz
+                        else:
                             break
-                    fp = result
+                    else:
+                        fp = result
+                        deltaf = gcp(cfg,'frequency scan','scan width',float) # MHz
                 else:
-                    fp = 0.0
+                    fp = fo
+                    deltaf = gcp(cfg,'frequency scan','scan width',float) # MHz
                 scanpath = path_creator(FS,{'fo':(fp,'MHz')})
-                success, result = scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fp,scanpath)                
+                success, result = scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fp,deltaf,scanpath)                
                 if not success:
                     print('frequency scan failed to find peak! continuing')
                     break
