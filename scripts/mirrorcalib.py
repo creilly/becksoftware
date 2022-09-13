@@ -1,5 +1,11 @@
 import mirrormotion as mm
 import pi
+import argparse
+
+ap = argparse.ArgumentParser()
+ap.add_argument('-r','--radius',default=mm.ro,type=float)
+
+Ro = ap.parse_args().radius
 
 Xo = 25.0
 Yo = 40.0
@@ -118,7 +124,7 @@ while True:
                         coords[axis] = {
                             pi.X:mm.get_xmirr,
                             pi.Y:mm.get_ymirr
-                        }[axis](angle)
+                        }[axis](angle,Ro)
                     break
             for axis in axes:
                 pi.set_motor_state(pih,axis,True)

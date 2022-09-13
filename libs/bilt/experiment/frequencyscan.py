@@ -4,6 +4,7 @@ from transfercavity import transfercavityclient as tcc
 from bilt.experiment.measure import get_measurement
 from grapher import graphclient as gc
 from scipy.optimize import curve_fit
+from bilt.experiment.modehop import ModeHopDetected
 
 def format_step(f,x,y,pd,w):
     return ' '.join(
@@ -34,8 +35,7 @@ def format_step(f,x,y,pd,w):
         ]
     )
 
-def scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fc,path):
-    deltaf = gcp(cfg,'frequency scan','scan width',float) # MHz
+def scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fc,deltaf,path):    
     df = gcp(cfg,'frequency scan','scan increment',float)
     deltat_tc = gcp(cfg,'frequency scan','measure time',float)
     epsilonf = gcp(cfg,'frequency scan','setpoint error',float)
@@ -45,13 +45,13 @@ def scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fc,path):
     pds = []
     for f in fs:
         tcc.set_setpoint(f)
-        tcc.check_transfer_cavity(f,epsilonf)        
-        success, (x,y,pd,w) = get_measurement(
+        tcc.check_transfer_cavity(f,epsilonf)                
+        success, result = get_measurement(
             cfg,handlerd,topoic,wmh,wo + dwdf * ( f - fo ),deltat_tc
         )        
         if not success:
-            rerun = True
-            break        
+            raise ModeHopDetected()
+        x,y,pd,w = result
         xs.append(x)
         pds.append(pd)
         gc.add_data(
@@ -70,7 +70,10 @@ def scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fc,path):
     guess = (
         fs[xs.argmax()],9.0,xs.max()-np.average(xs),np.average(xs)
     )
-    params, cov = curve_fit(fit,fs,xs,guess)                
+    try:
+        params, cov = curve_fit(fit,fs,xs,guess)                
+    except Exception:
+        return False, None
     print(
         'params',
         ', '.join(
@@ -86,4 +89,4 @@ def scan_frequency(cfg,handlerd,topoic,wmh,fo,wo,fc,path):
         )
     )
     fmax = params[0]
-    return fmax
+    return True, fmax

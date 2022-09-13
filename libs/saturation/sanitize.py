@@ -61,12 +61,12 @@ def get_fit(fs,irs):
         ]
     return iro, fit
 
-SIGMA_O = 10.0 # MHz
-def remove_baseline(fs,zs,irs):
+def fit_baseline(fs,zs,irs):
     zmin = zs.min()
     zmax = zs.max()
 
-    mu = 0.0 # MHz
+    # mu = 0.0 # MHz
+    mu = fs[zs.argmax()] # MHz
     sigma = SIGMA_O # MHz    
     amp = zmax - zmin
     offset = zmin
@@ -76,6 +76,13 @@ def remove_baseline(fs,zs,irs):
     iro, curve = get_fit(fs,irs)
 
     params, cov = curve_fit(curve,fs,zs,guess)
+    
+    return iro, params    
+
+SIGMA_O = 10.0 # MHz
+def remove_baseline(fs,zs,irs):
+    iro, params = fit_baseline(fs,zs,irs)
+
     mu, sigma, amp, offset = params    
 
     fs -= mu

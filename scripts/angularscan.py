@@ -10,6 +10,7 @@ import interrupthandler
 import maxon
 import datetime
 
+epsilonv = 50 # rpm
 # def_bolo_sens = 100.0e-3
 def_bolo_sens = 200.0e-3
 
@@ -49,7 +50,7 @@ wait_time = 1.0
 
 measure_time = 2.5
 maxon_open = 0
-f_chop = 280 #Hz
+f_chop = 237.1 #Hz
 
 folder = gc.get_day_folder() + ['lidscan']
 
@@ -100,7 +101,7 @@ with (
     sleep(5)
     v_act = maxon.get_velocity_act(mh,units)
     print('waiting for motor to reach chopping speed...')
-    while v_chop != v_act:
+    while abs(v_act-v_chop) > epsilonv:
         v_act = maxon.get_velocity_act(mh,units)
         print(
                     ',\t'.join(
@@ -163,4 +164,3 @@ with (
     maxon.set_enabled_state(mh,True)
     print('homing motor.')
     maxon.find_home(mh)    
-

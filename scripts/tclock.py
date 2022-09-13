@@ -25,10 +25,10 @@ def disable_lock():
     with ll.LaseLockHandler() as llh:        
         ll.set_reg_on_off(llh,ll.A,False)
 
-def locktc(htline,dw,em=None,ih=None):
+def locktc(htline,dw,em=None,pv=None,ih=None):
     wtarget = hitran.lookup_line(htline)[hitran.WNUMBECK] + dw
     disable_lock()
-    wp, pmax, e, m = ls.set_line(htline,dw,em=em,ih=ih)
+    wp, pmax, e, m = ls.set_line(htline,dw,em=em,pv=pv,ih=ih)
     tcc.set_scanning(True)
     tl.lock_topo()
     for channel in (tcs.HENE,tcs.IR):

@@ -10,6 +10,8 @@ import interrupthandler
 import maxon
 import datetime
 
+epsilonv = 50 # rpm
+
 def_bolo_sens = 100.0e-3
 # def_bolo_sens = 200.0e-3
 
@@ -40,14 +42,14 @@ theta_spec = centerangle
 theta_min = 50
 theta_max = 85
 
-dtheta = 2
+dtheta = 1.0
 # dtheta = 0.5
 
 thetas = np.arange(theta_min,theta_max + dtheta/2,dtheta)
 
 wait_time = 1.0
 
-measure_time = 2.5
+measure_time = 1.0
 maxon_open = 0
 f_chop = 237 #Hz
 
@@ -84,7 +86,7 @@ with (
     sleep(5)
     v_act = maxon.get_velocity_act(mh,units)
     print('waiting for motor to reach chopping speed...')
-    while v_chop != v_act:
+    while abs(v_act-v_chop) > epsilonv:
         v_act = maxon.get_velocity_act(mh,units)
         print(
                     ',\t'.join(
