@@ -128,6 +128,13 @@ metadatafname = 'md'
 
 def_outfolder = 'data'
 def_imagefolder = 'images'
+def fmt_title(desc,lineindex,htline):
+    return '\n'.join(
+        [
+            '{} - {:03d}'.format(desc,lineindex),
+            hitran.fmt_line(htline)
+        ]
+    )
 def sanitize_experiment(
     pcpath,phimin,phimax,phio,
     lines,outfolder=def_outfolder,imagefolder=def_imagefolder,
@@ -224,7 +231,7 @@ def sanitize_experiment(
                     plt.plot(ps,zs,'.')                    
                     plt.xlabel('power (watts)')
                     plt.ylabel('lockin signal (normed)')                    
-                    plt.title('normed fluence curve - {:03d}'.format(lineindex))   
+                    plt.title(fmt_title('normed fluence curve',lineindex,htline))
                     plt.savefig(os.path.join(imagefolder,'{:03d}-{:d}.png'.format(lineindex,FC)))
                     plt.cla()
             if mode is FS:
@@ -239,9 +246,10 @@ def sanitize_experiment(
                 zscale, zs = rescale_data(zs)
                 if debug:
                     plt.plot(omegas,zs,'.')                    
-                    plt.xlabel('radial frequency (rads / microsec, calibrated)')
+                    plt.xlabel('radial frequency (rads / microsec, {} calibrated)'.format('wm' if freqcalib else 'tc'))
                     plt.ylabel('lockin signal (normed)')
-                    plt.title('frequency scan (clipped) - {:03d}'.format(lineindex))                    
+                    plt.title(fmt_title('frequency scan (clipped)',lineindex,htline))                        
+                    plt.tight_layout()
                     plt.savefig(os.path.join(imagefolder,'{:03d}-{:d}.png'.format(lineindex,FS)))
                     plt.cla()            
             lengths[mode] = len(zs)
