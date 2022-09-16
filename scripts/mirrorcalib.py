@@ -3,7 +3,7 @@ import pi
 import argparse
 
 ap = argparse.ArgumentParser()
-ap.add_argument('-r','--radius',default=mm.ro,type=float)
+ap.add_argument('-r','--radius',default=mm.ro,type=float,help='tagging radius (mm)')
 
 Ro = ap.parse_args().radius
 
