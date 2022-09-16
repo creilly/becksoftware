@@ -109,7 +109,7 @@ def remove_baseline(fs,zs,irs):
     #     plt.show()
     return fs, zs, sigma
 
-CLIP_FACTOR = 3.0
+CLIP_FACTOR = 4.0
 def clip_data(fs,zs,irs,pc,sigma,phio):
     deltaf = CLIP_FACTOR * sigma
                 
