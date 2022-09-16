@@ -287,8 +287,6 @@ def get_homing_state(handle):
     )
     return homing_attained.value, homing_error.value
 
-STATUSWORD_INDEX = 0x6041
-STATUSWORD_SUBINDEX = 0x00
 def get_object_word(handle,object_index,object_subindex):
     data = w.WORD()
     nbytesread = w.DWORD()    
@@ -308,8 +306,22 @@ def get_object_word(handle,object_index,object_subindex):
         raise Exception('error during maxon word read')
     return data.value
 
+STATUSWORD_INDEX = 0x6041
+STATUSWORD_SUBINDEX = 0x00
 def get_status_word(handle):
     return get_object_word(handle,STATUSWORD_INDEX,STATUSWORD_SUBINDEX)
+
+CONTROLWORD_INDEX = 0x6040
+CONTROLWORD_SUBINDEX = 0x00
+def get_control_word(handle):
+    return get_object_word(handle,CONTROLWORD_INDEX,CONTROLWORD_SUBINDEX)
+
+CW_HALT = 8
+def get_halt_bit(handle):
+    return get_word_bit(get_control_word(handle),CW_HALT)
+
+def get_word_bit(word,bit):
+    return (word // 2**bit) % 2
 
 SW_RDY_SW_ON, SW_SW_ON, SW_OP_EN, \
     SW_FLT, SW_VLT_EN, SW_QS, SW_SW_ON_DS, SW_WRN, \
@@ -317,12 +329,10 @@ SW_RDY_SW_ON, SW_SW_ON, SW_OP_EN, \
             SW_12, SW_13, SW_RCPS, SW_REF_HM = \
                 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 def get_status_bit(handle,bit):
-    return (get_status_word(handle) // 2**bit) % 2
+    return get_word_bit(get_status_word(handle),bit)    
 
 def get_homed(handle):
     return get_status_bit(handle,SW_REF_HM)
-
-# def get_homed(handle):
 
 # profile velocity mode
 
@@ -357,6 +367,16 @@ def move_with_velocity(handle,vel,units):
         )
     )
 
+def get_target_velocity(handle,units):
+    target_velocity = c.c_long()
+    maxon(
+        dll.VCS_GetTargetVelocity,
+        (
+            handle, nodeid, c.byref(target_velocity)
+        )
+    )    
+    return lv(target_velocity.value,units)
+
 def halt_velocity_movement(handle):
     return maxon(
         dll.VCS_HaltVelocityMovement,
@@ -365,6 +385,29 @@ def halt_velocity_movement(handle):
             nodeid
         )
     )
+
+def set_word_bit(handle,index,subindex,bit_add,bit_val):
+    wordo = get_object_word(handle,index,subindex)
+    wordp = wordo + 2 ** bit_add * ( bit_val - get_word_bit(wordo,bit_add) )
+    set_word(handle,index,subindex,wordp)
+
+def set_word(handle,index,subindex,word):
+    nbyteswritten = w.DWORD()
+    maxon(
+        dll.VCS_SetObject,
+        (
+            handle, nodeid, 
+            index, subindex, 
+            c.byref(w.WORD(word)), 
+            2, 
+            c.byref(nbyteswritten)
+        )
+    )
+    if nbyteswritten.value != 2:        
+        raise Exception('error during maxon word read')
+
+def set_halting(handle,halting):
+    return set_word_bit(handle,CONTROLWORD_INDEX,CONTROLWORD_SUBINDEX,CW_HALT,{True:1,False:0}[halting])
 
 # profile position mode
 
