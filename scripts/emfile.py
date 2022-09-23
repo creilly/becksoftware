@@ -8,7 +8,7 @@ def parse_em_file(em_file):
     lines = []
     with open(em_file,'r') as f:
         while True:
-            line = f.readline().split('\n')[0]
+            line = f.readline().split('#')[0].split('\n')[0]
             if not line.strip():
                 return lines
             rawfields = line.split('\t')            
