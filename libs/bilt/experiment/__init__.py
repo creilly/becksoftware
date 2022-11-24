@@ -52,7 +52,7 @@ def run_experiment(config_fname):
         pi.PIHandler() as pih,
         wm.WavemeterHandler('argos-wavemeter') as awmh,
         maxon.MaxonHandler() as mh,
-        interrupthandler.InterruptHandler() as ih,    
+        interrupthandler.InterruptHandler() as ih        
     ):
         try:
             handlerd = {
@@ -157,7 +157,7 @@ def measure_line(line,cfg,phis,handlerd):
                     if not success:                
                         error = result                    
                         if error == OUT_OF_RANGE_ERROR:
-                            print('line search failed! continuing to next line.')
+                            print('line search failed! continuing to fine scan.')
                             fp = fo
                             deltaf = gcp(cfg,'frequency scan','scan width long',float) # MHz
                         else:
@@ -275,7 +275,7 @@ def end_tagging(handlerd):
     wait_chopper(handlerd)
     
 def _set_hwp(cfg,handlerd,phi,lid_angle,rescon):
-    res = set_hwp(cfg,handlerd,phi,lid_angle,phi)
+    res = set_hwp(cfg,handlerd,phi,lid_angle)
     rescon.append(res)
 def start_hwp_init(cfg,handlerd,phi):
     rescon = []
