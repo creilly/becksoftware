@@ -16,6 +16,21 @@ DATAROOT = os.environ[DATAROOTKEY]
 
 CREATED = '_created'
 
+def check_read_only(f):
+    def _f(*args,**kwargs):
+        if readonly:
+            raise bhs.BeckError(
+                ' '.join(
+                    [
+                        'grapher in read-only mode.',
+                        'can not execute command.',
+                        'run grapher with --readwrite option set (python -m grapher.graphserver --readwrite).'
+                    ]
+                )
+            )
+        return f(*args,**kwargs)
+    return _f
+
 def get_day_folder():
     now = datetime.now()
     return [
@@ -28,7 +43,8 @@ def _add_folder(folder):
     folder_string = format_path_list(folder)
     if not os.path.exists(folder_string):
         os.makedirs(folder_string)
-    
+
+@check_read_only
 def add_folder(folder):
     root = get_day_folder()
     new_folder = root+folder
@@ -56,6 +72,7 @@ def get_dir(folder):
 def get_files(folder): return get_dir(folder)[0]
 def get_folders(folder): return get_dir(folder)[1]
 
+@check_read_only
 def add_dataset(folder,name,fields,metadata):
     _add_folder(folder)
     nfiles = len(get_files(folder))
@@ -83,6 +100,7 @@ def add_dataset(folder,name,fields,metadata):
         )
     return dspath
 
+@check_read_only
 def add_data(path,data):
     with open(format_path_list(path),'a') as f:
         f.write(
@@ -95,6 +113,7 @@ def add_data(path,data):
         )
     return 0
 
+@check_read_only
 def add_data_multiline(path,data):
     with open(format_path_list(path),'a') as f:
         f.write(
@@ -165,9 +184,16 @@ commands = {
     'folder-status':folder_status
 }
 
-bhs.run_beck_server(
-    PORT,
-    os.path.dirname(__file__),
-    bhs.create_app(commands),
-    _debug=True
-)
+if __name__ == '__main__':
+    import argparse
+    ap = argparse.ArgumentParser(description='grapher server')
+    ap.add_argument('--readonly', action='store_true')
+    ap.add_argument('--readwrite',dest='readonly',action='store_false')
+    ap.set_defaults(readonly=True)
+    readonly = ap.parse_args().readonly
+    bhs.run_beck_server(
+        PORT,
+        os.path.dirname(__file__),
+        bhs.create_app(commands),
+        _debug=True
+    )
