@@ -29,9 +29,8 @@ with lockin.LockinHandler() as lih:
     lockin.set_ref_source(lih,lockin.EXTERNAL)
 
 centerangle = float(input('enter the center lid angle: '))
-
 bologain = bologainserver.X200
-# bologain = bologainserver.X10
+
 
 theta_lim = 48.0
 
