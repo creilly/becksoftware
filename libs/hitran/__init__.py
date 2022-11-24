@@ -182,8 +182,39 @@ symd = {
     4:'F1',
     5:'F2'
 }
+
+def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None):    
+    folders = [
+        formatters[key](field) for key, field in sorted(
+            {
+                MOL:mol,ISO:iso,LGQ:glq,UGQ:guq
+            }.items()
+        )
+    ]    
+    raw_llqs = os.listdir(format_path(folders))
+    for raw_llq in raw_llqs:        
+        _j, _sym, _level = parse_lq(raw_llq)        
+        if _j == j and (
+            oldsym is None or symd[oldsym] is None or _sym == symd[oldsym]
+        ) and (
+            ll is None or ll == _level
+        ) and (
+            newsym is None or newsym == _sym
+        ):
+            folders.append(raw_llq)
+            raw_ulqs = os.listdir(format_path(folders))
+            for raw_ulq in raw_ulqs:
+                __j, __sym, __level = parse_lq(raw_ulq)                
+                _b = __j - _j
+                if _b == b and (
+                    ul is None or ul == __level
+                ):
+                    folders.append(raw_ulq)                    
+                    return [folder for folder in folders]
+            folders.pop()
+    return None
 # conversion between old and new convention
-def search_db(mol,iso,glq,guq,b,j,oldsym=None,ll=None,ul=None):    
+def _search_db(mol,iso,glq,guq,b,j,oldsym=None,ll=None,ul=None):    
     folders = [
         formatters[key](field) for key, field in sorted(
             {
