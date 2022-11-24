@@ -69,10 +69,7 @@ def parse_bin_float(data):
     return struct.unpack('{:d}f'.format(len(data)//4),data)
 
 def parse_binary(b64bs):
-    blocks = []
-    
-    counting = False
-    reading = True
+    blocks = []    
     
     bs = b64decode(b64bs)
     n = 0
@@ -294,7 +291,7 @@ class InstructionClient(Client):
             BOOL
         )
 
-    def set_analog_temperature_enabled(self):
+    def set_analog_temperature_enabled(self,enabled):
         return self.set_param(
             'laser1:dl:tc:external-input:enabled',
             enabled,
@@ -331,7 +328,7 @@ class InstructionClient(Client):
 
     def stop_wide_scan(self):
         return self.send_command(
-            'laser1:wide-scan:start'
+            'laser1:wide-scan:stop'
         )
 
     def get_wide_scan_data(self,start,count):
@@ -341,12 +338,13 @@ class InstructionClient(Client):
                 (start,INT),(count,INT)
             )
         )
-        (i,idataraw),(x,xdataraw),(y,ydataraw),(Y,Ydataraw) = result
+        (i,idataraw),(x,xdataraw), *ytups = result        
         idata = parse_bin_int(idataraw)
         xdata = parse_bin_float(xdataraw)
-        ydata = parse_bin_float(ydataraw)
-        Ydata = parse_bin_float(Ydataraw)
-        return idata,xdata,ydata,Ydata
+        ydatas = []
+        for y, ydataraw in ytups:
+            ydatas.append(parse_bin_float(ydataraw))        
+        return idata,xdata,*ydatas
 
     def get_wide_scan_length(self):
         return self.get_param(
@@ -456,7 +454,20 @@ class InstructionClient(Client):
                 }[channel]
             ),
             FLOAT
-        )        
+        )   
+
+class ScopeClient:
+    def __init__(self):
+        self.mc = MonitoringClient('laser1:scope:data',STR)
+
+    def get_trace(self,timeout):
+        response = self.mc.poll(timeout)
+        if response is None:
+            return None
+        *ys, x = [
+            parse_bin_float(data) for label, data in parse_binary(response)
+        ]
+        return x, *ys
 
 class AsyncResponse:
     def __init__(self,aic,cb):
@@ -632,15 +643,14 @@ def get_wide_scan():
     scanlen = ic.get_wide_scan_length()
     scanindex = 0
     xdata = []
-    ydata = []
-    Ydata = []
+    ydatas = {}
     while scanindex < scanlen:
-        (istart,icount),xchunk,ychunk,Ychunk = ic.get_wide_scan_data(scanindex,scanlen-scanindex)
+        (istart,icount),xchunk,*ychunks = ic.get_wide_scan_data(scanindex,scanlen-scanindex)
         xdata += xchunk
-        ydata += ychunk
-        Ydata += Ychunk
+        for index, ychunk in enumerate(ychunks):
+            ydatas.setdefault(index,[]).extend(ychunk)            
         scanindex = istart + icount
-    return xdata, ydata, Ydata
+    return xdata, *(ydatas[index] for index in sorted(ydatas))
 
 def set_pos(pos,mode,setparam,actparam,epsilon):
     mc = MonitoringClient(actparam,mode)
