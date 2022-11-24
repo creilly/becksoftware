@@ -27,7 +27,7 @@ def start_home(mh):
     maxon.find_home(mh)
 
 # user callback received motor handle
-def wait_home(mh,sleep_time,callback):
+def wait_home(mh,sleep_time=0.0,callback=None):
     wait_state(mh,is_homed,sleep_time,callback)
 
 def set_blocking(mh,blocking):
