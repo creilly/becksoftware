@@ -31,7 +31,6 @@ with lockin.LockinHandler() as lih:
 centerangle = float(input('enter the center lid angle: '))
 bologain = bologainserver.X200
 
-
 theta_lim = 48.0
 
 delta_theta = 4.0
