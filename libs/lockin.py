@@ -144,14 +144,20 @@ sensitivities = (
     1e-0
 )
 
+def get_sensitivity_index(lockin):
+    return int(lockin.query('SENS?'))
+
 def get_sensitivity(lockin):
-    return sensitivities[int(lockin.query('SENS?'))]
+    return sensitivities[get_sensitivity_index(lockin)]
+
+def set_sensitivity_index(lockin,index):
+    return lockin.write(
+        'SENS {:d}'.format(index)
+    )
 
 def set_sensitivity(lockin,sensitivity):
     index, sensitivity = get_closest_value(sensitivities,sensitivity)
-    lockin.write(
-        'SENS {:d}'.format(index)
-    )
+    set_sensitivity_index(lockin,index)
     return sensitivity
 
 def start_data_storage(lockin):
@@ -231,8 +237,24 @@ def get_ref_source(lockin):
 def set_ref_source(lockin,ref_source):
     return lockin.write('FMOD {:d}'.format(ref_source))
 
+def auto_gain(lockin):
+    return lockin.write('AGAN')
+
+def command_in_progress(lockin):
+    return not bool(int(lockin.query('*STB? 1')))
+
+def wait_operation(lockin):
+    while True:
+        try:
+            cip = command_in_progress(lockin)            
+            if cip:
+                continue
+            break
+        except pyvisa.errors.VisaIOError:
+            continue
+
 if __name__ == '__main__':
-    with LockinHandler() as lockin:        
+    with LockinHandler() as lockin:    
         sb = get_status_byte(lockin)
         print('status byte:',sb)
         print(
