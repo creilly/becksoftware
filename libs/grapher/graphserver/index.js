@@ -18,11 +18,11 @@ var json_viewer = new JSONViewer();
 
 var monitored_folders = new Set();
 
-function send_command(command, parameters, cb) {
+function send_command(command, parameters, cb, hook = (x) => x) {
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function() {	
 	if (this.readyState == 4) {
-	    cb(JSON.parse(xhttp.responseText));
+	    cb(JSON.parse(hook(xhttp.responseText)));
 	}
     };
     xhttp.open('POST', '', true);
@@ -31,6 +31,10 @@ function send_command(command, parameters, cb) {
     data[COMMAND] = command;
     data[PARAMETERS] = parameters;
     xhttp.send(JSON.stringify(data));
+}
+
+function data_hook(s) {
+    return s.replace(/\bNaN\b/g, "null");
 }
 
 function format_path_list(path) {
@@ -246,13 +250,14 @@ function set_dataset(path) {
 
 function _update_dataset() {
     send_command(
-	'get-data',
-	{path:global_path},
-	function (columns) {
-	    global_columns = columns;
-	    global_timer = setTimeout(update_dataset,100);
-	    update_plot()
-	}
+		'get-data',
+		{path:global_path},
+		function (columns) {
+			global_columns = columns;
+			global_timer = setTimeout(update_dataset,100);
+			update_plot()
+		},
+		data_hook
     );
 }
 
