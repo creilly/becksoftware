@@ -12,7 +12,6 @@ SHUTTER_SHUT, SHUTTER_OPEN = False, True
 poll_time = 0.25 # seconds
 spin_poll_time = 2.0 # seconds
 meas_time = 6.0 # seconds
-chopped_beam_lia_sens = 10e-3 # volts
 chopped_beam_bolo_gain = bologainserver.X1000
 # measured 2022-08-04
 # appears to vary (+- 10 degrees) with methane exposure
@@ -54,6 +53,7 @@ def get_sensitivity(cfg,handlerd,rescon,token):
         start_spin(mh,v_chop)
 
         # set lockin sensitivity for chopped beam
+        chopped_beam_lia_sens = gcp(cfg,'sensitivity','lockin sensitivity',float)
         lockin.set_sensitivity(lih,chopped_beam_lia_sens)
 
         print('setting bolo gain to {:d}'.format(chopped_beam_bolo_gain))
