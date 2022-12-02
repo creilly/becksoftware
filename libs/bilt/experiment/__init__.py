@@ -173,6 +173,8 @@ def measure_line(line,cfg,phis,handlerd):
                 if not success:
                     print('frequency scan failed to find peak! continuing')
                     break
+                if not gcp(cfg,'experiment','fluence curve',bool):
+                    break
                 fmax = result
                 fshift = gcp(cfg,'frequency scan','off resonance shift',float)
                 fmin = fmax + (
@@ -184,7 +186,7 @@ def measure_line(line,cfg,phis,handlerd):
                         in (('fmax',fmax),('fmin',fmin))
                     }
                 }
-                fluencepath = path_creator(FC,fluencemd)
+                fluencepath = path_creator(FC,fluencemd)                
                 get_fluence_curve(
                     cfg,handlerd,topoic,wmh,
                     phis,fmax,fmin,fo,wo,fluencepath
