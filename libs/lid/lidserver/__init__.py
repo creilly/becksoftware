@@ -1,14 +1,25 @@
 import beckhttpserver as bhs
 import lidmotor
+import rotaryencoder
 
 class LidApp(bhs.BeckApp):
-    def __init__(self,lidmotor_handle: lidmotor.LidMotor,phi_o):        
+    def __init__(
+        self,
+        lidmotor_handle: lidmotor.LidMotor,
+        rotary_encoder_handle,
+        phi_o
+    ):        
         self.lmh = lidmotor_handle
+        self.reh = rotary_encoder_handle
         self.lp = lidmotor.LidPositioner(self.lmh,phi_o)
         self.backlash = self.lp.get_backlash()
         self.backlash_buffer = 0.50
         self.backlashing = False
-        self.backlashing_phis = []        
+        self.backlashing_phis = []   
+
+    @bhs.command('get-encoder')
+    def get_encoder(self):
+        return rotaryencoder.get_position(self.reh)
 
     @bhs.command('calibrate-lid')
     def calibrate_lid(self,phi_o):

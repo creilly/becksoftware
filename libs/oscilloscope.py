@@ -62,6 +62,18 @@ def set_rms_noise(scope,vrms):
 def get_rms_noise(scope):
     return float(scope.query('vbs? \'return = app.WaveSource.StdDev\'').split(' ')[-1])
 
+def set_sine_amplitude(scope,amplitude):
+    scope.write('vbs app.WaveSource.Amplitude = {:.6f}'.format(amplitude))
+
+def get_sine_amplitude(scope):
+    return float(scope.query('vbs? \'return = app.WaveSource.Amplitude\'').split(' ')[-1])
+
+def set_sine_frequency(scope,frequency):
+    scope.write('vbs app.WaveSource.Frequency = {:.6f}'.format(frequency))
+
+def get_sine_frequency(scope):
+    return float(scope.query('vbs? \'return = app.WaveSource.Frequency\'').split(' ')[-1])
+
 LOW, HIGH = 0, 1
 def set_output_impedance(scope,impedance):
     scope.write(
@@ -137,6 +149,12 @@ def get_measurement(scope,channel,measurement):
         ).split(',')[1]
     )
 
+def get_parameter(scope,parameter):  
+    try:
+        return float(scope.query('vbs? \'return = app.measure.p{:d}.out.Result.Value\''.format(parameter)).strip().split(' ')[-1])
+    except ValueError:
+        return None
+
 VER, HOR = 0, 1
 def set_cursors(scope,mode,c1,c2):
     scope.write(
@@ -157,6 +175,40 @@ def read_waveform_file(fname):
             ts.append(t)
             vs.append(v)
     return ts, vs
+
+# seconds per division 
+def set_time_division(scope,time_division):
+    scope.write('TDIV {:e}S'.format(time_division))
+
+def get_time_division(scope):    
+    return float(scope.query('TDIV?').strip().split()[1])
+
+# volts per division
+def set_vertical_division(scope,channel,vertical_division):
+    scope.write('{}:VDIV {:e}V'.format(channel,vertical_division))
+
+# volts
+def get_vertical_division(scope,channel):
+    return float(scope.query('{}:VDIV?'.format(channel)).strip().split()[1])
+
+def autoscale(scope,channel):
+    scope.write('{}:ASET FIND'.format(channel))
+
+def get_operation_complete(scope):
+    return bool(int(scope.query('*OPC?').strip().split()[1]))
+
+def wait_operation_complete(scope):
+    while True:
+        try:
+            op_complete = get_operation_complete(scope)
+            if op_complete:
+                break
+        except pyvisa.errors.VisaIOError:
+            continue        
+
+def wait(scope):
+    scope.write('WAIT')
+    wait_operation_complete(scope)
 
 if __name__ == '__main__':
     with ScopeHandler() as scope:

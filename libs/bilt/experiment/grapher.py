@@ -41,7 +41,7 @@ ditherbasecols = [
 ls_c = linecols
 fs_c = linecols
 fc_c = ['hwp angle (degs)'] + ditherbasecols
-as_c = ['lid angle (degs)'] + ditherbasecols + ['time stamp (seconds since epoch)']
+as_c = ['lid angle (degs)'] + ditherbasecols + ['time stamp (seconds since epoch)'] + ['encoder position (steps)']
 
 colsd = {
     LS:ls_c,

@@ -117,6 +117,7 @@ def find_weakling(cfg,fs,zs,irs,sens_scalar):
         ) 
     ):
         return False, OUT_OF_RANGE_ERROR
+    print('line search fit successful!')    
     return True, mu
 
 MODE_HOP_ERROR, OUT_OF_RANGE_ERROR = 0, 1

@@ -31,6 +31,21 @@ def get_version(pm):
 def get_power(pm):
     return float(send_command(pm,'CVU').strip().split(' ')[-1])
 
+def start_stream(pm):
+    pm.write('*CAU')
+
+def stop_stream(pm):
+    pm.write('*CSU')
+    pm.timeout = 100
+    try:
+        sum = 0
+        n = 0
+        while True:
+            sum += float(pm.read().strip())
+            n += 1
+    except pyvisa.errors.VisaIOError:        
+        return sum / n if n else None
+
 if __name__ == '__main__':
     from time import sleep
     import argparse
@@ -39,8 +54,13 @@ if __name__ == '__main__':
     try:
         print('gentec power monitor. press ctrl-c to quit.')
         with GentecHandler() as pm:
-            while True:
-                print(get_power(pm))
-                sleep(0.001)
+            for _ in range(2):
+                start_stream(pm)
+                sleep(2.0)
+                print('power:',stop_stream(pm))            
+            print(get_power(pm))
+            # while True:
+            #     print(get_power(pm))
+            #     sleep(0.001)
     except KeyboardInterrupt:
         print('interrupt received quitting...')

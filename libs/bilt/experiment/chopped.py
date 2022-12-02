@@ -21,7 +21,7 @@ chopped_beam_bolo_gain = bologainserver.X1000
 # goes as 1 - cos(epsilon_theta) ~ epsilon_theta ** 2
 # so for epsilon_theta = 10 degrees, we have 
 # error = (10 / 180 * 3.14)^2 ~ 4 percent, which is ok
-deltaphi_tagged_chopped = -145.0 # degrees
+deltaphi_tagged_chopped = -177.0 # degrees
 
 class TokenEmpty(Exception):
     pass
@@ -56,8 +56,10 @@ def get_sensitivity(cfg,handlerd,rescon,token):
         chopped_beam_lia_sens = gcp(cfg,'sensitivity','lockin sensitivity',float)
         lockin.set_sensitivity(lih,chopped_beam_lia_sens)
 
+        # setting bolo gain
+        chopped_beam_bolo_gain = gcp(cfg,'sensitivity','bolo gain',int)
         print('setting bolo gain to {:d}'.format(chopped_beam_bolo_gain))
-        # set bologain to minimum gain
+        # set bologain to desired gain
         bologainclient.set_gain(chopped_beam_bolo_gain)    
         
         print('blocking tagging and pumping beams')

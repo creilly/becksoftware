@@ -11,7 +11,7 @@ def get_fluence_curve(cfg,handlerd,topoic,wmh,phis,fmax,fmin,fo,wo,path):
     for phi in phis:
         data = []
         data.append(phi)                    
-        deltax, deltay = set_hwp(cfg,handlerd,phi,lid_angle,phis[0])
+        deltax, deltay = set_hwp(cfg,handlerd,phi,lid_angle)
         success, outdata = get_dither_measurement(
             cfg,handlerd,topoic,wmh,
             deltat_fc,fmax,fmin,fo,wo,dwdf

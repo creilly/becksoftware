@@ -4,8 +4,9 @@ import numpy as np
 import pi
 import rotationstage as rs
 
-def set_hwp(cfg,handlerd,hwp_angle,lid_angle,phimaxp):
+def set_hwp(cfg,handlerd,hwp_angle,lid_angle):
     pih, rsh = handlerd[PI], handlerd[RS]    
+    phicalib = gcp(cfg,'fluence curve','calib angle',float)
     mir_angle_o = gcp(cfg,'scattering','mirror angle',float)
     lid_angle_o = gcp(cfg,'scattering','lid angle',float)
     delta_theta_mirror_lid = mir_angle_o - lid_angle_o
@@ -13,7 +14,7 @@ def set_hwp(cfg,handlerd,hwp_angle,lid_angle,phimaxp):
     mir_angle = lid_angle + delta_theta_mirror_lid
     xo = mm.get_xmirr(mir_angle)
     yo = mm.get_ymirr(mir_angle)
-    dx, dy = [deltaz(hwp_angle,phimaxp) for deltaz in (deltax,deltay)]
+    dx, dy = [deltaz(hwp_angle,phicalib) for deltaz in (deltax,deltay)]
     x = xo + dx
     y = yo + dy
     for mirror, pos in ((pi.X,x),(pi.Y,y)):            

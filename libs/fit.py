@@ -13,6 +13,15 @@ def gaussian_fit(xs,ys,mean,std,amp,offset):
 def der_gaussian_fit(xs,ys,mean,std,amp):
     return curve_fit(der_gaussian,xs,ys,(mean,std,amp))
 
+def fmt_gaussian(mu,sigma,amp,off):
+    return ', '.join(
+        '{}: {}'.format(
+            label, '{:.2e}'.format(value).rjust(10)
+        ) for label, value in (
+            ('mu',mu), ('sigma',sigma), ('amp', amp), ('off', off)
+        )
+    )
+
 MEAN, STD, AMP, OFFSET = 0, 1, 2, 3
 def gaussian_guess(xs,ys):
     offset = ys.min()

@@ -199,11 +199,27 @@ def get_li_ampl_aux(ll):
         'LIAmplAux'
     )*1e-4
 
+# 0-3 (0 = turn off)
+def get_li_harmonic_aux(ll):
+    return get_param(
+        ll,
+        'LIHarmonicAux'
+    )
+
+def set_li_harmonic_aux(ll,harmonic):
+    return set_param(
+        ll,
+        'LIHarmonicAux',
+        harmonic
+    )
+
 if __name__ == '__main__':
     with LaseLockHandler() as llh:
-        # print(get_reg_offset(llh,A))
-        print(set_li_ampl_aux(llh,1.70))
+        # print(get_reg_offset(llh,A))        
         print(get_li_ampl_aux(llh))
+        print(get_li_harmonic_aux(llh))
+        print(set_li_harmonic_aux(llh,0))
+        print(get_li_harmonic_aux(llh))
         # vs = vardump(llh)
         # fname = 'piezo-dc.llv'
         # save_vars(fname,vs)
