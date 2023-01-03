@@ -16,4 +16,4 @@ else:
     print('warning! logger in read-only mode.')
     print('to run logger in logging mode, run with --log option.')
 
-bhs.run_beck_server(ls.PORT,os.path.dirname(__file__),ls.LoggerApp,groups,_debug=True)
+bhs.run_beck_server(ls.PORT,os.path.dirname(__file__),ls.LoggerApp,groups,_debug=True) 
