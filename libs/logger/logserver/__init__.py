@@ -122,10 +122,7 @@ def get_delta(group,date):
     return get_metadata(group,date)[DELTA]
 
 def get_units(group,date):
-    return get_metadata(group,date)[UNITS]    
-    
-# now = dt.datetime.now()
-# update({NAME:'test',CHANNELS:['a','b'],HANDLE:lambda:[1.0,1.1],THEN:now,DELTA:1.0},now)
+    return get_metadata(group,date)[UNITS]
 
 class LoggerError(Exception):
     pass
@@ -136,8 +133,8 @@ class LoggerApp(bhs.BeckApp):
         for group in groups:
             group[THEN] = now
         self.groups = groups
-        
-    def loop(self):
+                
+    def loop(self):        
         now = dt.datetime.now()
         for group in self.groups:
             update(group,now)
