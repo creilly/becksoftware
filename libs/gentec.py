@@ -22,8 +22,8 @@ def open_pm(visa_id=VISA_ID):
 def close_pm(pm):
     pm.close()
 
-def send_command(pm,command):
-    return pm.query('*{}'.format(command))
+def send_command(pm,command,response=True):
+    return getattr(pm,{True:'query',False:'write'}[response])('*{}'.format(command))
 
 def get_version(pm):
     return send_command(pm,'VER')
@@ -45,6 +45,13 @@ def stop_stream(pm):
             n += 1
     except pyvisa.errors.VisaIOError:        
         return sum / n if n else None
+
+def set_autoscale(pm,autoscale):
+    return send_command(pm,'SAS {:d}'.format(int(autoscale)),False)
+
+RANGE_1W = 24
+def set_range(pm,range):
+    return send_command(pm,'SCS {:d}'.format(range),False)
 
 if __name__ == '__main__':
     from time import sleep
