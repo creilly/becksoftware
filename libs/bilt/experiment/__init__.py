@@ -70,17 +70,15 @@ commandd = {
 }
 def measure_line(line,cfg,phis,handlerd):
     breaking = False
-    trial = 0
-    need_ref = not trial    
+    trial = 0    
     while True:                
         print('starting set line trial {:d}'.format(trial))
         end_tagging(handlerd)
         token = [None]
         try:   
-            hwp_promise = start_hwp_init(cfg,handlerd,phis[0])
-            if need_ref:
-                print('first trial, taking chopped beam measurement.')
-                sens_promise = start_sensitivity(cfg,handlerd,token)
+            hwp_promise = start_hwp_init(cfg,handlerd,phis[0])            
+            print('first trial, taking chopped beam measurement.')
+            sens_promise = start_sensitivity(cfg,handlerd,token)
             print('setting line')
             e, m, fo, wo = set_line(cfg,handlerd,line)
             # e, m, fo, wo = 700, 8.1, 0.0, 3028.7416
@@ -88,12 +86,10 @@ def measure_line(line,cfg,phis,handlerd):
             print(
                 'line',hitran.fmt_line(line[0]), 
                 'e', e, 'm', m, 'fo', fo, 'wo', wo
-            )
-            if need_ref:
-                print('waiting for sensitivity measurement')
-                sens_md = end_thread(sens_promise)
-                need_ref = False
-                print('sentivity measurement complete.')
+            )            
+            print('waiting for sensitivity measurement')
+            sens_md = end_thread(sens_promise)            
+            print('sentivity measurement complete.')
             print('waiting for hwp / mirror init')
             deltax, deltay = end_thread(hwp_promise)
             print('hwp / mirror init complete.')                        
@@ -114,11 +110,10 @@ def measure_line(line,cfg,phis,handlerd):
             hwpthread, _ = hwp_promise
             hwpthread.join()
             print('hwp thread complete')
-            if need_ref:
-                print('waiting for reference thread to complete')
-                refthread, _ = hwp_promise
-                refthread.join()
-                print('reference thread complete')
+            print('waiting for reference thread to complete')
+            refthread, _ = sens_promise
+            refthread.join()
+            print('reference thread complete')
             command = parse_response(
                 input('[q]uit, [r]eset, or [c]ontinue (default)?: '),
                 'c'
@@ -221,6 +216,7 @@ def measure_line(line,cfg,phis,handlerd):
                 if command == 'c':
                     break
                 if command == 'r':
+                    trial += 1
                     continue
             break             
 
