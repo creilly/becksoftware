@@ -2,7 +2,7 @@ import math
 import argparse
 
 surfthetao = 0 # degs
-micthetao = 35 # degs
+micthetao = 60 # update 2023-01-09 # 35 # degs
 
 dmic_dsurf = -21.0 # degs mic per deg surf
 
