@@ -9,7 +9,6 @@ message: >-
 type: software
 authors:
   - given-names: Christopher
-    name-particle: S
     family-names: Reilly
     email: christopher.reilly@epfl.ch
     affiliation: EPFL
@@ -18,3 +17,7 @@ authors:
     family-names: Floß
     email: patrick.floss@epfl.ch
     affiliation: EPFL
+keywords:
+  - python
+  - arduino
+  - javascript
