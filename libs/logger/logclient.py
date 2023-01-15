@@ -20,18 +20,24 @@ def get_data(group,date,delta=0,start=None,end=None):
             )
         }
     )
+    result = send_command('get-data',params)
+    if result is None:
+        return None
     return [
         [
             dt.time.fromisoformat(rawtime),data
         ]
-        for rawtime, *data in send_command('get-data',params)
+        for rawtime, *data in result
     ]
 
 def get_delta(group,date):
     return send_command('get-delta',{'group':group,'date':date.isoformat()})
 
 def get_most_recent(group,date):    
-    return get_data(group,date,0)[-1]
+    while True:
+        data = get_data(group,date)
+        if data:
+            return data[-1]    
 
 def get_channels(group,date):
     return send_command('get-channels',{'group':group,'date':date.isoformat()})
