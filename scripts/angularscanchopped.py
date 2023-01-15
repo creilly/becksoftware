@@ -33,14 +33,14 @@ bologain = bologainserver.X200
 
 theta_lim = 48.0
 
-delta_theta = 4.0
+delta_theta = 1.0
 theta_spec = centerangle
 # theta_min = max(theta_lim,theta_spec-delta_theta)
 # theta_max = theta_spec+delta_theta
 theta_min = 50
-theta_max = 85
+theta_max = 120
 
-dtheta = 1.0
+dtheta = 2.0
 # dtheta = 0.5
 
 thetas = np.arange(theta_min,theta_max + dtheta/2,dtheta)
