@@ -6,7 +6,10 @@ from beckfile import get_fname
 infilesarg = 'input .dat files'
 ap = argparse.ArgumentParser()
 ap.add_argument(infilesarg,nargs='+')
-infilenames = vars(ap.parse_args())[infilesarg]
+ap.add_argument('-m','--min',type=float,default=-1.0,help='min energy to start min/max scaling')
+args = ap.parse_args()
+infilenames = vars(args)[infilesarg]
+minenergy = args.min
 
 froot = input('enter image filename (no ext): ')
 desc = input('enter description: ')
@@ -20,7 +23,14 @@ while infilenames:
 
     e, s = np.loadtxt(fname,skiprows=skiprows).transpose()
 
-    s /= s.max() - s.min()
+    minindex = 0
+    if min > 0:
+        for index in range(len(e)):
+            if e[index] > min:
+                break
+            minindex = index
+
+    s /= s[minindex:].max() - s[minindex:].min()
 
     s -= np.average(s)
 
