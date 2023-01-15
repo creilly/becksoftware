@@ -5,6 +5,7 @@ import numpy as np
 from time import time, sleep
 import topo
 import argparse
+import wavemeter
 
 ap = argparse.ArgumentParser(description='hwp scanning program')
 ap.add_argument('--name','-n',default='hwp scan',help='grapher dataset name')
@@ -19,7 +20,6 @@ ap.add_argument(
 )
 ap.add_argument('--info','-i',default='',help='dataset metadata note')
 
-
 args = ap.parse_args()
 name = args.name
 meastime = args.time
@@ -32,7 +32,12 @@ settle = args.settle
 
 ic = topo.InstructionClient()
 
-with pm.GentecHandler() as pmh, rot.RotationStageHandler() as sn:
+with pm.GentecHandler() as pmh, rot.RotationStageHandler() as sn, wavemeter.WavemeterHandler() as wmh:
+    pm.set_autoscale(pmh,False)
+    sleep(1.0)
+    pm.set_range(pmh,pm.RANGE_1W)
+    sleep(1.0)
+    w = wavemeter.get_wavenumber(wmh)
     angles = np.arange(anglemin,anglemax,anglestep)
 
     if not rot.is_homed(sn):
@@ -47,7 +52,7 @@ with pm.GentecHandler() as pmh, rot.RotationStageHandler() as sn:
             'power (watts)',
             'ir photodiode (volts)'
         ),
-        metadata = {'info':info} if info else {}
+        metadata = {'wavelength':(w,'cm-1'),**({'info':info} if info else {})}
     )
 
     for angle in angles:
