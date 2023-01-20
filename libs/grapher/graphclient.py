@@ -40,6 +40,12 @@ def get_dir(folder):
 def get_day_folder():
     return send_command('get-day-folder',{})
 
+def get_pairs(folder):
+    datasets, _, metadatas = get_dir(folder)
+    return [
+        [[*folder,name] for name in pair] for pair in zip(datasets,metadatas)
+    ]
+
 if __name__ == '__main__':
     from time import sleep
     import math

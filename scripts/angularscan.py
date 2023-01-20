@@ -12,7 +12,7 @@ import datetime
 
 epsilonv = 50 # rpm
 # def_bolo_sens = 100.0e-3
-def_bolo_sens = 200.0e-3
+def_bolo_sens = 500.0e-3
 
 ap = argparse.ArgumentParser()
 ap.add_argument('-s','--bolosens',type=float,default=def_bolo_sens,help='bolometer sensitivity')
@@ -34,7 +34,7 @@ bologain = bologainserver.X10
 
 theta_lim = 48.0
 
-delta_theta = 4.0
+delta_theta = 5.0
 theta_spec = centerangle
 theta_min = max(theta_lim,theta_spec-delta_theta)
 theta_max = theta_spec+delta_theta

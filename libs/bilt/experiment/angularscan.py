@@ -9,6 +9,21 @@ from bilt.experiment.hwp import set_hwp
 from bilt.experiment.measure import get_dither_measurement
 from grapher import graphclient as gc
 
+def lidcallback(thetap):
+    delay = 5.0 # seconds
+    timer = [time()]
+    def cb():
+        tp = time()
+        to = timer[0]
+        if tp - to > delay:
+            print(
+                'waiting for lid. requested: {:.2f} degs, actual: {:.2f} degs'.format(
+                    thetap,lidclient.get_lid()
+                )
+            )
+            timer[0] = tp
+    return cb
+
 def get_angular_scan(
     cfg,handlerd,topoic,wmh,
     phio,starttime,fmax,fmin,fo,wo,path
@@ -26,16 +41,10 @@ def get_angular_scan(
     for theta in thetas:
         bologainclient.set_gain(bologainserver.X10)
         lockin.set_sensitivity(lih,1e-0)
-        lidclient.set_lid(theta)
-        deltax, deltay = set_hwp(cfg,handlerd,phio,theta,phio)
-        lidclient.wait_lid(
-            lambda: print(
-                'waiting for lid. requested: {:.2f} degs, actual: {:.2f} degs'.format(
-                    theta,lidclient.get_lid()
-                )
-            )
-        )
-        # print('angle:',int(1000*theta),'milldegrees')                    
+        lidclient.set_lid(theta,wait=False)
+        encoder = lidclient.get_encoder()
+        deltax, deltay = set_hwp(cfg,handlerd,phio,theta)
+        lidclient.wait_lid(lidcallback(theta))                    
         data = [] 
         data.append(theta)
         lockin.set_sensitivity(lih,li_sens)
@@ -53,6 +62,7 @@ def get_angular_scan(
         data.extend(outdata)
         data.extend([deltax,deltay])
         data.append(time() - starttime)
+        data.append(encoder)
         gc.add_data(path,data)    
 
 def get_thetas(cfg):

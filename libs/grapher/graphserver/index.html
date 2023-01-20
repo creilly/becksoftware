@@ -1,63 +1,97 @@
 <html>
-  <head>
-    <title>grapher</title>
-    <link rel="icon" type="image/png" href="icon.png"/>
-    <script src="plotly.js"></script>
-    <script src="json-viewer.js"></script>
-    <script src="index.js"></script>
-    <link rel="stylesheet" href="json-viewer.css">
-    <link rel="stylesheet" href="index.css">    
-  </head>
-  <body>
-    <h1>the cavern of funk</h1>
-    <table>
-      <tr>
-	<td id="controls">
-	  <table>
-	    <tr>
-	      <td id="x-axis">
-		x-axis
-	      </td>
-	    </tr>
-	    <tr>
-	      <td id="y-axis">
-		y-axis
-	      </td>
-	    </tr>
-	    <tr>
-	      <td>
-		<input id="updating" type="checkbox" checked>
-		updating
-	      </td>
-	    </tr>
-	</td>
-	  </table>
-	</td>
-	<td rowspan="2">
-	  <table>
-	    <tr>
-	      <td>
-		<div id="plot">
-		</div>
-	      </td>
-	    </tr>
-	    <tr>
-	      <td>
-		<div id="metadata">
-		</div>
-	      </td>
-	    </tr>
-	  </table>
-	</td>
-      </tr>
-      <tr>
-	<td id="tree">
-	  <ul id="root">
-	  </ul>
-	</td>
-	<td>
-	</td>
-      </tr>
-    </table>
-  </body>
+
+<head>
+	<title>grapher</title>
+	<link rel="icon" type="image/png" href="icon.png" />
+	<script src="plotly.js"></script>
+	<script src="json-viewer.js"></script>
+	<script src="index.js"></script>
+	<link rel="stylesheet" href="json-viewer.css">
+	<link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+	<h1>the cavern of funk</h1>
+	<table>
+		<tr>
+			<td id="controls">
+				<table>
+					<tr>
+						<th>axis</th>
+						<th>column</th>
+						<th>default index</th>
+					</tr>
+					<tr>
+						<td>
+							x
+						</td>
+						<td id="x-axis">							
+						</td>		
+						<td>							
+							<input id="x-def" type="number" value="0" min="0" class="default"/>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							y
+						</td>
+						<td id="y-axis">							
+						</td>
+						<td>							
+							<input id="y-def" type="number" value="1" min="0" class="default"/>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							z
+						</td>
+						<td id="z-axis">							
+						</td>
+						<td>							
+							<input id="z-def" type="number" value="2" min="0" class="default"/>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<input id="subtracting" type="checkbox">
+							y-z
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<input id="updating" type="checkbox" checked>
+							updating
+						</td>
+					</tr>					
+				</table>
+				<hr>				
+			</td>		
+			<td rowspan="2">
+				<table>
+					<tr>
+						<td>
+							<div id="plot">
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<div id="metadata">
+							</div>
+						</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td id="tree">
+				<ul id="root">
+				</ul>
+			</td>
+			<td>
+			</td>
+		</tr>
+	</table>
+</body>
+
 </html>

@@ -2,6 +2,8 @@ var angle_cell;
 var angle_input;
 var angle_button;
 
+var encoder_cell;
+
 var moving_cell;
 var stop_button;
 
@@ -26,6 +28,7 @@ var poll_count = 0;
 
 function loop() {
 	get_angle();
+    get_encoder();
     get_moving();
     get_min();
     get_max();
@@ -63,6 +66,10 @@ function _get_angle(command,element) {
 
 function get_angle() {
 	_get_angle('get-lid',angle_cell);
+}
+
+function get_encoder() {
+    _get_param('get-encoder',encoder_cell,position => position)
 }
 
 function get_min() {    
@@ -120,6 +127,8 @@ function on_load() {
     angle_button.onclick = set_angle;
 
 	angle_input = document.getElementById('angle-input');
+
+    encoder_cell = document.getElementById('encoder');
 
     moving_cell = document.getElementById('moving');
     stop_button = document.getElementById('stop');

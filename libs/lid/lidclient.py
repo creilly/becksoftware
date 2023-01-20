@@ -19,6 +19,9 @@ def set_lid(phi,wait=True):
 def get_lid():
     return send_command('get-lid')
 
+def get_encoder():
+    return send_command('get-encoder')
+
 def get_moving():
     return send_command('get-moving')
 

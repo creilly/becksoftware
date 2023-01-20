@@ -252,6 +252,8 @@ def encode_scan(scan):
     ).decode()
 
 damping = 5.0
+pmin = 0.01
+pmax = 3.99
 class Locker:
     def __init__(self,topohandle):
         self.topohandle = topohandle
@@ -303,7 +305,7 @@ class Locker:
         return self.vo
 
     def set_piezo_voltage(self,voltage):
-        self.topohandle.set_output(topo.A,voltage)
+        self.topohandle.set_output(topo.A,min(max(pmin,voltage),pmax))
 
 FULL, DECIMATED = 0, 1
 HENEFITERROR, IRFITERROR = 0, 1

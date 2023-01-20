@@ -9,7 +9,7 @@ DVS = (100e-5,50e-5,25e-5,10e-5,1e-5)
 
 PVo = 20.0
 
-noise_amp = 0.030 # volts rms
+noise_amp = 0.060 # volts rms
 ws_shape = scope.NOISE
 ws_enabled = True
 ws_load = scope.LOW

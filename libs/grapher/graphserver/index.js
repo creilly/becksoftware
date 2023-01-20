@@ -9,6 +9,9 @@ var ROOTTOKEN = '_tree';
 
 var XID = 'x-axis';
 var YID = 'y-axis';
+var ZID = 'z-axis';
+
+var SUBTRACTING = 'subtracting';
 
 var PLOTID = 'plot';
 var MDID = 'metadata';
@@ -18,11 +21,11 @@ var json_viewer = new JSONViewer();
 
 var monitored_folders = new Set();
 
-function send_command(command, parameters, cb) {
+function send_command(command, parameters, cb, hook = (x) => x) {
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function() {	
 	if (this.readyState == 4) {
-	    cb(JSON.parse(xhttp.responseText));
+	    cb(JSON.parse(hook(xhttp.responseText)));
 	}
     };
     xhttp.open('POST', '', true);
@@ -31,6 +34,10 @@ function send_command(command, parameters, cb) {
     data[COMMAND] = command;
     data[PARAMETERS] = parameters;
     xhttp.send(JSON.stringify(data));
+}
+
+function data_hook(s) {
+    return s.replace(/\bNaN\b/g, "null");
 }
 
 function format_path_list(path) {
@@ -131,7 +138,7 @@ function add_leaves_cb(parent,root_folder) {
 }
 
 function update_plot() {
-    var selects = [XID,YID].map(
+    var selects = [XID,YID,ZID].map(
 	function (id) {
 	    return document.getElementById(id).querySelector('select');
 	}
@@ -145,8 +152,9 @@ function update_plot() {
 
     var X = 0;
     var Y = 1;
+	var Z = 2;
     
-    var columns = [X,Y].map(
+    var columns = [X,Y,Z].map(
 	function (axis) {
 	    return global_columns[indices[axis]];
 	}
@@ -157,11 +165,20 @@ function update_plot() {
 	    return selects[axis].options[indices[axis]].value;
 	}
     )
+	if (document.getElementById(SUBTRACTING).checked) {
+		var ydata = [];
+		for (var i in columns[Y]) {
+			ydata.push(columns[Y][i] - columns[Z][i])
+		}
+	}
+	else {
+		var ydata = columns[Y];
+	}
 
     var data = [
 	{
 	    x: columns[X],
-	    y: columns[Y],
+	    y: ydata,
 	    mode: 'markers',
 	    type: 'scatter'
 	}
@@ -203,7 +220,7 @@ function set_dataset(path) {
 	'get-fields',
 	{path:path},
 	function (fields) {
-	    [XID,YID].forEach(
+	    [XID,YID,ZID].forEach(
 		function (id) {
 		    var td = document.getElementById(id);
 		    
@@ -221,12 +238,26 @@ function set_dataset(path) {
 			    select.add(option);
 			}
 		    )
-		    if (id == XID) {
-			select.selectedIndex = 0;
-		    }
-		    if (id == YID) {
-			select.selectedIndex = 1;
-		    }
+			var deffield = parseInt(
+					document.getElementById(
+						{
+						[XID]:'x-def',
+						[YID]:'y-def',
+						[ZID]:'z-def'
+					}[id]
+				).value
+			)
+			console.log(id,deffield,fields.length);
+			select.selectedIndex = deffield < fields.length ? deffield : 0;			
+		    // if (id == XID) {
+			// select.selectedIndex = 0;
+		    // }
+		    // if (id == YID) {
+			// select.selectedIndex = 1;
+		    // }
+			// if (id == ZID) {
+			// select.selectedIndex = 1;
+			// }
 		    select.onchange = update_plot;
 		}
 	    );
@@ -246,13 +277,14 @@ function set_dataset(path) {
 
 function _update_dataset() {
     send_command(
-	'get-data',
-	{path:global_path},
-	function (columns) {
-	    global_columns = columns;
-	    global_timer = setTimeout(update_dataset,100);
-	    update_plot()
-	}
+		'get-data',
+		{path:global_path},
+		function (columns) {
+			global_columns = columns;
+			global_timer = setTimeout(update_dataset,100);
+			update_plot()
+		},
+		data_hook
     );
 }
 
@@ -299,6 +331,7 @@ function updating() {
 }
 
 function on_load() {
+	document.getElementById(SUBTRACTING).onchange = update_plot;
     var root = document.getElementById(ROOTID);
     add_leaves(root,[]);
     document.getElementById(MDID).appendChild(json_viewer.getContainer());

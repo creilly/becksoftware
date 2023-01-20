@@ -43,3 +43,11 @@ ul {
 #root {
     padding-left: 2px;
 }
+
+.default {
+    width: 50px;
+}
+
+th {
+    text-align: left;
+}
