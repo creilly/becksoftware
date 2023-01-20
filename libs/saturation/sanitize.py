@@ -274,22 +274,12 @@ def load_json(folder,name):
     with open(os.path.join(folder,'.'.join((name,'json'))),'r') as f:
         return json.load(f)
 
-def load_cgc(folder=def_outfolder):
-    return {
-        int(j1):{
-            int(j2):{
-                int(m):cgc
-                for m, cgc in j2d.items()
-            } for j2, j2d in j1d.items()
-        } for j1, j1d in load_json(folder,cgcfname).items()
-    }
-
-def load_metadata(folder=def_outfolder):
+def load_metadata(folder):
     return load_json(folder,metadatafname)
 
-def load_data(line_index,mode,folder=def_outfolder):
+def load_data(line_index,folder):
     fname = os.path.join(
-        folder,modefolderd[mode],'{:03d}.tsv'.format(line_index)
+        folder,'{:03d}.tsv'.format(line_index)
     )    
     return np.loadtxt(fname)
 
