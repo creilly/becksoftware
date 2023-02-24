@@ -6,7 +6,7 @@
 # and
 # Z:\chris\scripts-data\2022\11\21\toponoisean\20221121\slope\fancyfit.png
 #
-dfdv = 0.96 # MHz rms per mV rms
+dfdv = 0.096 # MHz rms per mV rms
 fc = 15.3 # MHz effective topo bandwidth at 80 MHz nominal bandwidth
 pi = 3.14159
 # return dephasing rate gamma in radians / microsecond

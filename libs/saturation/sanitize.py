@@ -127,11 +127,8 @@ def clip_data(fs,zs,irs,pc,sigma,phio):
         power_clippeds.append(pc(phio,ir))
     return map(np.array,(omega_clippeds,z_clippeds,power_clippeds))
 
-modefolderd = {
-    FC:'fc',FS:'fs'
-}
-cgcfname = 'cgc'
 metadatafname = 'md'
+datafoldername = 'data'
 
 def_outfolder = 'data'
 def_imagefolder = 'images'
@@ -279,7 +276,7 @@ def load_metadata(folder):
 
 def load_data(line_index,folder):
     fname = os.path.join(
-        folder,'{:03d}.tsv'.format(line_index)
+        folder,datafoldername,'{:03d}.tsv'.format(line_index)
     )    
     return np.loadtxt(fname)
 
