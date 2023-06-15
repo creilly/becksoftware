@@ -7,12 +7,11 @@ from bilt.experiment.modehop import ModeHopDetected
 import numpy as np
 from scipy.optimize import OptimizeWarning
 
-def search_line(cfg,handlerd,wmh,topoic,fo,wo,path,sens_md):
+def search_line(cfg,handlerd,wmh,topoic,fo,wo,path,sens_md):  
     sens_scalar = sens_md['measurement']['r'][0]
     deltaf = gcp(cfg,'line search','jump size',float)
     deltat = gcp(cfg,'line search','measure time',float)
-    deltaxthresh = gcp(cfg,'line search','step threshold',float)
-
+    deltaxthresh = gcp(cfg,'line search','step threshold',float)    
     data = {}    
     irs = {}
     index = 0
@@ -22,7 +21,7 @@ def search_line(cfg,handlerd,wmh,topoic,fo,wo,path,sens_md):
     searcher = Searcher(
         cfg,handlerd,wmh,topoic,
         deltat,fo,wo,deltaf,data,irs,path
-    )
+    )    
     try:
         print('starting gradient detection')
         while True:

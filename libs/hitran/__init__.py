@@ -185,8 +185,7 @@ symd = {
     5:'F2'
 }
 
-def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None): 
-    results = []   
+def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None):     
     folders = [
         formatters[key](field) for key, field in sorted(
             {
@@ -194,6 +193,7 @@ def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None):
             }.items()
         )
     ]    
+    results = []
     raw_llqs = os.listdir(format_path(folders))
     for raw_llq in raw_llqs:        
         _j, _sym, _level = parse_lq(raw_llq)        
@@ -216,7 +216,8 @@ def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None):
                     ul is None or ul == __level
                 ):
                     folders.append(raw_ulq)                    
-                    results.append(list(folders))
+                    results.append([*folders])
+                    folders.pop()
             folders.pop()
     return results
 # conversion between old and new convention

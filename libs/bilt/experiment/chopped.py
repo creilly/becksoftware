@@ -12,7 +12,6 @@ SHUTTER_SHUT, SHUTTER_OPEN = False, True
 poll_time = 0.25 # seconds
 spin_poll_time = 2.0 # seconds
 meas_time = 6.0 # seconds
-chopped_beam_bolo_gain = bologainserver.X1000
 # measured 2022-08-04
 # appears to vary (+- 10 degrees) with methane exposure
 # and bolometer load.
@@ -21,7 +20,9 @@ chopped_beam_bolo_gain = bologainserver.X1000
 # goes as 1 - cos(epsilon_theta) ~ epsilon_theta ** 2
 # so for epsilon_theta = 10 degrees, we have 
 # error = (10 / 180 * 3.14)^2 ~ 4 percent, which is ok
-deltaphi_tagged_chopped = -177.0 # degrees
+# deltaphi_tagged_chopped = -177.0 # degrees
+
+TTL_LOW, TTL_HIGH = 0.0, 4.0
 
 class TokenEmpty(Exception):
     pass
@@ -39,7 +40,7 @@ def get_sensitivity(cfg,handlerd,rescon,token):
 
         # set mol beam chopping frequency 
         # equal to tagging laser chopping frequency
-        f_chop = lockin.get_frequency(lih) # hz
+        f_chop = gcp(cfg,'sensitivity','chopping frequency',float)
         v_chop = f_chop * 60 / 2 # rpm
 
         # position lid to reference angle
@@ -73,8 +74,9 @@ def get_sensitivity(cfg,handlerd,rescon,token):
         print('chopping speed reached.')
 
         # set lockin to external
-        print('setting lockin to external sync')
-        lockin.set_ref_source(lih,lockin.EXTERNAL)
+        print('setting lockin reference to mol beam chopper...')
+        lockin.set_aux_out(lih,1,TTL_HIGH)        
+        lockin.set_aux_out(lih,3,TTL_LOW)        
 
         # wait for lockin to sync
         print('waiting for lockin to sync')
@@ -124,6 +126,7 @@ def get_sensitivity(cfg,handlerd,rescon,token):
         # shifted from chopped phase at 237 Hz
         phio = lockin.get_phase(lih)
         phichopped = phio + T
+        deltaphi_tagged_chopped = gcp(cfg,'sensitivity','delta phi tagged chopped',float)
         phitagged = phichopped + deltaphi_tagged_chopped
         while phitagged <= -360.0:
             phitagged += 180.0
@@ -152,7 +155,8 @@ def get_sensitivity(cfg,handlerd,rescon,token):
 
         # set lockin to internal mode
         print('setting lockin to internal mode')
-        lockin.set_ref_source(lih,lockin.INTERNAL)
+        lockin.set_aux_out(lih,1,TTL_LOW)        
+        lockin.set_aux_out(lih,3,TTL_HIGH)
 
         # halt motor
         print('spinning down motor.')

@@ -520,6 +520,9 @@ def get_quick_stop_state(handle):
     return state.value
 
 if __name__ == '__main__':    
+    with MaxonHandler() as h:  
+        print('v units',get_velocity_units(h))
+        exit()
     from time import time
     # with MaxonHandler() as h:
     #     print('v units:',get_velocity_units(h))
@@ -531,7 +534,7 @@ if __name__ == '__main__':
     vset = 8000
     dt = 100
     epsilonv = 2.0    
-    with MaxonHandler() as h:        
+    with MaxonHandler() as h:  
         # motor must be disbled before configuration
         set_enabled_state(h,False)
         # motor measures and sets speed accurate to milli-rpm

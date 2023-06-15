@@ -96,9 +96,11 @@ def get_measurement(wm,sync=NEW):
     }
 
 class AsyncWavenumber:    
-    def __init__(self,wm):
+    def __init__(self,wm,sync=NEW):
         self.wm = wm
-        self.prev_sn = self.get_sn()
+        self.thresh_sn = self.get_sn() + {
+            NEW:+1,OLD:0,FETCH:-1
+        }[sync]
         self.wm = wm
 
     def get_sn(self):
@@ -109,13 +111,21 @@ class AsyncWavenumber:
 
     def get_wavenumber(self):
         sn = self.get_sn()
-        if sn > self.prev_sn:
+        if sn > self.thresh_sn:
             return True, self._get_wavenumber()
         else:
             return False, None
 
 def get_wavenumber(wm,sync=NEW):
     return float(wm.query(':{}:WNUM?'.format(parse_sync(sync))))
+
+def get_wavenumber_async(wm):    
+    aw = AsyncWavenumber(wm)
+    while True:
+        ready, w = aw.get_wavenumber()
+        if ready:
+            return w
+        yield
 
 def get_power(wm,sync=NEW):
     return float(wm.query(':{}:POW?'.format(parse_sync(sync))))

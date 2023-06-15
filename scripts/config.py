@@ -11,11 +11,11 @@ LOGGER, BOLOMETER, WAVESOURCE, LOCKIN = 0, 1, 2, 3
 MD_KEYS = {
     LOGGER:'logger',
     BOLOMETER:'bolometer',
-    WAVESOURCE:'wave source',
+    WAVESOURCE:'wavesource',
     LOCKIN:'lockin'
 }
 _config_codes = MD_KEYS.keys()
-def get_metadata(config_codes = _config_codes):    
+def get_metadata(lia = None, config_codes = _config_codes):    
     md = {}
     for code in config_codes:
         key = MD_KEYS[code]
@@ -29,7 +29,7 @@ def get_metadata(config_codes = _config_codes):
         elif code == WAVESOURCE:
             value = get_wavesource_params()
         elif code == LOCKIN:
-            value = get_lockin_params()
+            value = get_lockin_params(lia)
         md[key] = value
     return md
 def get_logger_params(group):    

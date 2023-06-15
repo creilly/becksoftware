@@ -166,6 +166,22 @@ def get_samp_clk_src(handle):
     )
     return source
 
+def get_samp_clk_rate(handle):
+    rate = c_double()
+    daqmx(
+        dll.DAQmxGetSampClkRate,
+        handle, 
+        byref(rate)
+    )
+    return rate.value
+
+def set_samp_clk_rate(handle,rate):    
+    daqmx(
+        dll.DAQmxSetSampClkRate,
+        handle, 
+        c_double(rate)
+    )    
+
 FINITE_SAMPS = 10178
 CONT_SAMPS = 10123
 RISING = 10280
@@ -465,7 +481,7 @@ def read_counter_u32_single_channel_non_blocking(handle,samps):
     )
     return data[:samps_read.value]
 
-def write_ticks(handle,highticks,lowticks,autostart=False,timeout=None):
+def write_ticks_scalar(handle,highticks,lowticks,autostart=False,timeout=None):
     timeout = WAIT_INFINITELY if timeout is None else c_double(timeout)
     daqmx(
         dll.DAQmxWriteCtrTicksScalar,
@@ -476,6 +492,32 @@ def write_ticks(handle,highticks,lowticks,autostart=False,timeout=None):
         timeout,
         highticks,
         lowticks,
+        None
+    )
+
+def write_ticks(handle,*tickpair_arrs):
+    tick_stacks = [[],[]]    
+    for tickpair_arr in tickpair_arrs:
+        for tick_stack, tick_substack in zip(
+            tick_stacks,
+            zip(*tickpair_arr)
+        ):        
+            tick_stack.extend(tick_substack)
+    n_samps_per_chan = len(tick_stack) // len(tickpair_arrs)
+    high_ticks, low_ticks = [
+        (c_uint32*len(tick_stack))(*tick_stack)
+        for tick_stack in tick_stacks
+    ]
+    samps_written = c_int32()
+    daqmx(
+        dll.DAQmxWriteCtrTicks,
+        handle,
+        n_samps_per_chan,
+        False,
+        WAIT_INFINITELY,
+        GROUP_BY_CHANNEL,
+        high_ticks, low_ticks,
+        byref(samps_written),
         None
     )
 
@@ -503,16 +545,14 @@ def get_co_type(handle):
 
 IDLE_HIGH = 10192
 IDLE_LOW = 10214
-def create_co_ticks_channel(handle,global_channel,highticks,lowticks):
-    with TaskHandler([global_channel]) as dummytask:
-        physical_channel = get_physical_channel(dummytask)
+def create_co_ticks_channel(handle,physical_channel,highticks,lowticks,source_terminal=None):
     daqmx(
         dll.DAQmxCreateCOPulseChanTicks,
         handle,
         physical_channel.encode(),
         None,
-        None,
-        IDLE_LOW,
+        source_terminal,
+        IDLE_HIGH,
         0, # initial delay
         lowticks,
         highticks

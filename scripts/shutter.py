@@ -7,41 +7,45 @@ channeld = {
     TAG:'tag shutter'
 }
 
-named = channeld
-
-print(
-    '\n'.join(
-        [
-            '{:d}\t:\t{}'.format(
-                key,name
-            ) for key, name in sorted(named.items())
-        ]
-    )
-)
-
-channel = channeld[int(input('\t' + 'enter shutter number: '))]
-
-ON, OFF = 1, 0
+OPEN, SHUT = 1, 0
 
 stated = {
-    ON:True,OFF:False
+    OPEN:True,SHUT:False
 }
 
 statenamed = {
-    ON:'open', OFF:'shut'
+    OPEN:'open', SHUT:'shut'
 }
 
-print(
-    '\n'.join(
-        [
-            '{:d}\t:\t{}'.format(
-                key,name
-            ) for key, name in sorted(statenamed.items())
-        ]
+def set_shutter(shutter,state):    
+    with daqmx.LineHandler(channeld[shutter]) as line:
+            daqmx.write_line(line,state)
+
+if __name__ == '__main__':
+    named = channeld
+
+    print(
+        '\n'.join(
+            [
+                '{:d}\t:\t{}'.format(
+                    key,name
+                ) for key, name in sorted(named.items())
+            ]
+        )
     )
-)
 
-state = stated[int(input('\t' + 'enter shutter state number: '))]
+    shutter = int(input('\t' + 'enter shutter number: '))
 
-with daqmx.LineHandler(channel) as line:
-    daqmx.write_line(line,state)
+    print(
+        '\n'.join(
+            [
+                '{:d}\t:\t{}'.format(
+                    key,name
+                ) for key, name in sorted(statenamed.items())
+            ]
+        )
+    )
+
+    state = stated[int(input('\t' + 'enter shutter state number: '))]
+
+    set_shutter(shutter,state)

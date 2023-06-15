@@ -92,6 +92,7 @@ function on_setpoint(_setpoint) {
 
 var indicatorindex = 0;
 indicators = [
+	['get error','error-state-indicator',{},-1,null],
     ['get heating','heater-state-indicator',{},-1,null],
     ['get heater voltage','heater-voltage-indicator',{},4,null],
     ['get scanning','scan-state-indicator',{},-1,null],
@@ -407,14 +408,21 @@ function update_df() {
 }
 
 function on_load() {
+	document.getElementById('error-clear').onclick = function () {
+		send_command(
+			'clear error',
+			{},
+			function () {}
+		);
+	}
     document.getElementById('heater-state-submit').onclick = function () {
-	send_command(
-	    'set heating',
-	    {
-		heating:document.getElementById('heater-state-control').checked
-	    },
-	    function () {}
-	);
+		send_command(
+			'set heating',
+			{
+			heating:document.getElementById('heater-state-control').checked
+			},
+			function () {}
+		);
     }
     document.getElementById('heater-voltage-submit').onclick = function () {
 	send_command(
