@@ -63,10 +63,12 @@ def pfeiffer_handle():
             except pyvisa.errors.VisaIOError:
                 print('gauge id',gauge_id,'channels',gauge_channels)
                 print('pfeiffer io error')
-                continue
+                pressures.extend([math.nan] * len(gauge_channels))
+                break
             except pfeiffer.PfeifferError as pe:
                 print('pfeiffer format error: {}'.format(repr(pe)))
-                continue
+                pressures.extend([math.nan] * len(gauge_channels))
+                break
     return pressures
 
 To = 273.15
@@ -105,8 +107,11 @@ def lakeshore_handle():
 daqmx_channels = ['snout tc']
 
 def daqmx_handle():
-    with daqmx.TaskHandler(['snout thermocouple']) as ai:
-        return [daqmx.read_analog_f64_scalar(ai)]
+    try:
+        with daqmx.TaskHandler(['snout thermocouple']) as ai:
+            return [daqmx.read_analog_f64_scalar(ai)]
+    except daqmx.DAQmxError:
+        return [math.nan]
 
 temperature_groups = [
     (sample_heater_channels,sample_heater_handle),
