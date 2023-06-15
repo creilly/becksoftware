@@ -24,12 +24,12 @@ while infilenames:
     e, s = np.loadtxt(fname,skiprows=skiprows).transpose()
 
     minindex = 0
-    if min > 0:
+    if args.min > 0:
         for index in range(len(e)):
-            if e[index] > min:
+            if e[index] > 1e3*args.min:
                 break
             minindex = index
-
+    # s += s[minindex:].min()
     s /= s[minindex:].max() - s[minindex:].min()
 
     s -= np.average(s)
@@ -39,8 +39,8 @@ while infilenames:
     plt.plot(e,s,':',label=label,lw=1)
 plt.xlabel('auger electron energy (eV)')
 plt.ylabel('auger signal (normalized)')
-plt.title('auger electron spectrum' + '\n' + desc)
+plt.title('auger electron spectrum' + ('\n' if desc else '') + desc)
 if n > 1:
     plt.legend()
-plt.savefig(get_fname(desc,'png'))
+plt.savefig('{}.png'.format(froot))
 plt.show()
