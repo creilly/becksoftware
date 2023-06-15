@@ -15,8 +15,10 @@ def get_lock_output():
 def get_setpoint():
     return send_command('get setpoint')
 
-def set_setpoint(setpoint):
-    return send_command('set setpoint',{'setpoint':setpoint})
+def set_setpoint(setpoint, wait = True, epsilonf = 0.5):
+    send_command('set setpoint',{'setpoint':setpoint})
+    if get_locking() and wait:
+        check_transfer_cavity(setpoint,epsilonf)
 
 def get_locking():
     return send_command('get locking')
