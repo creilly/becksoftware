@@ -11,7 +11,7 @@ def calibrate_lid(phi_o):
     return send_command('calibrate-lid',{'phi_o':phi_o})
 
 def set_lid(phi,wait=True):
-    send_command('set-lid',{'phi':phi})
+    send_command('set-lid',{'phi':float(phi)})
     if wait:
         while get_moving():
             continue
