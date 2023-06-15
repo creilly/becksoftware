@@ -30,7 +30,6 @@ noise_amplitude = config.get_vrms() # millivolts rms
 velocity = config.get_velocity() # meters per second
 
 # model parameter computation
-gamma = gamma.get_gamma(noise_amplitude) * 1e-6 # rads / us
 tau = beam.get_tau(beam_diameter,velocity) * 1e6 # us
 sigmaomega = doppler.get_deltaomega(velocity) * 1e-6 # rads / us
 
@@ -75,10 +74,8 @@ cgcd = sanitize.load_cgc(datafolder) # pre-computed clebsch gordan coefficients
 # total number of quantum states to compute
 def get_total_length():
     total_length = 0
-    for lined in md:
-        j1 = lined['j1']
-        for mode in (sanitize.FC,sanitize.FS):
-            total_length += lined['lengths'][str(mode)] * (j1+1)
+    for lined in md:        
+        total_length += lined['length'] * len(lined['cgcs'])
     return total_length
 
 END = -1 # marks end of job division transmission
@@ -89,15 +86,7 @@ data = [] # stores unchanging model data
 MEASURED, COMPUTED = 0, 1
 arrays = [] # stores job division information
 dataarrays = {} # stores computed and measured scientific data
-indexbuffer = np.empty(4,dtype=np.int64) # stores job division tranmission data
-
-fcweight, fsweight = config.get_weights()
-weightsd = {
-    mode:weight for mode, weight in (
-        (sanitize.FC,fcweight),
-        (sanitize.FS,fsweight)
-    )
-}
+indexbuffer = np.empty(3,dtype=np.int64) # stores job division tranmission data
 
 # synchronous buffer send (thin wrapper)
 def send(buffer,dest):
@@ -132,117 +121,107 @@ def get_data():
     _rank = 0 # rank of current chunk
     # loop through datasets, determine job load 
     for lineindex, lined in enumerate(md):        
-        j1 = lined['j1']
-        n_mu = j1 + 1 # qspcs per point on curve (fc or fs)
-        j2 = lined['j2']
-        w = lined['wavenumber'][0] # cm-1
-        a = lined['einstein coefficient'][0] # s-1
-        mubar = rabi.mubar(w,a) # prop. coeff. relating mu to cgc
-        # compute mus, pulling cgcs from memory
-        mus = [
-            cgcd[j1][j2][m] * mubar for m in range(n_mu)
-        ]
-        for mode in (sanitize.FC,sanitize.FS):
-            modelength = lined['lengths'][str(mode)] # num data points in curve
-            modemarker = 0 # current position along curve
-            while True:                
-                modetail = modelength - modemarker # points remaining in curve
-                ranktail = chunk - rankmarker # qspcs left in chunk                
-                # if qspcs left in curve is greater than qspcs left in chunk:
-                #   advance modemarker to fill chunk (rounding up)
-                # else:
-                #   advance modemarker to end of curve
-                tail = (
-                    ranktail // n_mu + (1 if ranktail % n_mu else 0)
-                ) if modetail * n_mu > ranktail else modetail
-                # if current rank is equal to core id
-                if rank == _rank:  
-                    # pull current segment of curve data from disk                  
-                    # deltaomegas: rads / us
-                    # powers: watts
-                    # zs (detector signals): normed
-                    # shape (of each) : (tail,)
-                    deltaomegas, powers, zs = sanitize.load_data(
-                        lineindex,mode,datafolder
-                    )[modemarker:modemarker+tail].transpose()
-                    # compute rabi frequencies (omegabar) for each qspc of curve segment
-                    # shape : (n_mu,tail)
-                    omegabars = np.outer(mus,1e-6 * 2 * np.pi * rabi.elec_field(powers/(np.pi * (beam_diameter/2)**2)) / rabi.h) # rads / us (n_mu, n_points)
-                    # scale omegabar matrix term by all omegabars for each qspc of curve segment
-                    # shape : (n_mu,tail,3,3)
-                    M_omegabars = np.einsum('ij,kl->ijkl',omegabars,M_omegabar)
-                    # save deltaomega (frequency detuning) and omegabar data for this curve segment to local memory
-                    data.append(
-                        (
-                            deltaomegas,M_omegabars
-                        )
-                    ) 
-
-                    # send curve segment metadata to masterrank
-                    start = modemarker
-                    stop = modemarker + tail
-                    isend(np.array((lineindex,mode,start,stop),dtype=np.int64),masterrank)
-                    # send curve segment measured data to masterrank
-                    isend(np.ascontiguousarray(zs),masterrank)
-                    if debug:
-                        print(
-                            '*','\t\t'.join(
-                                '{}: {:d}'.format(label,num) for label, num in (
-                                    ('rank',_rank),
-                                    ('line',lineindex),
-                                    ('mode',mode),
-                                    ('start',start),
-                                    ('stop',stop)
-                                )
-                            ),flush=True                
-                        )  
-                # advance chunk marker                  
-                rankmarker += tail * n_mu
-                # if current chunk is larger than chunk size
-                if chunk - rankmarker <  n_mu:
-                    # if current rank is core id
-                    if rank == _rank:
-                        # signal end of job division info transmission
-                        isend(np.array([END]*4),masterrank)
-                    # reset chunk marker
-                    rankmarker = 0
-                    # increment rank marker
-                    _rank += 1             
-                    # if previous rank was core id       
-                    if rank < _rank:
-                        # exit
-                        return
-                # advance curve marker
-                modemarker += tail
-                # if curve marker is at end of curve
-                if modemarker == modelength:
-                    # go to next curve
-                    break   
+        # clebsch gordan coefficients
+        # first element must be m=0
+        cgcs = lined['cgcs']
+        n_m = len(cgcs) # qspcs per point on curve (fc or fs)        
+        linelength = lined['lengths'] # num data points in curve
+        linemarker = 0 # current position along curve
+        while True:
+            linetail = linelength - linemarker # points remaining in curve
+            ranktail = chunk - rankmarker # qspcs left in chunk                
+            # if qspcs left in curve is greater than qspcs left in chunk:
+            #   advance modemarker to fill chunk (rounding up)
+            # else:
+            #   advance modemarker to end of curve
+            tail = (
+                ranktail // n_m + (1 if ranktail % n_m else 0)
+            ) if linetail * n_m > ranktail else linetail
+            # if current rank is equal to core id
+            if rank == _rank:  
+                # pull current segment of curve data from disk                  
+                # deltaomegas: rads / us
+                # omegabars: rads / us
+                # gammas: rads / us
+                # zs (detector signals): normed
+                # shape (of each) : (tail,)
+                deltaomegas, omegabars, gammas, zs = sanitize.load_data(
+                    lineindex,datafolder
+                )[linemarker:linemarker+tail].transpose()
+                # compute rabi frequencies (omegabar) for each qspc of curve segment
+                # shape : (n_m,tail)                    
+                m_omegabars = np.outer(cgcs,omegabars) # rads / us (n_m, n_points)
+                # scale omegabar matrix term by all omegabars for each qspc of curve segment
+                # shape : (n_m,tail,3,3)
+                M_omegabars = np.einsum('ij,kl->ijkl',m_omegabars,M_omegabar)
+                # scale gamma matrix term by all gammas for each 
+                # shape : (tail,3,3)
+                M_gammas = np.einsum('i,jk->ijk',gammas,M_gamma)
+                # save deltaomega (frequency detuning) and omegabar data for this curve segment to local memory
+                data.append(
+                    (
+                        deltaomegas,M_omegabars,M_gammas
+                    )
+                )
+                # send curve segment metadata to masterrank
+                start = linemarker
+                stop = linemarker + tail
+                isend(np.array((lineindex,start,stop),dtype=np.int64),masterrank)
+                # send curve segment measured data to masterrank
+                isend(np.ascontiguousarray(zs),masterrank)
+                if debug:
+                    print(
+                        '*','\t\t'.join(
+                            '{}: {:d}'.format(label,num) for label, num in (
+                                ('rank',_rank),
+                                ('line',lineindex),                                
+                                ('start',start),
+                                ('stop',stop)
+                            )
+                        ),flush=True                
+                    )  
+            # advance chunk marker                  
+            rankmarker += tail * n_m
+            # if current chunk is larger than chunk size
+            if chunk - rankmarker <  n_m:
+                # if current rank is core id
+                if rank == _rank:
+                    # signal end of job division info transmission
+                    isend(np.array([END]*3),masterrank)
+                # reset chunk marker
+                rankmarker = 0
+                # increment rank marker
+                _rank += 1             
+                # if previous rank was core id       
+                if rank < _rank:
+                    # exit
+                    return
+            # advance curve marker
+            linemarker += tail
+            # if curve marker is at end of curve
+            if linemarker == linelength:
+                # go to next curve
+                break   
     # last rank will typically not have full chunk of qspcs
     # signal end of job division info transmission for this edge case
     # (that's why we make it the masterrank)
-    isend(np.array([END]*4),masterrank)
+    isend(np.array([END]*3),masterrank)
 
 # organize masterrank data arrays
 # collect transmitted job division information
 def finish_get_data():
     if rank == masterrank:  
-        # loop through lines (each line has two curves, (FC and FS))
-        for lineindex, lined in enumerate(md):
-            # create dict to hold data for the FS and FC modes of this line
-            linearrayd = {}
-            dataarrays[lineindex] = linearrayd
-            # loop through curve modes
-            for mode in (sanitize.FC,sanitize.FS):
-                # pull curve length from metadata
-                modelength = lined['lengths'][str(mode)]
-                # allocate memory for measured and computed data
-                linearrayd[mode] = {
-                    key:arr for key, arr in zip(
-                        (MEASURED,COMPUTED),
-                        np.empty(2*modelength).reshape((2,modelength))
-                    )
-                }
+        # loop through lines
+        for lineindex, lined in enumerate(md):            
+            # pull curve length from metadata
+            linelength = lined['length']
+            # allocate memory for measured and computed data
+            dataarrays[lineindex] = {
+                zmode:arr for zmode, arr in zip(
+                    (MEASURED,COMPUTED),
+                    np.empty(2*linelength).reshape((2,linelength))
+                )
+            }            
         # loop through cores
         for _rank in range(size):
             # create job division list for current core
@@ -253,14 +232,13 @@ def finish_get_data():
             while True:
                 # get curve segment metadata
                 recv(indexbuffer,_rank)
-                lineindex, mode, start, stop = indexbuffer
+                lineindex, start, stop = indexbuffer
                 if debug:
                     print(
                         '\t\t'.join(
                             '{}: {:d}'.format(label,num) for label, num in (
                                 ('rank',_rank),
                                 ('line',lineindex),
-                                ('mode',mode),
                                 ('start',start),
                                 ('stop',stop)
                             )
@@ -275,13 +253,13 @@ def finish_get_data():
                     jobd = {}
                     recvrequests.append(jobd)
                 # get allocated data for the full curve of this curve segment
-                moded = dataarrays[lineindex][mode]
+                datad = dataarrays[lineindex]
                 # initiate data transfer to fill the appropriate segment of the 
                 # full measured curve buffer with measured data transmitted by current core                
-                irecv(moded[MEASURED][start:stop],_rank,jobindex)
+                irecv(datad[MEASURED][start:stop],_rank,jobindex)
                 # put pointer to appropriate segment of full computed curve buffer
                 # at appropriate location of job division progression
-                rankarrays.append(moded[COMPUTED][start:stop])
+                rankarrays.append(datad[COMPUTED][start:stop])
                 jobindex += 1
         # finish data transfers
         wait_recvs()
@@ -297,10 +275,9 @@ def get_outdata():
     # start performance monitor clock
     start = perf_counter()
     # adjust model parameters with fudge factors
-    power_factor, vrms_factor, velocity_factor, diameter_factor = factors    
+    power_factor, gamma_factor, velocity_factor, diameter_factor = factors    
 
-    # model parameter computation
-    gammap = vrms_factor**2*gamma # rads / us
+    # model parameter computation    
     taup = diameter_factor / velocity_factor * tau # us
     sigmaomegap = velocity_factor * sigmaomega # rads / us    
     
@@ -310,15 +287,15 @@ def get_outdata():
             for jobindex, arr in enumerate(rankarrays):
                 irecv(arr,_rank,jobindex)
     # loop over curve segments of this core
-    for deltaomegas, M_omegabars in data:
+    for deltaomegas, M_omegabars, M_gammas in data:
         # n_mu : quantum states per curve point
         # n_points : num points in curve segment        
-        n_mu, n_points, *_ = M_omegabars.shape
+        n_m, n_points, *_ = M_omegabars.shape
         # compute N random frequency detunings (rfd) for each qspc
         # shape : (N,n_mu,n_points)
         d_deltaomegas = bloch.get_deltaomegas_geometric(
-            0.0,sigmaomegap,N*n_mu*n_points
-        ).reshape((N,n_mu,n_points))
+            0.0,sigmaomegap,N*n_m*n_points
+        ).reshape((N,n_m,n_points))
         # offset rfd by known frequency detuning for each curve point
         # shape : (N,n_mu,n_points)
         deltaomegasp = d_deltaomegas + deltaomegas
@@ -327,7 +304,7 @@ def get_outdata():
         M_deltaomegasp = np.einsum('ijk,lm->ijklm',deltaomegasp,M_deltaomega)
         # assemble dynamical matrix for each rfd
         # shape : (N,n_mu,n_points,3,3)
-        Ms = (gammap * M_gamma + np.sqrt(power_factor) * M_omegabars) + M_deltaomegasp
+        Ms = (gamma_factor * M_gammas + np.sqrt(power_factor) / diameter_factor * M_omegabars) + M_deltaomegasp
         # compute eigenvalues (lambdas) and eigenvectors (Ss) for each rfd
         # shape (lambdas) : (N,n_mu,n_points,3)
         # shape (Ss) : (N,n_mu,n_points,3,3)
@@ -337,7 +314,7 @@ def get_outdata():
         Sinvs = np.linalg.inv(Ss)        
         # compute random transit time (rtt) for each rfd
         # shape : (N,n_mu,n_points)
-        tausp = bloch.get_taus(taup,N*n_mu*n_points).reshape((N,n_mu,n_points))
+        tausp = bloch.get_taus(taup,N*n_m*n_points).reshape((N,n_m,n_points))
         # for each rtt:
         #   take product with each associated eigenvalue
         #   exponentiate
@@ -367,12 +344,12 @@ def get_outdata():
         ).sum(0) / N
         # get degeneracy factors for this line
         # shape : (n_mu,)
-        modedegens = degens[:n_mu]        
+        modedegens = degens[:n_m]        
         #   1. scale probabilities for each qspc by appropriate degeneracy factor, 
         #   2. for each curve point, sum over quantum states
         #   3. divide probability of each curve point by sum of degeneracy factors
         # shape : (n_points,)
-        probs = np.einsum('ij,i->j',probs,modedegens) / (2*n_mu - 1)
+        probs = np.einsum('ij,i->j',probs,modedegens) / (2*n_m - 1)
         # send computed data to masterrank
         isend(probs,masterrank)    
     if rank == masterrank:
@@ -381,16 +358,15 @@ def get_outdata():
         # intialitize sum squared error
         sse = 0.
         # loop over curves
-        for lineindex, lined in dataarrays.items():
-            for mode, moded in lined.items():
-                # get measured curve data
-                measured = moded[MEASURED]
-                # get freshly computed curve data
-                computed = moded[COMPUTED]
-                # normalize computed data 
-                normalized = computed / computed.sum()
-                # compute sum squared error, add to running total                
-                sse += ((measured - normalized)**2).sum()*weightsd[mode]
+        for lined in dataarrays.values():
+            # get measured curve data
+            measured = lined[MEASURED]
+            # get freshly computed curve data
+            computed = lined[COMPUTED]
+            # normalize computed data 
+            normalized = computed / computed.sum()
+            # compute sum squared error, add to running total                
+            sse += ((measured - normalized)**2).sum()
     else:
         sse = None
     # wait for indication of successful send    
@@ -421,7 +397,7 @@ def main():
             command = server.get_int()             
             if command == communicator.QUIT:
                 # fill factors with quitting signal to other cores
-                _factors = [-1]*4
+                _factors = [-1]*nfactors
             else:
                 # get next set of correction factors
                 _factors = server.get_factors()                
@@ -448,16 +424,13 @@ def main():
                 # loop over curves
                 for lineindex, lined in dataarrays.items():                    
                     # communicate current line index
-                    server.send_int(lineindex)
-                    for mode, moded in lined.items():
-                        # communicate current mode
-                        server.send_int(mode)                                                
-                        # get freshly computed curve data
-                        arr = moded[COMPUTED]
-                        # communicate length of curve
-                        server.send_int(len(arr))                        
-                        # send array data
-                        server.send_doubles(arr)
+                    server.send_int(lineindex)                    
+                    # get freshly computed curve data
+                    arr = lined[COMPUTED]
+                    # communicate length of curve
+                    server.send_int(len(arr))                        
+                    # send array data
+                    server.send_doubles(arr)
     else:        
         while True:
             # get new factors from masterrank

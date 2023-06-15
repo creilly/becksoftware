@@ -174,16 +174,9 @@ class Client(Communicator):
         self.send_doubles(factors)
         nlines = self.get_int()                
         while nlines:
-            lineindex = self.get_int()
-            lined = {}
-            datad[lineindex] = lined
-            nmodes = 2
-            while nmodes:
-                mode = self.get_int()
-                curvelength = self.get_int()
-                arr = self.get_doubles(curvelength)
-                lined[mode] = arr
-                nmodes -= 1            
+            lineindex = self.get_int()            
+            curvelength = self.get_int()
+            datad[lineindex] = self.get_doubles(curvelength)
             nlines -= 1
         return datad
 

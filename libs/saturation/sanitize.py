@@ -127,11 +127,8 @@ def clip_data(fs,zs,irs,pc,sigma,phio):
         power_clippeds.append(pc(phio,ir))
     return map(np.array,(omega_clippeds,z_clippeds,power_clippeds))
 
-modefolderd = {
-    FC:'fc',FS:'fs'
-}
-cgcfname = 'cgc'
 metadatafname = 'md'
+datafoldername = 'data'
 
 def_outfolder = 'data'
 def_imagefolder = 'images'
@@ -274,22 +271,12 @@ def load_json(folder,name):
     with open(os.path.join(folder,'.'.join((name,'json'))),'r') as f:
         return json.load(f)
 
-def load_cgc(folder=def_outfolder):
-    return {
-        int(j1):{
-            int(j2):{
-                int(m):cgc
-                for m, cgc in j2d.items()
-            } for j2, j2d in j1d.items()
-        } for j1, j1d in load_json(folder,cgcfname).items()
-    }
-
-def load_metadata(folder=def_outfolder):
+def load_metadata(folder):
     return load_json(folder,metadatafname)
 
-def load_data(line_index,mode,folder=def_outfolder):
+def load_data(line_index,folder):
     fname = os.path.join(
-        folder,modefolderd[mode],'{:03d}.tsv'.format(line_index)
+        folder,datafoldername,'{:03d}.tsv'.format(line_index)
     )    
     return np.loadtxt(fname)
 
