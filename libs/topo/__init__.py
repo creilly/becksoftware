@@ -4,6 +4,7 @@ from base64 import b64decode
 import struct
 import math
 import time
+import select
 
 IP = '192.168.2.3'
 commandport = 1998
@@ -23,8 +24,8 @@ class Client:
         self.readterm = readterm
         
     def write(self,msg):
-        msg += writeterm
-        self.socket.sendall(msg)
+        msg += writeterm        
+        self.socket.sendall(msg)        
 
     def query(self,command):
         self.write(command)
@@ -384,11 +385,32 @@ class InstructionClient(Client):
             voltage,
             FLOAT
         )
+    
+    def set_wide_scan_input(self,virtual_channel,physical_channel):
+        return self.set_param(
+            'laser1:recorder:inputs:channel{:d}:signal'.format(virtual_channel),
+            physical_channel,
+            INT
+        )
 
     # in milliseconds
     def get_wide_scan_sampling_interval(self):
         return self.get_param(
             'laser1:wide-scan:recorder-sampling-interval',
+            FLOAT
+        )
+    
+    # volts / second
+    def get_wide_scan_speed(self):
+        return self.get_param(
+            'laser1:wide-scan:speed',
+            FLOAT
+        )
+    
+    def set_wide_scan_speed(self,speed):
+        return self.set_param(
+            'laser1:wide-scan:speed',
+            speed,
             FLOAT
         )
 
@@ -455,6 +477,14 @@ class InstructionClient(Client):
             ),
             FLOAT
         )   
+    
+    # buzzer
+
+    def play_welcome(self):
+        return self.send_command('buzzer:play-welcome')
+    
+    def play_melody(self, melody):
+        return self.send_command('buzzer:play',(melody,STR))
 
 class ScopeClient:
     def __init__(self):
@@ -515,7 +545,10 @@ class AsyncInstructionClient(InstructionClient):
                 msg = tail
 
     def send_instruction(self,cb,instruction,*args):
+        # caution! not thread safe!
+        self.socket.setblocking(True)
         self.write_instruction(instruction,*args)
+        self.socket.setblocking(False)
         asyncresponse = AsyncResponse(self,cb)
         self.queue.append(asyncresponse)
         return asyncresponse
@@ -580,7 +613,8 @@ class AsyncInstructionClient(InstructionClient):
         )
 
 A, B = 0, 1
-FINE1, FINE2, FAST3, FAST4 = 0, 1, 2, 3
+FINE1, FINE2, FAST3, FAST4, NOINPUT = 0, 1, 2, 3, -3
+INPUT1, INPUT2 = 1, 2
 segmentrestring = r'\(\S+ \S+ (.+)\)'
 segmentre = re.compile(segmentrestring)
 def parse_line(segment):
@@ -602,7 +636,11 @@ class MonitoringClient(Client):
         )
 
     def poll(self,timeout=None):
-        self.socket.settimeout(timeout)
+        blocking = timeout != 0
+        if blocking:
+            self.socket.settimeout(timeout)
+        else:
+            self.socket.setblocking(False)
         term = self.readterm
         while True:
             if term in self.msg:
@@ -613,10 +651,17 @@ class MonitoringClient(Client):
                     parse_line(line.decode('ascii').strip()),
                     self.mode
                 )
-            try:
-                chunk = self.socket.recv(bufsize)
-            except s.timeout:
-                return None
+            if blocking:
+                try:
+                    chunk = self.socket.recv(bufsize)
+                except s.timeout:
+                    return None
+            else:
+                rs, *_ = select.select((self.socket,),(),(),0)
+                if rs:
+                    chunk = self.socket.recv(bufsize)
+                else:
+                    return None
             self.msg += chunk
 
     def wait(self,setpoint,epsilon=0,looptimeout=.05,timeout=math.inf):
@@ -627,19 +672,36 @@ class MonitoringClient(Client):
                 return None
             if value is None:
                 continue
-            if self.mode in (INT,FLOAT):                
-                if abs(value-setpoint) <= epsilon:
-                    return value
-            else:
-                if value == setpoint:
-                    return value
+            if self.compare(setpoint,value,epsilon):
+                return value
+            
+    def compare(self,setpoint,value,epsilon):
+        if self.mode in (INT,FLOAT):                
+            return abs(value-setpoint) <= epsilon                
+        else:
+            return value == setpoint
+                
+    def wait_async(self,setpoint,epsilon=0):
+        while True:
+            value = self.poll(0)
+            if value is not None and self.compare(setpoint,value,epsilon):
+                return value
+            yield
                 
 SCAN_DISABLED = 0
-def get_wide_scan():
-    ic = InstructionClient()
+def get_wide_scan(ic : InstructionClient):
     ic.start_wide_scan()
     mc = MonitoringClient('laser1:wide-scan:state',INT)
     mc.wait(SCAN_DISABLED)
+    return finish_scan(ic)
+
+def get_wide_scan_async(ic : InstructionClient):
+    ic.start_wide_scan()
+    mc = MonitoringClient('laser1:wide-scan:state',INT)
+    yield from mc.wait_async(SCAN_DISABLED)
+    return finish_scan(ic)
+
+def finish_scan(ic : InstructionClient):
     scanlen = ic.get_wide_scan_length()
     scanindex = 0
     xdata = []
@@ -816,4 +878,3 @@ def get_signal_power():
         'laser1:nlo:pd:sig:power',
         FLOAT
     )
-
