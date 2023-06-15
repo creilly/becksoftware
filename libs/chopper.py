@@ -67,3 +67,10 @@ def wait_spin(mh,sleep_time=0.0):
 def wait_halt(mh,sleep_time=0.0):
     units = maxon.get_velocity_units(mh)
     wait_movement(mh,sleep_time,_velcb(0.0,units))
+
+if __name__ == '__main__':
+    with maxon.MaxonHandler() as mh:
+        print('halting.')
+        start_halt(mh)
+        wait_halt(mh)
+        print('halted.')
