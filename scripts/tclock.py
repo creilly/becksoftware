@@ -3,18 +3,19 @@ from transfercavity import transfercavityserver as tcs
 import laselock as ll
 import linescan as ls
 import topolock as tl
+import oscilloscope, piezo, topo
 import hitran
 import wavemeter as wm
-from time import sleep
+from beckasync import sleep, get_blocking
 
 Nwm = 10
 fitwait = 1.0
 
 dfdw = 30.0e3 # MHz / cm-1
-damping = 2.0
+damping = 3.0
 
-deltawmax = 0.05 # cm-1
-epsilonw = 0.005 # cm-1
+deltawmax   =   0.0500 # cm-1
+epsilonw    =   0.0010 # cm-1
 
 def disable_lock():
     tcc.set_locking(False)
@@ -25,47 +26,97 @@ def disable_lock():
     with ll.LaseLockHandler() as llh:        
         ll.set_reg_on_off(llh,ll.A,False)
 
-def locktc(htline,dw,em=None,pv=None,ih=None):
-    wtarget = hitran.lookup_line(htline)[hitran.WNUMBECK] + dw
-    disable_lock()
-    wp, pmax, e, m = ls.set_line(htline,dw,em=em,pv=pv,ih=ih)
+def setup_lock():
     tcc.set_scanning(True)
-    tl.lock_topo()
+
+def start_lock():    
     for channel in (tcs.HENE,tcs.IR):
         tcc.set_fitting(channel,True)
-    sleep(fitwait)
+    yield from sleep(fitwait)
     tcc.zero_offset()
     tcc.set_locking(True)
-    
+
+def finish_lock(wmh,wtarget):
     N = 4
     fo = 0.0
-    
-    with wm.WavemeterHandler() as wmh:
-        while True:
-            W = 0
-            n = 0
-            while n < N:
-                W += wm.get_wavenumber(wmh)
-                n += 1
-            W /= N
-            deltaw = W - wtarget
-            print('wtarget',wtarget,'W',W,'deltaw',deltaw)
-            if abs(deltaw) < epsilonw:
-                break
-            if abs(deltaw) > deltawmax:
-                print('deltaw of {:.4f} cm-1 exceeds threshold!'.format(deltaw))
-                return False, None
-            fo += -dfdw*deltaw/damping
-            print('wtarget',wtarget,'W',W,'deltaw',deltaw,'fo',fo)
-            tcc.set_setpoint(fo)
+    while True:
+        W = 0
+        n = 0
+        while n < N:
+            W += yield from wm.get_wavenumber_async(wmh)
+            n += 1
+        W /= N
+        deltaw = W - wtarget
+        print(
+            ', '.join(
+                '{}: {} {}'.format(
+                    label, 
+                    '{{:.{:d}f}}'.format(precision).format(value), 
+                    unit
+                ) for label, value, precision, unit in (
+                    ('wo',  wtarget,    4,  'cm-1'  ),
+                    ('w',   W,          4,  'cm-1'  ),
+                    ('dw',  deltaw,     4,  'cm-1'  ),
+                    ('fo',  fo,         1,  'mhz'   )       
+                )            
+            )
+        )
+        if abs(deltaw) < epsilonw:
+            break
+        if abs(deltaw) > deltawmax:
+            print('dw of {:.4f} cm-1 exceeds threshold!'.format(deltaw))
+            return False, None
+        fo += -dfdw*deltaw/damping        
+        tcc.set_setpoint(fo)
     fp = fo
     wp = W
-    return True, (e, m, fp, wp)
+    return True, (fp, wp)
+
+def locktc_async(
+        htline,dw,
+        em=None,pv=None,ih=None,dt=None,
+        opo=False
+    ):
+    wtarget = hitran.lookup_line(htline)[hitran.WNUMBECK] + dw
+    disable_lock()
+    wp, pmax, e, m = ls.set_line(
+        htline,dw,em=em,pv=pv,ih=ih,opo=opo,dt=dt
+    )
+    setup_lock()
+    with (
+        oscilloscope.ScopeHandler() as sh,
+        piezo.PiezoDriverHandler() as pdh,
+        ll.LaseLockHandler() as llh
+    ):
+        yield from tl.lock_topo_async(topo.InstructionClient(),sh,pdh,llh,tl.POS)
+    yield from start_lock()
+    with wm.WavemeterHandler() as wmh:
+        success, result = yield from finish_lock(wmh,wtarget)
+        if success:
+            f, w = result
+        else:
+            return False, None
+    return True, (e, m, f, w)
+
+def locktc(
+        htline,dw,
+        em=None,pv=None,ih=None,dt=None,
+        opo=False
+    ):
+    return get_blocking(locktc_async)(htline,dw,em,pv,ih,dt,opo)
 
 def unlocktc():
     disable_lock()
 
 if __name__ == '__main__':
     import linescan as ls
+    import argparse
+    ap = argparse.ArgumentParser(description='sets topo to desired line and locks to transfer cavity')
+    ap.add_argument('-e','--etalon',type=int,help='etalon position (must be integer)')
+    ap.add_argument('-m','--motor',type=float,help='motor position (float, in mm)')
+    args = ap.parse_args()
+    em = args.etalon, args.motor
+    if None in em:
+        em = None    
     htline, dw = ls.line_wizard()
-    print(locktc(htline,dw))
+    print(locktc(htline,dw,em=em))
