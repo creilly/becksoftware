@@ -49,7 +49,11 @@ def stop_stream(pm):
 def set_autoscale(pm,autoscale):
     return send_command(pm,'SAS {:d}'.format(int(autoscale)),False)
 
+RANGE_3W = 25
 RANGE_1W = 24
+RANGE_300MW = 23
+RANGE_100MW = 22
+RANGE_30MW = 21
 def set_range(pm,range):
     return send_command(pm,'SCS {:d}'.format(range),False)
 
@@ -57,17 +61,16 @@ if __name__ == '__main__':
     from time import sleep
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument('-v','--visa-id',default=VISA_ID)
+    ap.add_argument('-v','--visa-id',default=VISA_ID,help='visa id of device')
+    ap.add_argument('-n','--number',type=int,default=5,help='number of samples to take')
+    ap.add_argument('-t','--time',type=float,default=1.0,help='sample measure time')
+    args = ap.parse_args()    
     try:
         print('gentec power monitor. press ctrl-c to quit.')
-        with GentecHandler() as pm:
-            for _ in range(2):
+        with GentecHandler(args.visa_id) as pm:
+            for _ in range(args.number):
                 start_stream(pm)
-                sleep(2.0)
+                sleep(args.time)
                 print('power:',stop_stream(pm))            
-            print(get_power(pm))
-            # while True:
-            #     print(get_power(pm))
-            #     sleep(0.001)
     except KeyboardInterrupt:
         print('interrupt received quitting...')
