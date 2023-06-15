@@ -33,14 +33,12 @@ def close_piezo_driver(pdh):
 def set_piezo_voltage(pdh,voltage,channel=channel):
     return write(pdh,'{}voltage'.format(channel),'{:.4f}'.format(voltage))
 
-def get_piezo_voltage_act(pdh,channel=channel):
+def get_piezo_voltage(pdh,channel=channel):
     return float(
         query(
             pdh,'{}voltage'.format(channel)
         ).split('[')[-1].split(']')[0]
     )
-
-get_piezo_voltage = get_piezo_voltage_act
 
 def set_rotary_push(pdh,disabled):
     return write(
@@ -75,11 +73,13 @@ if __name__ == '__main__':
         # for _ in range(10):
         #     print(set_rotary_mode(pdh,TEN))
         # print('rotary mode?',get_rotary_mode(pdh))
+        # exit(0)
         # vo = get_piezo_voltage_act(pdh)
         # print('vo,',vo)
         vp = float(input('set piezo voltage to: '))
         print(set_piezo_voltage(pdh,vp))
-        vpp = get_piezo_voltage_act(pdh)
-        print('vpp,',vpp)
+        vpp = get_piezo_voltage(pdh)                
+        print('vpp,',vpp)        
+        
 
     
