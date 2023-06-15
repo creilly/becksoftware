@@ -252,8 +252,8 @@ def encode_scan(scan):
     ).decode()
 
 damping = 5.0
-pmin = 0.01
-pmax = 3.99
+pmin = 0.5
+pmax = 3.5
 class Locker:
     def __init__(self,topohandle):
         self.topohandle = topohandle
@@ -305,8 +305,10 @@ class Locker:
         return self.vo
 
     def set_piezo_voltage(self,voltage):
+        if voltage < pmin or voltage > pmax:            
+            raise PiezoLimitError
         self.topohandle.set_output(topo.A,min(max(pmin,voltage),pmax))
-
+class PiezoLimitError(Exception): pass
 FULL, DECIMATED = 0, 1
 HENEFITERROR, IRFITERROR = 0, 1
 SCANINDEX, DELTAF = '0', '1'
@@ -329,6 +331,7 @@ class TransferCavityApp(bhs.BeckApp):
         self.locking = False
         self.setpoint = 0.0
         self.offset = 0.0
+        self.error = False
 
     def loop(self):
         if self.get_scanning():
@@ -369,7 +372,11 @@ class TransferCavityApp(bhs.BeckApp):
                 deltav -= self.offset
                 deltaf = dfdv * deltav
                 if self.get_locking():
-                    self.locker.update_lock(deltaf)
+                    try:
+                        self.locker.update_lock(deltaf)
+                    except PiezoLimitError:
+                        self.error = True
+                        self.set_locking(False)
             if not self.get_locking():
                 if self.locker.check_ar():
                     self.locker.request_piezo_voltage()
@@ -381,6 +388,14 @@ class TransferCavityApp(bhs.BeckApp):
             )
             if len(self.samples) > history:
                 self.samples.pop()
+
+    @bhs.command('get error')
+    def get_error(self):
+        return self.error
+    
+    @bhs.command('clear error')
+    def clear_error(self):
+        self.error = False
 
     @bhs.command('get lock output')
     def get_lock_output(self):
@@ -488,7 +503,7 @@ class TransferCavityApp(bhs.BeckApp):
         return self.fitting[channel]
 
     @bhs.command('set fitting')
-    def set_fitting(self,channel,fitting):
+    def set_fitting(self,channel,fitting):        
         if fitting:
             self.fitters[channel].reset()
         self.fitting[channel] = fitting
