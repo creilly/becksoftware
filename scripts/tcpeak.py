@@ -9,11 +9,10 @@ from matplotlib import pyplot as plt
 import fit
 from bologain import bologainclient, bologainserver
 
-bologainclient.set_gain(bologainserver.X1000)
 X, Y, R = 'x', 'y', 'r'
 
 def find_peak(deltaf,df,tau,axis):    
-    meastime = 3 * tau # seconds
+    meastime = 10 * tau # seconds
     settletime = 10 * tau # seconds
     success = True
     with lockin.LockinHandler() as lih:
@@ -93,7 +92,7 @@ def find_peak(deltaf,df,tau,axis):
             print('params',params)
             plt.plot(fs,1e3*zs,'k+',label='data')
             plt.plot(fs,1e3*sign*fit.gaussian(fs,*params),'r--',label='fit')
-            plt.xlabel('tcc setpint / MHz')
+            plt.xlabel('tcc setpoint / MHz')
             plt.ylabel('lock-in {} signal (millivolts)'.format(axis))
             plt.legend()
             plt.show()
@@ -124,11 +123,16 @@ if __name__ == '__main__':
     parser.add_argument(
         '-a','--axis',choices=(X,R),default=R
     )
+    parser.add_argument(
+        '-b','--bologain',choices=(10,100,200,1000),type=int,default=1000
+    )
     args = parser.parse_args()
     deltaf = args.deltaf
     df = args.epsilonf
     tau = args.tau
     axis = args.axis
+    bologain = args.bologain
+    bologainclient.set_gain(bologain)
     print(
         ','.join(
             [
