@@ -18,8 +18,10 @@ fshift = 50.0 # MHz
 
 meastimefc = 1.0
 
-theta_min = lidangle-8.0
-theta_max = lidangle+8.0
+delta_theta = 3.0
+
+theta_min = lidangle-delta_theta
+theta_max = lidangle+delta_theta
 dtheta = 0.5
 
 phis = np.arange(theta_min,theta_max + dtheta/2,dtheta)
