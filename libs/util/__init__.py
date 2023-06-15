@@ -1,4 +1,4 @@
-# prints in scientific notation with units (y.yyy x 10^z unit^{a/b} ... )
+# prints in latex scientific notation with units (y.yyy x 10^z unit^{a/b} ... )
 def fmt_num(f,digits,*units,sign_man=False,sign_exp=False):    
     def parse_sign(sign,filter):
         return {
