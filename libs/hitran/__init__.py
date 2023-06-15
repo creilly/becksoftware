@@ -22,7 +22,7 @@ def ls(folders):
     path = format_path(folders)
     return os.listdir(path)
 
-MOL, ISO, LGQ, UGQ, LLQ, ULQ, W, A, WB = 0, 1, 2, 3, 4, 5, 6, 7, 8
+MOL, ISO, LGQ, UGQ, LLQ, ULQ, W, A, WB, EPP = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
 fields = {
     MOL:(0,2),
     ISO:(2,1),
@@ -31,7 +31,8 @@ fields = {
     LLQ:(112,15),
     ULQ:(97,15),
     W:(3,12),
-    A:(25,10)
+    A:(25,10),
+    EPP:(45,10)
 }
 def format_line(mol,iso,lgq,ugq,llq,ulq):
     return [
@@ -148,6 +149,7 @@ def parse_gq(raw_gq):
         raw_quanta, raw_gq = raw_gq[:gq_int_width], raw_gq[gq_int_width:]
         quanta.append(int(raw_quanta))
         nmode += 1
+    quanta = (*quanta,)
     raw_level, raw_gq = raw_gq[:gq_int_width], raw_gq[gq_int_width:]
     level = int(raw_level)
     sym = raw_gq[:sym_width].strip()
@@ -183,7 +185,8 @@ symd = {
     5:'F2'
 }
 
-def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None):    
+def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None): 
+    results = []   
     folders = [
         formatters[key](field) for key, field in sorted(
             {
@@ -202,7 +205,10 @@ def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None):
             newsym is None or newsym == _sym
         ):
             folders.append(raw_llq)
-            raw_ulqs = os.listdir(format_path(folders))
+            try:
+                raw_ulqs = os.listdir(format_path(folders))
+            except FileNotFoundError:
+                continue
             for raw_ulq in raw_ulqs:
                 __j, __sym, __level = parse_lq(raw_ulq)                
                 _b = __j - _j
@@ -210,9 +216,9 @@ def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None):
                     ul is None or ul == __level
                 ):
                     folders.append(raw_ulq)                    
-                    return [folder for folder in folders]
+                    results.append(list(folders))
             folders.pop()
-    return None
+    return results
 # conversion between old and new convention
 def _search_db(mol,iso,glq,guq,b,j,oldsym=None,ll=None,ul=None):    
     folders = [
