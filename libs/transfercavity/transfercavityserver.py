@@ -312,8 +312,18 @@ class PiezoLimitError(Exception): pass
 FULL, DECIMATED = 0, 1
 HENEFITERROR, IRFITERROR = 0, 1
 SCANINDEX, DELTAF = '0', '1'
+
+NO_HEATER = 1347
+def check_heater(foo):
+    def bar(self,*args,**kwargs):
+        if self.heater is None:
+            raise bhs.BeckError('heater disabled',NO_HEATER)
+        else:
+            return foo(self,*args,**kwargs)
+    return bar
+
 class TransferCavityApp(bhs.BeckApp):
-    def __init__(self,heater,scanner,fitters,locker):
+    def __init__(self,scanner,fitters,locker,heater=None):
         self.fitting = {chan:False for chan in inputchannels}
         self.params = {            
             chan:None for chan in inputchannels
@@ -517,18 +527,22 @@ class TransferCavityApp(bhs.BeckApp):
         return self.params[channel]
 
     @bhs.command('get heating')
+    @check_heater
     def get_heating(self):
         return self.heater.get_running()
 
     @bhs.command('set heating')
+    @check_heater
     def set_heating(self,heating):
         self.heater.set_running(heating)
 
     @bhs.command('set heater voltage')
+    @check_heater
     def set_heater_voltage(self,voltage):
         self.heater.set_voltage(voltage)
 
     @bhs.command('get heater voltage')
+    @check_heater
     def get_heater_voltage(self):
         return self.heater.get_voltage()
 
@@ -563,16 +577,17 @@ if __name__ == '__main__':
         IR:'transfer cavity ir'
     }
     with (
-            pwm.PWM(hchan,hres,hvmax,hvo,hvsafe) as heater,
+            # pwm.PWM(hchan,hres,hvmax,hvo,hvsafe) as heater,
             d.TaskHandler(
                 [inputchannelnames[channel] for channel in inputchannels]
             ) as ai,
             d.TaskHandler(['transfer cavity piezo']) as ao
     ):
+        heater = None
         locker = Locker(topo.AsyncInstructionClient())
         scanner = Scanner(ao,ai,scanvs,returnvs,samplingrate)
         fitters = {
             channel:Fitter(channel) for channel in inputchannels
         }
         print('now serving.')
-        bhs.run_beck_server(PORT,os.path.dirname(__file__),TransferCavityApp,heater,scanner,fitters,locker,_debug=False)
+        bhs.run_beck_server(PORT,os.path.dirname(__file__),TransferCavityApp,scanner,fitters,locker,heater,_debug=False)
