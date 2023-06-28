@@ -73,14 +73,12 @@ def finish_lock(wmh,wtarget):
     return True, (fp, wp)
 
 def locktc_async(
-        htline,dw,
-        em=None,pv=None,ih=None,dt=None,
-        opo=False
+        htline,dw,wmh=None,opo=False,opo_entry=ls.OPO_LATEST,interrupt_handler=None
     ):
     wtarget = hitran.lookup_line(htline)[hitran.WNUMBECK] + dw
     disable_lock()
     wp, pmax, e, m = ls.set_line(
-        htline,dw,em=em,pv=pv,ih=ih,opo=opo,dt=dt
+        htline,dw,wmh,opo,opo_entry,interrupt_handler
     )
     setup_lock()
     with (
@@ -99,24 +97,9 @@ def locktc_async(
     return True, (e, m, f, w)
 
 def locktc(
-        htline,dw,
-        em=None,pv=None,ih=None,dt=None,
-        opo=False
+        htline,dw,wmh=None,opo=False,opo_entry=ls.OPO_LATEST,interrupt_handler=None
     ):
-    return get_blocking(locktc_async)(htline,dw,em,pv,ih,dt,opo)
+    return get_blocking(locktc_async)(htline,dw,wmh,opo,opo_entry,interrupt_handler)
 
 def unlocktc():
     disable_lock()
-
-if __name__ == '__main__':
-    import linescan as ls
-    import argparse
-    ap = argparse.ArgumentParser(description='sets topo to desired line and locks to transfer cavity')
-    ap.add_argument('-e','--etalon',type=int,help='etalon position (must be integer)')
-    ap.add_argument('-m','--motor',type=float,help='motor position (float, in mm)')
-    args = ap.parse_args()
-    em = args.etalon, args.motor
-    if None in em:
-        em = None    
-    htline, dw = ls.line_wizard()
-    print(locktc(htline,dw,em=em))
