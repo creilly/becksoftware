@@ -26,41 +26,57 @@ import pi
     
 # latest calibration data: 05/01/2022, analyzed AND UPDATED 06/01/2022
 
-calibdate = '2022.01.05'
+# calibdate = '2022.01.05'
+
+calibdate = '2023.06.25'
 
 ro = 16.0
 
-xc = -25.812800000141785     #x offset (mm)
-yc = -39.51900000014259     #y offset (mm)
-r = 14.962259999773522      # - circle radius (mm), calibrated at r=15.0
-a =  -5.603500000056165      #- angle offset (degs)
-e = 1.010219999972917      # -squish (unitless)
-s = -1.910800000003037     #- slant (degs)
+# xc = -25.812800000141785     #x offset (mm)
+# yc = -39.51900000014259     #y offset (mm)
+# r = 14.962259999773522      # - circle radius (mm), calibrated at r=15.0
+# a =  -5.603500000056165      #- angle offset (degs)
+# e = 1.010219999972917      # -squish (unitless)
+# s = -1.910800000003037     #- slant (degs)
+
+# 2023-06-25
+# see Z:\Surface\chris\scripts-data\2023\06\25\lidmirrorcalib\anlmc.py
+xo = 25.672 # x offset (mm)
+yo = 40.059 # y offset (mm)
+r  = 15.269 # radius (mm)
+to = 182.387 # angle offset (degs)
 
 def get_calibration_metadata():
     return {
         'calibration parameters':{
-            'xc':xc,
-            'yc':yc,
+            'xo':xo,
+            'yo':yo,
             'r':r,
-            'a':a,
-            'e':e,
-            's':s
+            'to':to
         },
         'calibration date':calibdate
     }
 
-def get_xmirr(A,r=ro):
-    xo  =   r * e * np.cos((A + a)*np.pi/180.)
-    yo  =   r / e * np.sin((A + a)*np.pi/180.)
-    x   =   xc + np.cos(s*np.pi/180.) * xo + np.sin(s*np.pi/180.) * yo
-    return -x
+def get_zmirr(t,r,zo,f):
+    return zo + r * f(np.deg2rad(t-to))
+
+def get_xmirr(t,r=ro):
+    return get_zmirr(t,r,xo,np.cos)
+
+def get_ymirr(t,r=ro):
+    return get_zmirr(t,r,yo,np.sin)
+
+# def get_xmirr(A,r=ro):
+#     xo  =   r * e * np.cos((A + a)*np.pi/180.)
+#     yo  =   r / e * np.sin((A + a)*np.pi/180.)
+#     x   =   xc + np.cos(s*np.pi/180.) * xo + np.sin(s*np.pi/180.) * yo
+#     return -x
 	
-def get_ymirr(A,r=ro):
-    xo  =   r * e * np.cos((A + a)*np.pi/180.)
-    yo  =   r / e * np.sin((A + a)*np.pi/180.)
-    y 	= 	yc + np.cos(s*np.pi/180.) * yo - np.sin(s*np.pi/180.) * xo
-    return -y
+# def get_ymirr(A,r=ro):
+#     xo  =   r * e * np.cos((A + a)*np.pi/180.)
+#     yo  =   r / e * np.sin((A + a)*np.pi/180.)
+#     y 	= 	yc + np.cos(s*np.pi/180.) * yo - np.sin(s*np.pi/180.) * xo
+#     return -y
 
 def move_pi(handle,axis,position):
     pi.set_position(handle,axis,position)
