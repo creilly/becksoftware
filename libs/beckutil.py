@@ -21,4 +21,4 @@ colorcodes = {
 colors = ('blue', 'green', 'purple', 'red', 'cyan', 'yellow')
 endcolor = '\x1b[0m'
 def print_color(color,*args):
-    print(colorcodes[color],*args,endcolor)
+    print(''.join((colorcodes[color],*args,endcolor)))
