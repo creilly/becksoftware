@@ -43,6 +43,7 @@ def lock_topo_async(
         llh : ll.LaseLockHandler,
         pol = POS
     ):    
+    ic.set_wide_scan_output(topo.WS_A)
     ic.set_wide_scan_input(topo.INPUT1,topo.FINE1)
     ic.set_wide_scan_input(topo.INPUT2,topo.NOINPUT)
     ic.set_wide_scan_speed(dVdt)
