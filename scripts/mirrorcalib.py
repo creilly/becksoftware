@@ -3,9 +3,11 @@ import pi
 import argparse
 
 ap = argparse.ArgumentParser()
-ap.add_argument('-r','--radius',default=mm.ro,type=float,help='tagging radius (mm)')
+ap.add_argument('-r','--radius',default=mm.ro,type=float,help='tagging radius (mm), enter negative value for calib radius')
 
 Ro = ap.parse_args().radius
+if Ro < 0:
+    Ro = mm.r
 
 Xo = 25.0
 Yo = 40.0
@@ -153,5 +155,3 @@ while True:
                 break
             for axis in axes:
                 pi.set_velocity(pih,axis,velocity)
-
-    
