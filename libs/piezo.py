@@ -78,7 +78,10 @@ if __name__ == '__main__':
         # print('vo,',vo)
         vp = float(input('set piezo voltage to: '))
         print(set_piezo_voltage(pdh,vp))
-        vpp = get_piezo_voltage(pdh)                
+        import time
+        time.sleep(1.0)
+        channel = 'z'
+        vpp = get_piezo_voltage(pdh,'z')                
         print('vpp,',vpp)        
         
 
