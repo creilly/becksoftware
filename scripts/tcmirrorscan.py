@@ -18,7 +18,7 @@ fshift = 50.0 # MHz
 
 meastimefc = 1.0
 
-delta_theta = 3.0
+delta_theta = 6.0
 
 theta_min = lidangle-delta_theta
 theta_max = lidangle+delta_theta
