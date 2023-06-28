@@ -3,30 +3,18 @@ from maxon import M_PROFILE_POSITION
 from bilt.experiment.frequencyscan import scan_frequency
 from interrupthandler import InterruptException
 from bilt.experiment.modehop import ModeHopDetected
-import topo
-import hitran
-import config
 from bologain import bologainclient, bologainserver
 from grapher import graphclient as gc
-import powercalib
-import lockin
-import emfile as emf
-import rotationstage as rs
-import lockin
-import pi
-import wavemeter as wm
-import maxon
-import interrupthandler
-import mirrormotion as mm
-import tclock
 from bilt import gcp, RS, LI, PI, AWM, MA, IH, get_wavemeter_offset
 from bilt.experiment.chopped import get_sensitivity, maxon_open, maxon_closed, start_spin, finish_spin, get_spin_cb, home_motor
 from bilt.experiment.hwp import set_hwp
 from bilt.experiment.grapher import create_dataset, namer, LS, FS, FC, AS
 from bilt.experiment.linesearch import search_line, OUT_OF_RANGE_ERROR
 from bilt.experiment.angularscan import get_angular_scan
-import threading
 from time import time
+import topo, hitran, config, powercalib, lockin, \
+    rotationstage as rs, lockin, pi, wavemeter as wm, maxon, interrupthandler, \
+    tclock, threading, linescan
 
 def run_experiment(config_fname):
     # load config file into memory from disk
@@ -299,20 +287,16 @@ def end_thread(promise):
 
 def set_line(cfg,handlerd,line):    
     dw = get_wavemeter_offset(cfg)
-    ih = handlerd[IH]
-    htline, piezo, e, m = line
-    if e < 0 or m < 0:
-        print('not initial e, m values specified.')
-        emo = None
-    else:
-        print('eo: {:d}, mo: {:.4f}'.format(e,m))
-        emo = (e,m)    
+    ih = handlerd[IH]    
     while True:                
-        success, result = tclock.locktc(htline,dw,em=emo,pv=piezo,ih=ih)
+        success, result = tclock.locktc(
+            line,dw,wmh=None,opo=True,
+            opo_entry=linescan.OPO_LATEST,interrupt_handler=ih
+        )
         if success:
             break
         else:
-            print('tclock unsucessful!')
+            print('tclock unsuccessful!')
             print('trying again...')
     return result
 
@@ -362,10 +346,14 @@ def get_phis(cfg):
 
 def get_lines(cfg):
     emfile = gcp(cfg,'topo calibration','filename')
-    lines = emf.parse_em_file(emfile)
-    return lines
+    with open(emfile,'r') as f:
+        return [
+            line.split('\t') for line in f.read().split('#')[0].split('\n')
+            if line.strip()
+        ]    
 
 def get_initial_config():
+    return {}
     wsp = config.get_wavesource_params()
     lip = config.get_lockin_params()
     init_cfg_d = {

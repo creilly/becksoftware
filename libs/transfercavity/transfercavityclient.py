@@ -87,6 +87,10 @@ def decode_scan(b64scan):
         bs
     )
 
+def get_error():
+    return send_command('get error')
+
+class TransferCavityError(Exception): pass
 def check_transfer_cavity(fset,epsilonf):
     scan_index = get_scan_index()
     while True:
@@ -107,6 +111,8 @@ def check_transfer_cavity(fset,epsilonf):
                 if abs(f-fset) < epsilonf:
                     # print('setpoint reached')
                     return True
+                if get_error():
+                    raise TransferCavityError()
 
 if __name__ == '__main__':
     from . import transfercavityserver as tcs

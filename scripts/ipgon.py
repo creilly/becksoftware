@@ -1,8 +1,9 @@
-import ipg
+import ipg, argparse
 from time import time, sleep
 
 DELTAT_SHORT = 180.0 # seconds
-DELTAT_LONG = 2400.0
+DELTAT_MEDIUM = 540 
+DELTAT_LONG = 2400.0 
 DELTAT_NOW = 0.0
 
 steps = (
@@ -10,13 +11,22 @@ steps = (
     ( 6.0, DELTAT_SHORT ),
     ( 8.0, DELTAT_SHORT ),
     ( 10.0, DELTAT_SHORT ),
-    ( 12.0, DELTAT_LONG )
+    ( 12.0, DELTAT_LONG ),
+    ( 14.0, DELTAT_MEDIUM )
 )
 
 SLEEP = 1.0
 
+W12 = 12
+W14 = 14
+ap = argparse.ArgumentParser()
+ap.add_argument('--power','-p',choices=(W12,W14),type=int,default=W12)
+maxpower = ap.parse_args().power
+
 with ipg.IPGHandler() as ipgh:
     for power, DELTAT in steps:
+        if power > maxpower:
+            break
         starttime = time()
         while True:
             currenttime = time()

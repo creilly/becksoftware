@@ -128,6 +128,17 @@ def add_data_multiline(path,data):
         )
     return 0
 
+@check_read_only
+def update_metadata(path,dmd):
+    md = get_metadata(path)
+    md.update(dmd)
+    with open(format_path_list(path),'w') as f:
+        json.dump(
+            md,f,
+            sort_keys = True,
+            indent = 4
+        )
+
 def path_status(path):
     return pathlib.Path(format_path_list(path)).stat().st_mtime
 
@@ -181,7 +192,8 @@ commands = {
     'get-fields':get_fields,
     'get-dir':get_dir,
     'get-day-folder':get_day_folder,
-    'folder-status':folder_status
+    'folder-status':folder_status,
+    'update-metadata':update_metadata
 }
 
 if __name__ == '__main__':

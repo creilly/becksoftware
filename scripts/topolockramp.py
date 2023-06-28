@@ -11,9 +11,9 @@ POLS = (POS,NEG)
 
 PVo = 20.0 # volts piezo output
 
-dither_amp = 3.3000 # volts # from 2022-11-18 calibration
+dither_amp = 6.7000 # volts # from 2022-11-18 calibration
 
-noise_amp = 0.060 # volts rms
+noise_amp = 0.140 # volts rms
 ws_shape = scope.NOISE
 ws_enabled = True
 ws_load = scope.LOW
@@ -43,7 +43,6 @@ def lock_topo_async(
         llh : ll.LaseLockHandler,
         pol = POS
     ):    
-    ic.set_wide_scan_output(topo.WS_A)
     ic.set_wide_scan_input(topo.INPUT1,topo.FINE1)
     ic.set_wide_scan_input(topo.INPUT2,topo.NOINPUT)
     ic.set_wide_scan_speed(dVdt)

@@ -58,27 +58,16 @@ fname = input('enter description: ')
 
 bologainclient.set_gain(bologain)
 
-metadata = config.get_metadata([config.LOGGER,config.LOCKIN,config.BOLOMETER])
+metadata = {}
 startscantime = time()
 metadata['start time'] = (startscantime,'seconds since epoch')
-
-path = gc.add_dataset(
-    folder,
-    fname,
-    (
-        'lid angle (degrees)',
-        'lockin r (volts)',
-        'lockin theta (degrees)',
-        'time delta since start time(s)'        
-    ),
-    metadata = metadata
-)
 
 with (
     lockin.LockinHandler() as lih,
     interrupthandler.InterruptHandler() as ih,
     maxon.MaxonHandler() as mh,
 ):
+    metadata.update(config.get_metadata(lih,[config.LOGGER,config.LOCKIN,config.BOLOMETER]))
     print('press ctrl-c to quit.')
 
     def check_fault():
@@ -116,7 +105,17 @@ with (
     print('chopping speed reached.')
 
     separation_valve = input('open separation valve, press enter when done')
-
+    path = gc.add_dataset(
+        folder,
+        fname,
+        (
+            'lid angle (degrees)',
+            'lockin r (volts)',
+            'lockin theta (degrees)',
+            'time delta since start time(s)'        
+        ),
+        metadata = metadata
+    )
     for theta in thetas:
         if ih.interrupt_received():
             print('interrupt received. quitting.')
@@ -163,4 +162,4 @@ with (
     
     maxon.set_enabled_state(mh,True)
     print('homing motor.')
-    maxon.find_home(mh)    
+    maxon.find_home(mh)

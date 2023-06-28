@@ -392,6 +392,25 @@ class InstructionClient(Client):
             physical_channel,
             INT
         )
+    
+    def get_wide_scan_input(self,virtual_channel):
+        return self.get_param(
+            'laser1:recorder:inputs:channel{:d}:signal'.format(virtual_channel),
+            INT
+        )
+    
+    def get_wide_scan_output(self):
+        return self.get_param(
+            'laser1:wide-scan:output-channel',
+            INT
+        )
+    
+    def set_wide_scan_output(self,channel):
+        return self.set_param(
+            'laser1:wide-scan:output-channel',
+            channel,
+            INT
+        )
 
     # in milliseconds
     def get_wide_scan_sampling_interval(self):
@@ -613,6 +632,7 @@ class AsyncInstructionClient(InstructionClient):
         )
 
 A, B = 0, 1
+WS_A, WS_B, WS_DC, WS_DT, WS_PZ = 20, 21, 51, 56, 50
 FINE1, FINE2, FAST3, FAST4, NOINPUT = 0, 1, 2, 3, -3
 INPUT1, INPUT2 = 1, 2
 segmentrestring = r'\(\S+ \S+ (.+)\)'

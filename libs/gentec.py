@@ -1,4 +1,4 @@
-import pyvisa
+import pyvisa, interrupthandler
 
 VISA_ID = 'gentec'
 read_term = '\n'
@@ -40,8 +40,10 @@ def stop_stream(pm):
     try:
         sum = 0
         n = 0
-        while True:
-            sum += float(pm.read().strip())
+        while True:            
+            response = pm.read().strip()
+            if response.lower() == 'ack': continue
+            sum += float(response)            
             n += 1
     except pyvisa.errors.VisaIOError:        
         return sum / n if n else None
@@ -62,15 +64,25 @@ if __name__ == '__main__':
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument('-v','--visa-id',default=VISA_ID,help='visa id of device')
-    ap.add_argument('-n','--number',type=int,default=5,help='number of samples to take')
-    ap.add_argument('-t','--time',type=float,default=1.0,help='sample measure time')
+    ap.add_argument('-n','--number',type=int,default=0,help='number of samples to take (0 for infinite)')
+    ap.add_argument('-t','--time',type=float,default=0.5,help='sample measure time')
     args = ap.parse_args()    
     try:
-        print('gentec power monitor. press ctrl-c to quit.')
-        with GentecHandler(args.visa_id) as pm:
-            for _ in range(args.number):
+        print('gentec power monitor. press ctrl-c to quit.')        
+        with (
+            GentecHandler(args.visa_id) as pm,
+            interrupthandler.InterruptHandler() as ih
+        ):
+            n = 0
+            while True:
+                if ih.interrupt_received():
+                    raise KeyboardInterrupt()
                 start_stream(pm)
                 sleep(args.time)
-                print('power:',stop_stream(pm))            
+                power = stop_stream(pm)
+                print('power:','{:.1f} milliwatts'.format(1000*power) if power is not None else 'no reading')
+                n += 1
+                if n == args.number:
+                    break
     except KeyboardInterrupt:
         print('interrupt received quitting...')

@@ -87,8 +87,11 @@ class BeckApp:
     def shutdown(self):
         pass
 
+GEN_ERROR = 1
 class BeckError(Exception):
-    pass
+    def __init__(self,msg,code=GEN_ERROR):
+        self.msg = msg
+        self.code = code
 
 def run_beck_server(port,rootfolder,appcls,*args,**kwargs):
     no_interrupt_received = [None]
@@ -206,7 +209,9 @@ class BeckRequestHandler(http.server.BaseHTTPRequestHandler):
         command = data[COMMAND]
         parameters = data[PARAMETERS]
         try:
-            response = self.server.app.commands[command](self.server.app,**parameters)        
+            response = self.server.app.commands[command](self.server.app,**parameters)  
+        except BeckError as be:
+            response = {ERROR:[be.code,be.msg]}
         except Exception as e:
             response = {
                 ERROR:traceback.format_exc()

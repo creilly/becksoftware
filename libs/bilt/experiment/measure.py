@@ -7,30 +7,30 @@ import modehop
 from transfercavity import transfercavityclient as tcc
 
 class LockinCallback:
-    def __init__(self,deltat,lih,topoic):
-        self.n = 0
-        self.x = 0
-        self.y = 0
-        self.pd = 0
-        self.deltat = deltat
-        self.starttime = None   
-        self.lih = lih     
+    def __init__(self,deltat,lih,topoic):                
+        self.pds = []
+        self.xs = []
+        self.ys = []
+        self.tau_refresh = 10 * lockin.get_time_constant(lih)
+        self.deltat = max(deltat,self.tau_refresh)
+        self.starttime = None
+        self.lih = lih        
         self.topoic = topoic
 
     def callback(self):
         if self.starttime is None:
             self.starttime = time()
-        x, y = lockin.get_xy(self.lih)
-        pd = self.topoic.get_input(topo.FAST4)
-        self.x += x
-        self.y += y
-        self.pd += pd
-        self.n += 1
-        return time() - self.starttime < self.deltat    
+        timep = time()        
+        if timep - self.starttime >= self.tau_refresh:
+            x, y = lockin.get_xy(self.lih)
+            self.xs.append(x)
+            self.ys.append(y)
+        self.pds.append(self.topoic.get_input(topo.FAST4))                
+        return timep - self.starttime < self.deltat
 
-    def get_output(self):
+    def get_output(self):        
         return [
-            z/self.n for z in (self.x,self.y,self.pd)
+            sum(z)/len(z) for z in (self.xs,self.ys,self.pds)
         ]
 
 def get_measurement(cfg,handlerd,topoic,wmh,wexp,deltat):
