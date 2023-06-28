@@ -1,10 +1,11 @@
 import gentec as pm
-import pi
+import pi, time
 import numpy as np
 from matplotlib import pyplot as plt
 
-deltaz = 5.0 # mm
-dz = 0.25
+deltaz = 2.0 # mm
+dz = 0.05
+dt = 1.0
 
 positions = {
     axis:{} for axis in (pi.X,pi.Y)
@@ -20,23 +21,28 @@ with (
         for z in zs:
             pi.set_position(pih,axis,z)
             pi.wait_motor(pih,axis)
-            d[z] = pm.get_power(pmh)
+            time.sleep(dt)
+            pm.start_stream(pmh)
+            time.sleep(dt)
+            d[z] = pm.stop_stream(pmh)            
             print(
                 'z:','{:.3f} mm'.format(z).rjust(15),
                 '|',
                 'p:','{:.2f} mW'.format(1e3*d[z]).rjust(15)
             )
         zmax = max(d.items(),key=lambda x: x[1])[0]
-        print('zmax:','{:.3f} mm'.format(z).rjust(15))
+        print('zmax:','{:.3f} mm'.format(zmax).rjust(15))
         pi.set_position(pih,axis,zmax)
         plt.plot(
-            *zip(d.items()),
+            *zip(*d.items()),
             '.',
             label = {
                 pi.X:'x',
                 pi.Y:'y'
             }[axis]
         )
+plt.xlabel('motor position (mm)')
+plt.ylabel('transmitted power (watts)')
 plt.legend()
 plt.show()
 
