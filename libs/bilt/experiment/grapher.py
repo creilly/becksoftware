@@ -63,7 +63,7 @@ def namer(htline):
 def create_dataset(mode,namer,line,cfg,trial,sens_md,handlerd,do):
     path = gc.add_dataset(
         gc.get_day_folder() + folderd[mode],
-        namer(line[0]),
+        namer(line),
         colsd[mode],
         metadata = create_metadata(cfg,line,trial,sens_md,handlerd,do)
     )
@@ -84,7 +84,7 @@ def create_metadata(cfg,line,trial,sens_md,handlerd,do={}):
     metadata = {
         'experiment':exp_desc,
         'sensitivity':sens_md,
-        'hitran line':line[0],
+        'hitran line':line,
         'scattering':{
             'incident angle':(inc_angle,'degrees'),
             'specular angle':(spc_angle,'degrees'),
