@@ -16,7 +16,7 @@ def_bolo_sens = 100.0e-3
 # def_bolo_sens = 200.0e-3
 
 ap = argparse.ArgumentParser()
-ap.add_argument('-s','--bolosens',type=float,default=def_bolo_sens,help='bolometer sensitivity')
+ap.add_argument('-s','--bolosens',type=float,default=def_bolo_sens,help='bolometer lockin sensitivity')
 
 args = ap.parse_args()
 
@@ -100,7 +100,7 @@ with (
 
     separation_valve = input('open separation valve, press enter when done')
 
-    metadata = config.get_metadata([config.LOGGER,config.LOCKIN,config.BOLOMETER])
+    metadata = config.get_metadata(lih,[config.LOGGER,config.LOCKIN,config.BOLOMETER])
     startscantime = time()
     metadata['start time'] = (startscantime,'seconds since epoch')
 
