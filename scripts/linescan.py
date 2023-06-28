@@ -1,15 +1,7 @@
-import topo
-import wavemeter as wm
-import interrupthandler
-import oscilloscope as scope
-import daqmx
+import topo, wavemeter as wm, interrupthandler, oscilloscope as scope, \
+    numpy as np, hitran, argparse, beckasync, interrupthandler, opo as opomod
 from topo import topotoolsplus as ttp
-import numpy as np
-import hitran
-from time import time, sleep
-import argparse
-import beckasync
-import interrupthandler
+from time import sleep
 
 np.random.seed()
 
@@ -78,6 +70,7 @@ def get_random_piezo():
     pzo, dpz = 5.0, 20.0
     return pzo + dpz*np.random.random()
 
+class LineSetError(Exception): pass    
 def set_etalon_motor(ic : topo.InstructionClient,wtarget,eo,mo,es,ms,pv,wmh,ih,opo):    
     print('setting initial e + m pair:',eo,round(mo,3))        
     ic.set_etalon_pos(eo)
@@ -85,7 +78,7 @@ def set_etalon_motor(ic : topo.InstructionClient,wtarget,eo,mo,es,ms,pv,wmh,ih,o
     e = eo
     m = mo        
     while True:
-        print('optimizing motor:')        
+        print('optimizing motor:')           
         if opo:
             opo = False
             topo.set_motor_pos(m-backlash)
@@ -99,7 +92,7 @@ def set_etalon_motor(ic : topo.InstructionClient,wtarget,eo,mo,es,ms,pv,wmh,ih,o
         print('done.')              
         w = get_stable_wavenumber_with_dither(wmh,ic,ih)
         if w is W_NOSIGNAL:
-            raise Exception('no wavemeter signal')
+            raise LineSetError('no wavemeter signal')
         dw = w - wtarget
         dwthresh = 1.00
         print('post motor opt dw:',round(dw,3),'dw thresh:',dwthresh)
@@ -231,7 +224,29 @@ def tune_diode_temperature(
         ih
     )
 
-def set_line(htline,dw,wmh=None,em=None,ih=None,pv=None,dt=None,opo=False):
+OPO_LATEST = -1
+def set_line(htline,dw,wmh=None,opo=False,opo_entry=OPO_LATEST,ih=None):    
+    if opo:
+        if opo_entry == OPO_LATEST:
+            opod = opomod.open_latest(htline)               
+        else:
+            if opo_entry in opomod.get_entries(htline):
+                opod = opomod.open_entry(htline,opo_entry)
+            else:
+                opod = None
+    else:
+        opod = None
+    if opod is None:
+        em = pv = dt = None
+        opo = False
+    else:
+        em = (opod[opomod.ETALON], opod[opomod.MOTOR])        
+        pv = opod[opomod.PIEZO]
+        dt = opod[opomod.TEMPERATURE]
+    wo = hitran.lookup_line(htline)[hitran.WNUMBECK]    
+    return set_omega(wo,dw,wmh,opo=opo,em=em,pv=pv,dt=dt,ih=ih)
+
+def set_omega(wo,dw,wmh=None,opo=False,em=None,pv=None,dt=None,ih=None):
     ic = topo.InstructionClient()   
     if opo:
         assert None not in (em,pv,dt)
@@ -257,8 +272,7 @@ def set_line(htline,dw,wmh=None,em=None,ih=None,pv=None,dt=None,opo=False):
             close_on_exit = True
         else:
             close_on_exit = False
-        try:
-            wo = hitran.lookup_line(htline)[hitran.WNUMBECK]
+        try:            
             w = wo + dw
             e, es = ttp.get_etalon(w)
             e = int(e)
@@ -293,7 +307,7 @@ def set_line(htline,dw,wmh=None,em=None,ih=None,pv=None,dt=None,opo=False):
             try:
                 ic.set_diode_temperature(dt)
                 ic.set_diode_current(Io)                
-                while True:                                             
+                while True:                    
                     wp, pmax, e, m = set_etalon_motor(ic,w,eo,mo,es,ms,pv,wmh,ih,opo)
                     wp = tune_diode_temperature(ic,wmh,w,wp,ih)                                    
                     return wp, pmax, e, m                    
@@ -304,7 +318,13 @@ def set_line(htline,dw,wmh=None,em=None,ih=None,pv=None,dt=None,opo=False):
             if close_on_exit:
                 wm.close_wavemeter(wmh)
 
-def line_wizard():
+PARA, ORTHO, META = 0, 1, 2
+ALLJ = -1
+ALLNU = -1
+ALLBRANCH = -1
+ALLSPIN = -1
+def line_wizard(spin,nuo,nup,j,jmax,branch):    
+    filt = lambda foo, l: [*filter(foo,l)]
     CH4 = 6
     MOL, ISO, GLQ, GUQ, LLQ, LUQ = 0, 1, 2, 3, 4, 5
     def header(index):
@@ -342,12 +362,49 @@ def line_wizard():
         print('')
         if len(htline) == 6:
             break
-        entries = hitran.ls(htline)
+        entries = hitran.ls(htline)        
+        if stage in (GLQ,GUQ):            
+            def gq_filter(level):
+                def _gq_filter(rawgq):
+                    nus, sym, level = hitran.parse_gq(rawgq)                    
+                    _nus = {
+                        GLQ:nuo,GUQ:nup
+                    }[stage]
+                    return nus == tuple(_nus) if _nus != ALLNU else True                        
+                return _gq_filter
+            entries = filt(
+                gq_filter(stage),
+                entries
+            )                      
+        if stage == LLQ:  
+            def llq_filter(rawllq):
+                jp, symp, lp = hitran.parse_lq(rawllq)
+                return (
+                    jp == j
+                    if j != ALLJ else 
+                    jp <= jmax
+                ) and (
+                    symp[0] == {
+                        0:'E',1:'F',2:'A'
+                    }[spin] if spin != ALLSPIN else True
+                )                                         
+            entries = filt(llq_filter,entries)
+        if stage == LUQ:            
+            jo, symo, lo = hitran.parse_lq(htline[-1])
+            def glq_filter(rawglq):                
+                jp, symp, lp = hitran.parse_lq(rawglq)                
+                return (
+                    jp - jo == branch
+                ) if branch != ALLBRANCH else True     
+            entries = filt(glq_filter,entries)
         if len(entries) == 1:
             htline.append(entries[0])            
             stage += 1
             continue
-        entries = sorted(entries,key=key(stage))
+        if len(entries) == 0:
+            print('no entries matching criteria!')
+            return None
+        entries = sorted(entries,key=key(stage))        
         print(
             '\n'.join(
                 '\t{: 3d} : {}'.format(index+1,formatter(stage,entry))
@@ -356,16 +413,14 @@ def line_wizard():
         )
         index = int(input('select {} : '.format(header(stage)))) - 1
         htline.append(entries[index])        
-        stage += 1
-    dw = float(input('enter wavemeter offset (cm-1) : '))
-    return htline, dw
+        stage += 1    
+    return htline
 
 if __name__ == '__main__':
     import opo
     import tclock
     ap = argparse.ArgumentParser()
-    YES, NO = 'y', 'n'
-    LATEST = -1
+    YES, NO = 'y', 'n'    
     boold = {
         YES:True,NO:False
     }
@@ -374,57 +429,59 @@ if __name__ == '__main__':
         '--opo','-o',choices=(YES,NO),default=YES,help='look up values in opo db? ([y] or [n])',
     )
     ap.add_argument(
-        '--code','-c',type=int,default=LATEST,help='entry code to look up in opo dp (latest = {:d})'.format(LATEST)
+        '--code','-c',type=int,default=OPO_LATEST,help='entry code to look up in opo dp (latest = {:d})'.format(OPO_LATEST)
     )
     ap.add_argument(
         '--update','-u',choices=(),default=YES,help='update opo db after set? ([y] or [n])'
     )
     ap.add_argument(
-        '--tc','-t',default=YES,help='lock to transfer cavity? ([y] or [n])'
+        '--tc','-t',default=NO,choices=(YES,NO),help='lock to transfer cavity? ([y] or [n])'
+    )
+    ap.add_argument(
+        '--wavenum','-w',default=-1,type=float,help='set topo to specified wavenumber (skips line selection)'
+    )
+    ap.add_argument(
+        '--spin','-s',default=ALLSPIN,type=int,choices=(META,ORTHO,PARA),help='nuclear spin isomer (para=0, ortho=1, meta=2)'
+    )   
+    ap.add_argument(
+        '--jmax','-x',default=10,type=int,help='max initial j to display'
+    )
+    ap.add_argument(
+        '--j','-j',default=ALLJ,type=int,help='lower j level'
+    )
+    ap.add_argument(
+        '--nuo','-v',default=ALLNU,type=int,nargs=4,help='lower nu quanta (e.g. 0 1 0 1 for v2v4 comb band)'
+    )
+    ap.add_argument(
+        '--nup','-p',default=ALLNU,type=int,nargs=4,help='upper nu quanta (e.g. 0 1 0 1 for v2v4 comb band)'
+    )
+    ap.add_argument(
+        '--dw','-d',default=0.0,type=float,help='wavemeter offset (cm-1)'
+    )
+    ap.add_argument(
+        '--branch','-b',type=int,default=ALLBRANCH,help='branch (p = -1, q = 0, r = +1)'
     )
     args = ap.parse_args()
+    w = args.wavenum    
     opob = boold[args.opo]
     code = args.code
     update = boold[args.update]
-    tc = boold[args.tc]
-    htline, dw = line_wizard()
-    kwargs = {}
-    if opob:
-        opo_success = True
-        if code == LATEST:
-            opod = opo.open_latest(htline)
-            if opod is None:
-                opo_success = False
-        else:
-            if code not in opo.get_entries():
-                opo_success = False
-            else:
-                opod = opo.open_entry(htline,code)
-        if opo_success:        
-            etalon = opod[opo.ETALON]
-            motor = opod[opo.MOTOR]
-            piezo_voltage = opod[opo.PIEZO]
-            diode_temperature = opod[opo.TEMPERATURE]
-            kwargs.update(
-                {
-                    'em':(etalon,motor),
-                    'pv':piezo_voltage,
-                    'dt':diode_temperature
-                }
-            )
-        else:
-            print('no entry found in opo db for {}'.format(hitran.fmt_line(htline)))
-            opob = False            
-    print('selected line: {}'.format(hitran.fmt_line(htline)))
+    tc = boold[args.tc]    
+    dw = args.dw
+    htline = line_wizard(args.spin,args.nuo,args.nup,args.j,args.jmax,args.branch)
+    if htline is None:
+        print('no line found!')
+        exit(1)
+    print('selected line: {}'.format(hitran.fmt_line(htline)))    
     print('setting line...')   
     if tc:
         while True:
-            success, (e, m, f, w) = tclock.locktc(htline,dw,opo=opob,**kwargs)
+            success, (e, m, f, w) = tclock.locktc(htline,dw,opo=opob,opo_entry=code)
             if not success:
                 print('tc lock failed. retrying...')
             break
     else:
-        w, _, e, m = set_line(htline,dw,opo = opob,**kwargs)
+        w, _, e, m = set_line(htline,dw,opo = opob,opo_entry=code)
     print('line set.')
     if update:
         ic = topo.InstructionClient()                
