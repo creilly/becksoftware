@@ -75,7 +75,7 @@ headers = {
     W:'wavenumber (cm-1)',A:'einstein coefficient (s-1)',WB:'measured wavenumber (cm-1)'
 }
 entries = (W,A,WB)
-def add_entry(lined, overwrite = False):
+def add_entry(lined, notes, overwrite = False):
     *folders, wdb, a, wbeck = list(zip(*sorted(lined.items())))[1]    
     folder = os.path.join(os.path.dirname(__file__),froot,*folders)   
     if not os.path.exists(folder):        
@@ -94,7 +94,7 @@ def add_entry(lined, overwrite = False):
             ),                
             '\t'.join(
                 {W:wdb,A:a,WB:wbeck}[key].replace(NBS,' ') for key in entries
-            )
+            ),'# {}'.format(notes)
         ]
     )    
     with open(path,'w') as f:
