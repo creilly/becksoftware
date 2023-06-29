@@ -1,3 +1,4 @@
 wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
-2969.11681	25.76	2969.11681
-# epp = 3178.5955 cm-1 !not observed!
+2969.11681	25.76	2,969.117
+# epp = 3178.5955 cm-1 
+# update: observed in BILT 2023-06-29
