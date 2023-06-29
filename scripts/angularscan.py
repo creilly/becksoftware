@@ -32,7 +32,7 @@ centerangle = float(input('enter the center lid angle: '))
 # bologain = bologainserver.X200
 bologain = bologainserver.X10
 
-theta_lim = 48.0
+theta_lim = 45.0
 
 delta_theta = 5.0
 theta_spec = centerangle
