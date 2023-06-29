@@ -10,4 +10,4 @@ def get_wavemeter_offset(cfg):
     dw = w_ref_meas - w_ref_ref
     return dw
 
-RS, LI, PI, AWM, MA, IH = 0, 1, 2, 3, 4, 5
+RS, LI, PI, AWM, MA, IH, RST = 0, 1, 2, 3, 4, 5, 6

@@ -3,18 +3,20 @@ from bologain import bologainclient
 from bilt import LI, gcp, get_wavemeter_offset
 from grapher import graphclient as gc
 
-LS, FS, FC, AS = 0, 1, 2, 3
+LS, FS, FC, AS, PS = 0, 1, 2, 3, 4
 
 ls_f = ['line searches']
 fs_f = ['frequency scans']
 fc_f = ['fluence curves']
 as_f = ['angular scans']
+ps_f = ['polarization scans']
 
 folderd = {
     LS:ls_f,
     FS:fs_f,
     FC:fc_f,
-    AS:as_f
+    AS:as_f,
+    PS:ps_f
 }
 
 linecols = [
@@ -42,12 +44,14 @@ ls_c = linecols
 fs_c = linecols
 fc_c = ['hwp angle (degs)'] + ditherbasecols
 as_c = ['lid angle (degs)'] + ditherbasecols + ['time stamp (seconds since epoch)'] + ['encoder position (steps)']
+ps_c = ['hwp angle (degs)','lockin x (bg sub) (v)','lockin y (bg sub) (v)','pd (v)', 'w (cm-1)']
 
 colsd = {
     LS:ls_c,
     FS:fs_c,
     FC:fc_c,
-    AS:as_c
+    AS:as_c,
+    PS:ps_c
 }
 
 # contains: lower global quanta, lower local quanta, upper local quanta
