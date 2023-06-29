@@ -5,12 +5,13 @@ from interrupthandler import InterruptException
 from bilt.experiment.modehop import ModeHopDetected
 from bologain import bologainclient, bologainserver
 from grapher import graphclient as gc
-from bilt import gcp, RS, LI, PI, AWM, MA, IH, get_wavemeter_offset
+from bilt import gcp, RS, LI, PI, AWM, MA, IH, RST, get_wavemeter_offset
 from bilt.experiment.chopped import get_sensitivity, maxon_open, maxon_closed, start_spin, finish_spin, get_spin_cb, home_motor
 from bilt.experiment.hwp import set_hwp
-from bilt.experiment.grapher import create_dataset, namer, LS, FS, FC, AS
+from bilt.experiment.grapher import create_dataset, namer, LS, FS, FC, AS, PS
 from bilt.experiment.linesearch import search_line, OUT_OF_RANGE_ERROR
 from bilt.experiment.angularscan import get_angular_scan
+from bilt.experiment.polscan import get_polarization_scan
 from time import time
 import topo, hitran, config, powercalib, lockin, \
     rotationstage as rs, lockin, pi, wavemeter as wm, maxon, interrupthandler, \
@@ -40,11 +41,12 @@ def run_experiment(config_fname):
         pi.PIHandler() as pih,
         wm.WavemeterHandler('argos-wavemeter') as awmh,
         maxon.MaxonHandler() as mh,
-        interrupthandler.InterruptHandler() as ih        
+        interrupthandler.InterruptHandler() as ih,
+        rs.RotationStageHandler(typeid=rs.TCUBE_DC_SERVO) as rsth
     ):
         try:
             handlerd = {
-                RS:rsh,LI:lih,PI:pih,AWM:awmh,MA:mh,IH:ih
+                RS:rsh,LI:lih,PI:pih,AWM:awmh,MA:mh,IH:ih,RST:rsth
             }
             # measure all desired lines    
             for line in lines:
@@ -172,7 +174,12 @@ def measure_line(line,cfg,phis,handlerd):
                     get_fluence_curve(
                         cfg,handlerd,topoic,wmh,
                         phis,fmax,fmin,fo,wo,fluencepath
-                    )                
+                    )  
+                if gcp(cfg,'experiment','polarization scan',bool):
+                    polarizationpath = path_creator(PS,fluencemd)
+                    get_polarization_scan(
+                        cfg,handlerd,topoic,wmh,fmax,fmin,wo,polarizationpath
+                    )
                 if not gcp(cfg,'experiment','angular scan',bool):
                     break
                 starttime = time()

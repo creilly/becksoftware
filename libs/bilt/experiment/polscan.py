@@ -1,93 +1,68 @@
 from bilt.experiment.modehop import ModeHopDetected
-from bologain import bologainclient, bologainserver
-from bilt import gcp, LI, dwdf
+from transfercavity import transfercavityclient as tcc
+from bologain import bologainclient
+from bilt import gcp, LI, dwdf, RST, RS
 import numpy as np
 from time import time
-import lockin
-from lid import lidclient
-from bilt.experiment.hwp import set_hwp
-from bilt.experiment.measure import get_dither_measurement
+import lockin, rotationstage as rs
+from bilt.experiment.measure import get_measurement
 from grapher import graphclient as gc
 
-def lidcallback(thetap):
-    delay = 5.0 # seconds
-    timer = [time()]
-    def cb():
-        tp = time()
-        to = timer[0]
-        if tp - to > delay:
-            print(
-                'waiting for lid. requested: {:.2f} degs, actual: {:.2f} degs'.format(
-                    thetap,lidclient.get_lid()
-                )
-            )
-            timer[0] = tp
-    return cb
-
-def get_angular_scan(
-    cfg,handlerd,topoic,wmh,
-    phio,starttime,fmax,fmin,fo,wo,path
+def get_polarization_scan(
+    cfg,handlerd,topoic,wmh,fmax,fmin,wo,path
 ):
-    deltat_as = gcp(cfg,'angular scan','measure time',float)
+    tag_hwp = gcp(cfg,'fluence curve','calib angle',float)
+    rs.set_angle(handlerd[RS],tag_hwp)
 
-    thetas = get_thetas(cfg)
+    deltat_measure = gcp(cfg,'pol scan','measure time',float)
+    deltat_bg = gcp(cfg,'pol scan','background time',float)
 
-    lih = handlerd[LI]
-    li_sens = gcp(cfg,'lockin','sensitivity',float)
+    scan_start = gcp(cfg,'pol scan','scan start',float)
+    scan_stop = gcp(cfg,'pol scan','scan stop',float)
+    scan_step = gcp(cfg,'pol scan','scan step',float)
 
-    bolo_gain = gcp(cfg,'bolometer','gain',int) # degrees
+    reference_angle = gcp(cfg,'pol scan','reference angle',float)
 
-    lockin.clear_status_registers(lih)
-    for theta in thetas:
-        bologainclient.set_gain(bologainserver.X10)
-        lockin.set_sensitivity(lih,1e-0)
-        lidclient.set_lid(theta,wait=False)
-        encoder = lidclient.get_encoder()
-        deltax, deltay = set_hwp(cfg,handlerd,phio,theta)
-        lidclient.wait_lid(lidcallback(theta))                    
+    phis = np.arange(scan_start,scan_stop,scan_step)    
+
+    print('getting background')
+    tcc.set_setpoint(fmin)
+    success, result = get_measurement(cfg,handlerd,topoic,wmh,wo,deltat_bg)
+    if not success:
+        raise ModeHopDetected()
+    tcc.set_setpoint(fmax)
+    xo, yo, pd, w = result
+    print('background level:','{:.1f} microvolts'.format(1e6*xo))
+    bgd = {
+        'photodiode':(pd,'volts'),
+        'lockin':(
+            {
+                'x':xo,
+                'y':yo
+            },'volts'
+        ),
+        'wavemeter':(w,'cm-1')
+    }
+    *dspbase, dsptail = path
+    mdptail = dsptail[:-3] + 'bmd'
+    mdp = [*dspbase,mdptail]
+    gc.update_metadata(mdp,bgd)
+
+    for phi in phis:
+        rs.set_angle(handlerd[RST],phi)
         data = [] 
-        data.append(theta)
-        lockin.set_sensitivity(lih,li_sens)
-        bologainclient.set_gain(bolo_gain)                  
-        while lockin.get_overloaded(lih):
-            print('lockin overloaded!')
-            continue                    
-        success, outdata = get_dither_measurement(
-            cfg,handlerd,topoic,wmh,
-            deltat_as,fmax,fmin,fo,wo,
-            dwdf
-        )
+        data.append(phi)  
+        success, result = get_measurement(cfg,handlerd,topoic,wmh,wo,deltat_measure)
         if not success:
-            raise ModeHopDetected()
-        data.extend(outdata)
-        data.extend([deltax,deltay])
-        data.append(time() - starttime)
-        data.append(encoder)
-        gc.add_data(path,data)    
-
-def get_thetas(cfg):
-    lid_angle = gcp(cfg,'scattering','lid angle',float)
-    theta_center = gcp(cfg,'angular scan','scan center',float)
-    delta_theta = gcp(cfg,'angular scan','scan width',float)
-    dtheta = gcp(cfg,'angular scan','scan increment',float)
-
-    thetas_head = np.arange(
-        lid_angle,
-        theta_center + delta_theta / 2 + dtheta / 2,
-        dtheta
-    )
-
-    thetas_tail = np.arange(
-        theta_center - delta_theta / 2,
-        lid_angle,    
-        dtheta
-    )
-
-    thetas = np.hstack(
-        [
-            thetas_head,
-            thetas_tail,
-            [lid_angle-0.0001]
-        ]
-    )    
-    return thetas
+            raise ModeHopDetected()      
+        x, y, pd, w = result        
+        data.extend(
+            [
+                x-xo,y-yo,pd,w
+            ]
+        )        
+        gc.add_data(path,data)  
+    rs.set_angle(
+        handlerd[RST],
+        reference_angle
+    )  
