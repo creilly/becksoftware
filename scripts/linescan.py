@@ -92,7 +92,36 @@ def set_etalon_motor(ic : topo.InstructionClient,wtarget,eo,mo,es,ms,pv,wmh,ih,o
         print('done.')              
         w = get_stable_wavenumber_with_dither(wmh,ic,ih)
         if w is W_NOSIGNAL:
-            raise LineSetError('no wavemeter signal')
+            def walk_opo():
+                deltae = es * deltaw
+                deltam = ms * deltaw
+                print('delta w',deltaw,'deltae',deltae,'deltam',deltam)
+                topo.set_motor_pos(mo + deltam)
+                ic.set_etalon_pos(int(round(eo + deltae)))
+            print('no wavemeter signal, dithering etalon')
+            dw = +0.25 # cm-1
+            deltaw = dw
+            while True:     
+                walk_opo()
+                w = get_stable_wavenumber_with_dither(wmh,ic,ih)
+                if w is W_NOSIGNAL:
+                    print('no wavemeter signal still...')
+                    deltaw += dw
+                    continue                
+                success = True
+                while deltaw > 0:
+                    deltaw -= dw / 2
+                    walk_opo()                    
+                    w = get_stable_wavenumber_with_dither(wmh,ic,ih)
+                    if w is W_NOSIGNAL:
+                        print('lost signal, starting again...')
+                        success = False
+                        break
+                if success:
+                    break
+                else:
+                    deltaw += dw
+            continue
         dw = w - wtarget
         dwthresh = 1.00
         print('post motor opt dw:',round(dw,3),'dw thresh:',dwthresh)
