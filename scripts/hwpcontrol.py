@@ -1,8 +1,17 @@
+import argparse
+
+K, T = 'k', 't'
+ap = argparse.ArgumentParser()
+ap.add_argument('--cube','-c',choices=(K,T),default=K,help='rotation stage controller ([k]-cube or t-cube)')
+cube = ap.parse_args().cube
+
 import rotationstage as rot
 
-sn = None
-try:
-    sn = rot.open_device()
+typeid = {
+    K:rot.KCUBE_DC_SERVO,T:rot.TCUBE_DC_SERVO
+}[cube]
+
+with rot.RotationStageHandler(typeid=typeid) as sn:    
     if not rot.is_homed(sn):
         print('motor not homed')
         while True:
@@ -27,6 +36,3 @@ try:
     rot.set_angle(sn,angle)
     angle = rot.get_angle(sn)
     print('angle now {:.3f} degrees'.format(angle))
-finally:
-    if sn is not None:
-        rot.close_device(sn)
