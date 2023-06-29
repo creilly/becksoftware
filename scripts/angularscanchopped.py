@@ -32,7 +32,7 @@ bologain = bologainserver.X200
 
 delta_theta = 1.0
 theta_min = 45
-theta_max = 100
+theta_max = 90
 
 dtheta = 2.0
 
