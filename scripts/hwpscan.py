@@ -19,9 +19,10 @@ ap.add_argument('--min','-m',default=10.0,type=float,help='starting angle')
 ap.add_argument('--max','-p',default=65.0,type=float,help='stopping angle')
 ap.add_argument('--sensitivity','-v',default=pm.RANGE_3W,type=float,help='power meter range (in watts for pm, volts for li)')
 ap.add_argument(
-    '--folder','-f',default=gc.get_day_folder(),nargs='*',
-    help='grapher folder. enclose each subfolder in quotes and separate by whitespace.'
+    '--folder','-f',default=[],nargs='*',
+    help='grapher folders. enclose each subfolder in quotes and separate by whitespace.'
 )
+ap.add_argument('--absolute','-a',action='store_true',help='make folder specification absolute. otherwise stored in subfolder "hwp calibs" of day folder')
 ap.add_argument('--cube','-c',choices=(K_CUBE,T_CUBE),default='k',help='motor drive model ([k]-cube or [t]-cube)')
 ap.add_argument('--info','-i',default='',help='dataset metadata note')
 ap.add_argument('--laser','-z',choices=(TAG,PUMP),default=TAG,help='laser, [t]agging or [p]ump (determines wavemeter to read)')
@@ -45,6 +46,7 @@ settle = args.settle
 sensitivity = args.sensitivity
 cube = args.cube
 laser = args.laser
+absolute = args.absolute
 
 ic = topo.InstructionClient()
 
@@ -85,7 +87,12 @@ with (
         rot.home(sn)
 
     path = gc.add_dataset(
-        [*folder,'hwp calibs'],
+        [
+            *(
+                [] if absolute else
+                [*gc.get_day_folder(),'hwp calibs']
+            ),*folder            
+        ],
         name,
         (
             'hwp angle (degs)',
