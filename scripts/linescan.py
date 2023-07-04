@@ -352,9 +352,9 @@ ALLJ = -1
 ALLNU = -1
 ALLBRANCH = -1
 ALLSPIN = -1
-def line_wizard(spin,nuo,nup,j,jmax,branch):    
-    filt = lambda foo, l: [*filter(foo,l)]
-    CH4 = 6
+CO2, CH4 = 2, 6
+def line_wizard(spin,nuo,nup,j,jmax,branch):
+    filt = lambda foo, l: [*filter(foo,l)]    
     MOL, ISO, GLQ, GUQ, LLQ, LUQ = 0, 1, 2, 3, 4, 5
     def header(index):
         return {
@@ -368,7 +368,8 @@ def line_wizard(spin,nuo,nup,j,jmax,branch):
     def formatter(index,entry):
         if index == MOL:
             return {
-                CH4:'CH4'
+                CH4:'CH4',
+                CO2:'CO2'
             }[int(entry)]
         if index == ISO:
             return entry

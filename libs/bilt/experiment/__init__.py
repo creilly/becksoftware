@@ -66,6 +66,9 @@ def measure_line(line,cfg,phis,handlerd):
         end_tagging(handlerd)
         token = [None]
         try:   
+            if gcp(cfg,'experiment','polarization scan',bool):
+                pol_scan_ref_angle = gcp(cfg,'pol scan','reference angle',float)
+                rs.set_angle(handlerd[RST],pol_scan_ref_angle)
             hwp_promise = start_hwp_init(cfg,handlerd,phis[0])            
             print('first trial, taking chopped beam measurement.')
             sens_promise = start_sensitivity(cfg,handlerd,token)
