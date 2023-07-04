@@ -28,11 +28,11 @@ with lockin.LockinHandler() as lih:
     lockin.set_sensitivity(lih,bolo_sens)
     lockin.set_ref_source(lih,lockin.EXTERNAL)
 
-bologain = bologainserver.X200
+bologain = bologainserver.X1000
 
 delta_theta = 1.0
-theta_min = 45
-theta_max = 90
+theta_min = 50
+theta_max = 100
 
 dtheta = 2.0
 
@@ -40,7 +40,7 @@ thetas = np.arange(theta_min,theta_max + dtheta/2,dtheta)
 
 wait_time = 1.0
 
-measure_time = 1.0
+measure_time = 2.0
 maxon_open = 0
 f_chop = 237 #Hz
 
