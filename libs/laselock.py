@@ -37,10 +37,10 @@ def vardump(ll):
         resp = lr.read(chunk)
         line = lr.get_line()
         if line is not None:
-            line = line.lower()
+            line = line.lower()            
             if active:
                 if 'end of list' in line:
-                    done = True
+                    return vs                    
                 else:
                     key, value = [
                         f(s) for f, s in zip(
