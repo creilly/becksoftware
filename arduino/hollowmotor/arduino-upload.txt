@@ -1,0 +1,12 @@
+command:
+
+C:\Users\reilly\AppData\Local\arduino15\packages\arduino\tools\avrdude\6.3.0-arduino17\bin\avrdude.exe
+
+arguments:
+
+-C"C:\Users\reilly\AppData\Local\arduino15\packages\arduino\tools\avrdude\6.3.0-arduino17\etc\avrdude.conf" -v -patmega328p -carduino -PCOM6 -b115200 -D -Uflash:w:"$(ProjectDir)Debug\$(TargetName).hex":i
+
+options:
+
+"Use Output window"
+
