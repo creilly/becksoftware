@@ -7,7 +7,7 @@ DELTAT_LONG = 2400.0
 DELTAT_NOW = 0.0
 
 steps = (
-    ( 3.0, DELTAT_NOW ),
+    ( 3.0, DELTAT_SHORT ),
     ( 6.0, DELTAT_SHORT ),
     ( 8.0, DELTAT_SHORT ),
     ( 10.0, DELTAT_SHORT ),
