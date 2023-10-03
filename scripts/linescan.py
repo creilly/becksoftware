@@ -41,7 +41,7 @@ def optimize_motor(mo,ih):
         zip(motor_positions,signal_powers)
     ) / sum( signal_powers )
     print('mu m: {:.3f} mm'.format(mum))
-    assert mum < 10 and mum > 2
+    assert mum < 16 and mum > 2
     topo.set_motor_pos(motor_positions[0] - backlash)
     topo.set_motor_pos(mum)    
     pmax = ic.get_input(topo.FAST4)
@@ -350,7 +350,7 @@ def set_omega(wo,dw,wmh=None,opo=False,em=None,pv=None,dt=None,ih=None):
 PARA, ORTHO, META = 0, 1, 2
 ALLJ = -1
 ALLNU = -1
-ALLBRANCH = -1
+ALLBRANCH = -2
 ALLSPIN = -1
 CO2, CH4 = 2, 6
 def line_wizard(spin,nuo,nup,j,jmax,branch):
@@ -376,13 +376,17 @@ def line_wizard(spin,nuo,nup,j,jmax,branch):
         if index in (GLQ,GUQ):
             return entry
         if index in (LLQ,LUQ):
-            j, sym, level = hitran.parse_lq(entry)
-            return ', '.join(['j = {: 3d}'.format(j),'level = {: 3d}'.format(level),'sym = {}'.format(sym)])
+            if MOL == 6:
+                j, sym, level = hitran.parse_lq(entry)
+                return ', '.join(['j = {: 3d}'.format(j),'level = {: 3d}'.format(level),'sym = {}'.format(sym)])
+            else:
+                return entry
     def key(index):
         if index not in (LLQ,LUQ):
             return lambda x: x
         def lqkey(entry):
-            return hitran.parse_lq(entry)
+            #return hitran.parse_lq(entry)
+            return entry
         return lqkey
     htline = []
     stage = 0
@@ -396,7 +400,10 @@ def line_wizard(spin,nuo,nup,j,jmax,branch):
         if stage in (GLQ,GUQ):            
             def gq_filter(level):
                 def _gq_filter(rawgq):
-                    nus, sym, level = hitran.parse_gq(rawgq)                    
+                    if int(hitran.fmt_line(htline)[1])==2:
+                        nus = hitran.parse_gq_co2(rawgq)
+                    else:
+                        nus,sym, level =hitran.parse_gq(rawgq)                 
                     _nus = {
                         GLQ:nuo,GUQ:nup
                     }[stage]
@@ -408,25 +415,31 @@ def line_wizard(spin,nuo,nup,j,jmax,branch):
             )                      
         if stage == LLQ:  
             def llq_filter(rawllq):
-                jp, symp, lp = hitran.parse_lq(rawllq)
+                if int(hitran.fmt_line(htline)[1])==2:
+                        jp,branch,ef = hitran.parse_lq_co2(rawllq)
+                else:
+                    jp, symp, lp = hitran.parse_lq(rawllq)
                 return (
-                    jp == j
-                    if j != ALLJ else 
-                    jp <= jmax
-                ) and (
-                    symp[0] == {
-                        0:'E',1:'F',2:'A'
-                    }[spin] if spin != ALLSPIN else True
-                )                                         
+                        jp == j
+                        if j != ALLJ else 
+                        jp <= jmax
+                    ) and (
+                        symp[0] == {
+                            0:'E',1:'F',2:'A'
+                        }[spin] if spin != ALLSPIN else True
+                    )                                         
             entries = filt(llq_filter,entries)
-        if stage == LUQ:            
-            jo, symo, lo = hitran.parse_lq(htline[-1])
-            def glq_filter(rawglq):                
-                jp, symp, lp = hitran.parse_lq(rawglq)                
-                return (
-                    jp - jo == branch
-                ) if branch != ALLBRANCH else True     
-            entries = filt(glq_filter,entries)
+        if stage == LUQ:
+            if int(hitran.fmt_line(htline)[1])==2:
+                entries = entries
+            else:
+                jo, symo, lo = hitran.parse_lq(htline[-1])  
+                def glq_filter(rawglq):          
+                    jp, symp, lp = hitran.parse_lq(rawglq)                
+                    return (
+                        jp - jo == branch
+                    ) if branch != ALLBRANCH else True     
+                entries = filt(glq_filter,entries)
         if len(entries) == 1:
             htline.append(entries[0])            
             stage += 1
@@ -462,7 +475,7 @@ if __name__ == '__main__':
         '--code','-c',type=int,default=OPO_LATEST,help='entry code to look up in opo dp (latest = {:d})'.format(OPO_LATEST)
     )
     ap.add_argument(
-        '--update','-u',choices=(),default=YES,help='update opo db after set? ([y] or [n])'
+        '--update','-u',choices=(YES,NO),default=YES,help='update opo db after set? ([y] or [n])'
     )
     ap.add_argument(
         '--tc','-t',default=NO,choices=(YES,NO),help='lock to transfer cavity? ([y] or [n])'
