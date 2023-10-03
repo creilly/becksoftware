@@ -76,7 +76,7 @@ headers = {
 }
 entries = (W,A,WB)
 def add_entry(lined, notes, overwrite = False):
-    *folders, wdb, a, wbeck = list(zip(*sorted(lined.items())))[1]    
+    *folders, wdb, a, wbeck, epp = list(zip(*sorted(lined.items())))[1]    
     folder = os.path.join(os.path.dirname(__file__),froot,*folders)   
     if not os.path.exists(folder):        
         os.makedirs(folder)
@@ -155,6 +155,19 @@ def parse_gq(raw_gq):
     sym = raw_gq[:sym_width].strip()
     return quanta, sym, level
 
+def parse_gq_co2(raw_gq):    
+    raw_gq = raw_gq[gq_lmargin+3:]
+    nmodes = 5
+    nmode = 0
+    quanta = []
+    while nmode < nmodes:
+        raw_quanta, raw_gq = raw_gq[:gq_int_width], raw_gq[gq_int_width:]
+        quanta.append(int(raw_quanta))
+        nmode += 1
+    quanta = (*quanta,)
+    return quanta
+
+
 def parse_lq(raw_lq):
     # need to modify to compensate for 
     # irregularities in boudon database    
@@ -176,6 +189,14 @@ def parse_lq(raw_lq):
     # raw_lq = raw_lq[sym_width:]   
     # level = int(raw_lq[:lq_level_width])
     return j, sym, level
+
+def parse_lq_co2(raw_lq):
+    raw_lq= raw_lq.strip()
+    #print(raw_lq)
+    branch, rawj= raw_lq.split()
+    jp,ef = int(rawj[:-1]),rawj[-1]
+    #print('j:',jp,'branch:',branch,'ef:',ef)
+    return jp,branch,ef
 
 symd = {
     1:'A1',
