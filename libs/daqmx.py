@@ -569,5 +569,31 @@ def get_physical_channel(handle):
     )
     return pc.value.decode('utf8')
 
+def get_samps_per_channel(handle):
+    samps_per_channel = c_uint64()
+    daqmx(
+        dll.DAQmxGetSampQuantSampPerChan,
+        handle, 
+        byref(samps_per_channel)
+    )
+    return samps_per_channel.value
+
+def read_counter_f64(handle, samps):
+    data = (c_double*samps)()
+    samples_read = c_int32()
+    daqmx(
+        dll.DAQmxReadCounterF64,
+        handle, -1, 0, data, samps, byref(samples_read), None
+    )
+    return data, samples_read.value
+
+def read_counter_f64_scalar(handle):
+    datum = c_double()
+    daqmx(
+        dll.DAQmxReadCounterScalarF64,
+        handle, c_double(1.0), byref(datum), None
+    )
+    return datum.value
+
 if __name__ == '__main__':
     exit(0)
