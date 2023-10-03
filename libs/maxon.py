@@ -105,6 +105,7 @@ M_VELOCITY = -2
 M_POSITION = -1
 M_PROFILE_VELOCITY = 3
 M_PROFILE_POSITION = 1
+M_CURRENT = -3
 def get_operation_mode(handle):
     mode = c.c_int8()
     maxon(
@@ -518,6 +519,23 @@ def get_quick_stop_state(handle):
         )
     )
     return state.value
+
+def get_current_setpoint(handle):
+    current = w.SHORT()
+    maxon(
+        dll.VCS_GetCurrentMust,
+        (
+            handle,
+            nodeid,
+            c.byref(current)
+        )
+    )
+    return current.value
+
+CURRENT_DEMAND_WORD = 0x2031
+CURRENT_DEMAND_SUBINDEX = 0x00
+def get_current_demand(handle):
+    return get_object_word(handle,CURRENT_DEMAND_WORD,CURRENT_DEMAND_SUBINDEX)
 
 if __name__ == '__main__':    
     with MaxonHandler() as h:  
