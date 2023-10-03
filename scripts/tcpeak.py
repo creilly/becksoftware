@@ -2,21 +2,24 @@ from transfercavity import transfercavityclient as tcc
 import lockin
 from time import time
 from time import sleep
-import topo
+import topo, config
 import argparse
 import numpy as np
 from matplotlib import pyplot as plt
 import fit
 from bologain import bologainclient, bologainserver
+from grapher import graphclient as gc
 
 X, Y, R = 'x', 'y', 'r'
 
-def find_peak(deltaf,df,tau,axis):    
+def find_peak(deltaf,df,tau,sens,axis,saving,name):    
     meastime = 10 * tau # seconds
     settletime = 10 * tau # seconds
     success = True
     with lockin.LockinHandler() as lih:
         tau = lockin.set_time_constant(lih,tau)
+        lockin.set_sensitivity(lih,sens)
+        lid = config.get_lockin_params(lih)
         def get_lockin(meastime):
             starttime = time()
             X = Y = 0
@@ -38,11 +41,22 @@ def find_peak(deltaf,df,tau,axis):
         tcc.set_setpoint(fs[0])
         print('settling.')
         sleep(settletime)
-        print('done settling.')        
+        print('done settling.')
+        if saving:
+            path = gc.add_dataset(
+                [*gc.get_day_folder(),'tc peaks'],
+                name,
+                ('tc setpoint (MHz)','lockin x (v)','lockin y (v)'),
+                metadata={
+                    'lockin':lid
+                }
+            )
         for f in fs:
             try:
                 tcc.set_setpoint(f)
                 x, y = get_lockin(meastime)
+                if saving:
+                    gc.add_data(path,(f,x,y))
                 print(
                     ', '.join(
                         [
@@ -94,6 +108,7 @@ def find_peak(deltaf,df,tau,axis):
             plt.plot(fs,1e3*sign*fit.gaussian(fs,*params),'r--',label='fit')
             plt.xlabel('tcc setpoint / MHz')
             plt.ylabel('lock-in {} signal (millivolts)'.format(axis))
+            plt.title(name)
             plt.legend()
             plt.show()
         except Exception as err:
@@ -107,6 +122,7 @@ if __name__ == '__main__':
     DELTAF = 200.0 # MHz
     DF = 1.0 # MHz
     TAU = 100e-3 # seconds
+    SENS = 100e-3 # volts
     parser = argparse.ArgumentParser(description='transfer cavity peak finder')
     parser.add_argument(
         '-d','--deltaf',type=float,default=DELTAF,
@@ -121,17 +137,29 @@ if __name__ == '__main__':
         help='lockin time constant (seconds)'
     )    
     parser.add_argument(
+        '-s','--sensitivity',type=float,default=SENS,help='lockin sensitivity'
+    )
+    parser.add_argument(
         '-a','--axis',choices=(X,R),default=R
     )
     parser.add_argument(
         '-b','--bologain',choices=(10,100,200,1000),type=int,default=1000
     )
+    parser.add_argument(
+        '-v','--save',choices=('y','n'),default='y',help='save data to grapher'
+    )
+    parser.add_argument(
+        '-n', '--name',default='scan',help='name for grapher dataset'
+    )
     args = parser.parse_args()
     deltaf = args.deltaf
     df = args.epsilonf
     tau = args.tau
+    sens = args.sensitivity
+    saving = {'y':True,'n':False}[args.save]
     axis = args.axis
     bologain = args.bologain
+    name = args.name
     bologainclient.set_gain(bologain)
     print(
         ','.join(
@@ -147,7 +175,7 @@ if __name__ == '__main__':
         ),',','axis:',axis
     )    
     while True:
-        success, fs, xs, params, cov = find_peak(deltaf,df,tau,axis)
+        success, fs, xs, params, cov = find_peak(deltaf,df,tau,sens,axis,saving,name)
         if success:
             break
         response = input(
