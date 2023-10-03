@@ -1,0 +1,30 @@
+to upload code to arduino, configure a new external tool in Atmel Studio (or what is now called Microchip Studio) [Tools->External Tools...] with the following properties:
+
+command:
+
+[arduinoroot]\packages\arduino\tools\avrdude\6.3.0-arduino17\bin\avrdude.exe
+
+arguments:
+
+-C"[arduinoroot]\packages\arduino\tools\avrdude\6.3.0-arduino17\etc\avrdude.conf" -v -patmega328p -carduino -PCOM[COM port number] -b115200 -D -Uflash:w:"$(ProjectDir)Debug\$(TargetName).hex":i
+
+options:
+
+"Use Output window"
+
+notes:
+
+this assumes arduino IDE is installed. replace [arduinoroot] with Arduino IDE installation root folder. on my windows machine it is located at:
+
+~\AppData\Local\Arduino15
+
+where ~ is the user home directory
+
+otherwise avrdude must be installed and the Atmel Studio external tool "command" field should point to the avrdude.exe executable and the -C option of the arguments should point to the avrdude.conf config file
+
+also be sure to replace [COM port number] with the assigned COM port number associated with the serial device communicating with the ATmega328p or Arduino
+
+--
+
+once the tool is configured, just click in the Tools drop-down menu
+
