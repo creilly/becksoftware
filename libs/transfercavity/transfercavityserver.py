@@ -194,11 +194,21 @@ class Fitter:
         if self.guess is None:
             musampmin, musampmax = musamps[mode]            
             musamp = musampmin + np.array(y[musampmin:musampmax]).argmax()
-            muvo = x[musamp]
+            muvo = x[musamp]            
             guess = [
                 initial_guesses[mode][fpindex]
                 for fpindex in fitparamindices[:-1]
             ] + [muvo]
+            if CO2 and self.mode == IR:
+                vmax = y.max()
+                vmin = y.min()
+                deltav = initial_guesses[IR][DELTAV] * 3000 / 3600
+                sigmav = deltav / 2
+                for key, value in zip(
+                    (VMAX,VMIN,DELTAV,SIGMAV),
+                    (vmax,vmin,deltav,sigmav)
+                ):
+                    guess[fpis.index(key)] = value
         else:
             guess = self.guess
         fitsampmin, fitsampmax = fitsamps[mode]
@@ -555,6 +565,12 @@ class TransferCavityApp(bhs.BeckApp):
 
 if __name__ == '__main__':
     import os
+    import argparse
+    ap = argparse.ArgumentParser()
+    METHANE, CARBON_DIOXIDE = 'ch4', 'co2'
+    ap.add_argument('--molecule','-m',choices=(METHANE,CARBON_DIOXIDE),default=METHANE)
+    mol = ap.parse_args().molecule
+    CO2 = mol == CARBON_DIOXIDE
     scanvs, returnvs = generate_waveform(deltav,epsilon,deltat,samplingrate)
     scansamples = len(scanvs)
     scanvsdec = fit.decimate(scanvs,decimation)
@@ -574,7 +590,7 @@ if __name__ == '__main__':
 
     inputchannelnames = {
         HENE:'transfer cavity hene',
-        IR:'transfer cavity ir'
+        IR:{True:'transfer cavity ir co2',False:'transfer cavity ir'}[CO2]
     }
     with (
             # pwm.PWM(hchan,hres,hvmax,hvo,hvsafe) as heater,
