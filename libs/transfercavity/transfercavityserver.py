@@ -12,6 +12,7 @@ from time import time
 
 PORT = 8999
 
+FM = False
 # heater parameters
 
 hchan = 'transfer cavity heater'
@@ -28,6 +29,9 @@ epsilon = 0.1 # v / v
 samplingrate = 200e3 # 200e3 # samples per second
 buffersize = 100 # in reps
 decimation = 3
+
+# test
+modfreq = 511 # hertz
 
 # fit configuration
 
@@ -69,25 +73,29 @@ def generate_waveform(deltav,epsilon,deltat,samplingrate):
 
 INPUT, OUTPUT = 0, 1
 class Scanner:
-    def __init__(self,ao,ai,scanvs,returnvs,samplingrate):
+    def __init__(self,ao,ai,scanvs,returnvs,samplingrate,triggerchannel):
         scansamples = len(scanvs)
         returnsamples = len(returnvs)
-        samples = scansamples + returnsamples
-        for mode, task in ((OUTPUT,ao),(INPUT,ai)):
+        samples = scansamples + returnsamples        
+        d.cfg_samp_clk_timing(
+            ao,samplingrate,d.CONT_SAMPS,samples,d.get_samp_clk_term(ai)
+        )
+        if FM:
             d.cfg_samp_clk_timing(
-                task,
-                samplingrate,
-                d.CONT_SAMPS,
-                {
-                    OUTPUT:samples,
-                    INPUT:buffersize*samples
-                }[mode],
-                {
-                    OUTPUT:d.ONBOARD_CLK,
-                    INPUT:d.get_samp_clk_term(ao)
-                }[mode]
+                ai,samplingrate,d.FINITE_SAMPS,samples,d.ONBOARD_CLK
             )
-        d.set_regeneration_mode(ao,True)
+            d.set_buffer_size(ai,buffersize*samples)            
+            d.cfg_trigger(
+                ai,triggerchannel
+            )
+            d.set_retriggerable(
+                ai,True
+            )    
+        else:
+            d.cfg_samp_clk_timing(
+                ai,samplingrate,d.CONT_SAMPS,buffersize*samples,d.ONBOARD_CLK
+            )
+        d.set_regeneration_mode(ao,True)            
         d.write_to_buff(
             ao,scanvs + returnvs
         )
@@ -100,19 +108,25 @@ class Scanner:
 
     def set_scanning(self,scanning):
         if scanning != self.scanning:
-            for task in (self.ai,self.ao):
+            for task in (self.ao,self.ai):
                 if scanning:
-                    self.index = 0
+                    self.index = 0                    
                     d.start_task(task)
                 else:
-                    d.stop_task(task)                    
-        self.scanning = scanning
+                    try:
+                        d.stop_task(task)
+                    except d.DAQmxError as de:
+                        print('stop exception encountered')
+                        if de.code != 200010:
+                            print('raising stop exception')
+                            raise
+        self.scanning = scanning        
 
     def get_scanning(self):
         return self.scanning
 
     def acquire_scan(self):
-        if self.scanning:
+        if self.scanning:            
             scan = {
                 chan:l[:self.scansamples] for chan,l in zip(
                     inputchannels,
@@ -126,12 +140,14 @@ class Scanner:
         return self.index
 
 Vo = deltav / 2
-def distort_v(v,vp,vpp):
-    return Vo + 1 * (v - Vo) + vp * (v - Vo)**2 + vpp * (v - Vo)**3
+def distort_v(v,vp,vpp):    
+    return Vo + 1.0 * (v - Vo) + vp * (v - Vo)**2 + vpp * (v - Vo)**3
 
-def transmission(v,vmax,vmin,deltav,sigmav,vp,vpp,muv):
+def transmission(v,vmax,vmin,deltav,sigmav,vp,vpp,muv,df=0,phif=0):    
     v = distort_v(v,vp,vpp)
-    muv = distort_v(muv,vp,vpp)
+    muv = muv + df / dfdv * np.sin(
+        2 * np.pi * modfreq / samplingrate * np.arange(len(v)) - np.deg2rad(phif)
+    )
     b = 1/np.sin(np.pi/2*sigmav/deltav)**2 - 2
     a = ( 1 + 1 / b ) * ( vmax - vmin )
     c = vmin - a / ( 1 + b )
@@ -140,26 +156,30 @@ def transmission(v,vmax,vmin,deltav,sigmav,vp,vpp,muv):
 IR, HENE = 'ir', 'hene'
 inputchannels = (HENE,IR)
 
-VMAX, VMIN, DELTAV, SIGMAV, VP, VPP, MUV = 'vmax', 'vmin', 'deltav', 'sigmav', 'vp', 'vpp', 'muv'
+VMAX, VMIN, DELTAV, SIGMAV, VP, VPP, MUV, DF, PHIF  = 'vmax', 'vmin', 'deltav', 'sigmav', 'vp', 'vpp', 'muv', 'df', 'phif'
 
-fitparamindices = fpis = (VMAX, VMIN, DELTAV, SIGMAV, VP, VPP, MUV)
+fitparamindices = fpis = (VMAX, VMIN, DELTAV, SIGMAV, VP, VPP, MUV, DF, PHIF)
 
 initial_guesses = {
     IR:{
-        VMAX:      +1.03428e-01, # +1.360e-01,
+        VMAX:      +5.00000e-01, # +1.360e-01,
         VMIN:      +5.55663e-03, # +7.584e-03,
         DELTAV:    +2.84517e+00, # +2.777e+00,
         SIGMAV:    +4.43556e-01, # +4.061e-01,
-        VP:        +2.69506e-02, #+2.846e-02,
-        VPP:       -5.71575e-04, # -5.775e-04
+        VP:        +2.59030e-02, # +2.69506e-02, # +2.64743369e-02,
+        VPP:       -1.11975e-03, # -5.79459180e-04,
+        DF:        -7.00000e-01,
+        PHIF:      -3.15000e+02
     },
     HENE:{
-        VMAX:      +8.25384e-02, # +6.47524266e-02,
+        VMAX:      +1.50000e-01, # +8.25384e-02, # +6.47524266e-02,
         VMIN:      -1.15319e-02, # -1.20379796e-02,
         DELTAV:    +5.46350e-01, # +5.33988863e-01,
         SIGMAV:    +1.24592e-01, # +1.15531599e-01,
-        VP:        +2.69506e-02, # +2.64743369e-02,
-        VPP:       -5.71575e-04 # -5.79459180e-04,
+        VP:        +2.59030e-02, # +2.69506e-02, # +2.64743369e-02,
+        VPP:       -1.11975e-03, # -5.79459180e-04,
+        DF:        +0.00000e+00,
+        PHIF:      +0.00000e+00
     }        
 }
 
@@ -169,9 +189,19 @@ mufracs = {
 }
 
 fitfracs = {
-    HENE : (0.10,0.90),
-    IR   : (0.10,0.90)
+    HENE : (0.0,1.0), # (0.10,0.90),
+    IR   : (0.0,1.0) # (0.10,0.90)
 }
+
+class _Fitter:
+    def __init__(self,mode):
+        self.guess = None
+        self.mode = mode
+        self.x = np.array(scanvs)
+        self.corrections = None
+    
+
+                 
 
 class Fitter:
     def __init__(self,mode):
@@ -181,10 +211,10 @@ class Fitter:
         self.corrections = None
 
     def transmission(
-            self,x,vmax,vmin,deltav,sigmav,muv
+            self,x,vmax,vmin,deltav,sigmav,muv,*fparams
     ):
         return transmission(
-            x,vmax,vmin,deltav,sigmav,*self.corrections,muv
+            x,vmax,vmin,deltav,sigmav,*self.corrections,muv,*fparams
         )
 
     def fit(self,y):
@@ -197,8 +227,13 @@ class Fitter:
             muvo = x[musamp]            
             guess = [
                 initial_guesses[mode][fpindex]
-                for fpindex in fitparamindices[:-1]
+                for fpindex in fitparamindices[:fitparamindices.index(MUV)]
             ] + [muvo]
+            if self.mode == IR:
+                guess.extend(
+                    initial_guesses[IR][key]                        
+                    for key in fitparamindices[fitparamindices.index(MUV)+1:]
+                )            
             if CO2 and self.mode == IR:
                 vmax = y.max()
                 vmin = y.min()
@@ -210,39 +245,38 @@ class Fitter:
                 ):
                     guess[fpis.index(key)] = value
         else:
-            guess = self.guess
+            guess = self.guess        
         fitsampmin, fitsampmax = fitsamps[mode]
         fitx = x[fitsampmin:fitsampmax]
-        fity = y[fitsampmin:fitsampmax]
-        ymin = fity.min()
-        ymax = fity.max()
-        sigmas = np.abs(
-            1/(fity - ymin+0.25*(ymax-ymin))
-        )
+        fity = y[fitsampmin:fitsampmax]        
         try:
-            if self.corrections is None:
+            if self.corrections is None:                
                 params, cov = curve_fit(
                     transmission,
                     fitx,fity,
-                    guess,
-                    sigma=sigmas
+                    guess
                 )
+                vmax, vmin, deltav, sigmav, vp, vpp, muv, *fparams = params
+                if len(fparams) == 0:
+                    fparams = (0.,0.)
+                params = vmax, vmin, deltav, sigmav, vp, vpp, muv, *fparams
             else:
-                vmax, vmin, deltav, sigmav, vp, vpp, muv = guess
-                guess = (vmax, vmin, deltav, sigmav, muv)
+                vmax, vmin, deltav, sigmav, vp, vpp, muv, *fparams = guess
+                guess = (vmax, vmin, deltav, sigmav, muv, *fparams)                
                 params, cov = curve_fit(
                     self.transmission,
                     fitx,fity,
-                    guess,
-                    sigma=sigmas
+                    guess                    
                 )
-                vmax, vmin, deltav, sigmav, muv = params
-                params = (vmax, vmin, deltav, sigmav, *self.corrections, muv)
+                vmax, vmin, deltav, sigmav, muv, *fparams = params                
+                if len(fparams) == 0:
+                    fparams = (0.,0.)
+                params = vmax, vmin, deltav, sigmav, *self.corrections, muv, *fparams            
             if math.nan in params:
                 return None
         except RuntimeError:
             return None
-        self.guess = params
+        self.guess = params[:len(params)-{IR:0,HENE:2}[self.mode]]
         return {
             fpindex:param for fpindex, param in zip(fitparamindices,params)
         }
@@ -331,13 +365,24 @@ def check_heater(foo):
         else:
             return foo(self,*args,**kwargs)
     return bar
+class FrequencyMeter:
+    def __init__(self,ci):
+        self.ci = ci
+        self.samples = d.get_samps_per_channel(ci)
 
+    def get_frequency(self):
+        freqs, nfreqs = d.read_counter_f64(self.ci,self.samples,blocking=False)
+        if nfreqs:
+            return np.average(freqs)
+        else:
+            return None
 class TransferCavityApp(bhs.BeckApp):
-    def __init__(self,scanner,fitters,locker,heater=None):
+    def __init__(self,scanner,fitters,locker,heater=None,freqmeter=None):
         self.fitting = {chan:False for chan in inputchannels}
         self.params = {            
             chan:None for chan in inputchannels
         }
+        self.freqmeter = freqmeter
         self.heater = heater
         self.scanner = scanner
         self.fitters = fitters
@@ -354,6 +399,11 @@ class TransferCavityApp(bhs.BeckApp):
         self.error = False
 
     def loop(self):
+        if FM:
+            freq = self.freqmeter.get_frequency()
+            if freq is not None:
+                global modfreq 
+                modfreq = freq                
         if self.get_scanning():
             index = self.get_scan_index()
             muvs = {}
@@ -372,7 +422,7 @@ class TransferCavityApp(bhs.BeckApp):
                         )
                         self.set_fitting(channel,False)
                         muvs[channel] = None
-                    else:
+                    else:                        
                         muvs[channel] = distort_v(params[MUV],params[VP],params[VPP])
                         if channel is HENE:
                             self.fitters[IR].set_corrections(
@@ -473,11 +523,11 @@ class TransferCavityApp(bhs.BeckApp):
         return list(self.errors)
 
     @bhs.command('get scanning')
-    def get_scanning(self):
+    def get_scanning(self):        
         return self.scanner.get_scanning()
 
     @bhs.command('set scanning')
-    def set_scanning(self,scanning):
+    def set_scanning(self,scanning):        
         for channel in inputchannels:
             self.reset_fitting(channel)
         self.samples = []
@@ -493,8 +543,8 @@ class TransferCavityApp(bhs.BeckApp):
         for channel in inputchannels:
             data = self.scans[channel]
             if data is not None:
-                if size is DECIMATED:
-                    data = fit.decimate(data,decimation)
+                if size is DECIMATED:                    
+                    data = fit.decimate(data,decimation)                    
                 data = encode_scan(data)
             scan[channel] = (
                 data,
@@ -561,32 +611,37 @@ class TransferCavityApp(bhs.BeckApp):
         if self.params[channel]:
             return self.params[channel][MUV]
         return None
-            
+    
+    @bhs.command('get modulation frequency')
+    def get_modulation_frequency(self):
+        return modfreq if FM else -1.0
 
+scanvs, returnvs = generate_waveform(deltav,epsilon,deltat,samplingrate)
+scansamples = len(scanvs)
+scanvsdec = fit.decimate(scanvs,decimation)
+
+musamps = {
+    chan:[
+        int(round(scansamples*mufrac))
+        for mufrac in t
+    ] for chan, t in mufracs.items()
+}
+fitsamps = {
+    chan:[
+        int(round(scansamples*fitfrac))
+        for fitfrac in t
+    ] for chan, t in fitfracs.items()
+}
+METHANE, CARBON_DIOXIDE = 'ch4', 'co2'
+CO2 = False
 if __name__ == '__main__':
     import os
     import argparse
     ap = argparse.ArgumentParser()
-    METHANE, CARBON_DIOXIDE = 'ch4', 'co2'
+    
     ap.add_argument('--molecule','-m',choices=(METHANE,CARBON_DIOXIDE),default=METHANE)
     mol = ap.parse_args().molecule
-    CO2 = mol == CARBON_DIOXIDE
-    scanvs, returnvs = generate_waveform(deltav,epsilon,deltat,samplingrate)
-    scansamples = len(scanvs)
-    scanvsdec = fit.decimate(scanvs,decimation)
-
-    musamps = {
-        chan:[
-            int(round(scansamples*mufrac))
-            for mufrac in t
-        ] for chan, t in mufracs.items()
-    }
-    fitsamps = {
-        chan:[
-            int(round(scansamples*fitfrac))
-            for fitfrac in t
-        ] for chan, t in fitfracs.items()
-    }
+    CO2 = mol == CARBON_DIOXIDE        
 
     inputchannelnames = {
         HENE:'transfer cavity hene',
@@ -597,13 +652,15 @@ if __name__ == '__main__':
             d.TaskHandler(
                 [inputchannelnames[channel] for channel in inputchannels]
             ) as ai,
-            d.TaskHandler(['transfer cavity piezo']) as ao
+            d.TaskHandler(['transfer cavity piezo']) as ao,            
+            d.TaskHandler('transfer cavity frequency task',global_task=True) as ci
     ):
-        heater = None
+        heater = None        
+        freqmeter = FrequencyMeter(ci) if FM else None        
         locker = Locker(topo.AsyncInstructionClient())
-        scanner = Scanner(ao,ai,scanvs,returnvs,samplingrate)
+        scanner = Scanner(ao,ai,scanvs,returnvs,samplingrate,d.get_ci_freq_term(ci))
         fitters = {
             channel:Fitter(channel) for channel in inputchannels
         }
         print('now serving.')
-        bhs.run_beck_server(PORT,os.path.dirname(__file__),TransferCavityApp,scanner,fitters,locker,heater,_debug=False)
+        bhs.run_beck_server(PORT,os.path.dirname(__file__),TransferCavityApp,scanner,fitters,locker,heater,freqmeter,_debug=False)
