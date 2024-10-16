@@ -68,6 +68,19 @@ def wait_halt(mh,sleep_time=0.0):
     units = maxon.get_velocity_units(mh)
     wait_movement(mh,sleep_time,_velcb(0.0,units))
 
+def blocking_sequence(mh,blocking,sleep_time=0.0,verbose=False):
+    if verbose: print('starting blocking sequence: {}'.format({True:'blocking',False:'not blockin'}[blocking]))
+    if verbose: print('waiting for halt...')
+    start_halt(mh)    
+    wait_halt(mh,sleep_time)    
+    start_home(mh)
+    if verbose: print('halt completed. waiting for home...')
+    wait_home(mh,sleep_time)
+    set_blocking(mh,blocking)
+    if verbose: print('home completed. waiting for movement...')
+    wait_movement(mh,sleep_time)
+    if verbose: print('blocking sequence successful.')
+
 if __name__ == '__main__':
     with maxon.MaxonHandler() as mh:
         print('halting.')
