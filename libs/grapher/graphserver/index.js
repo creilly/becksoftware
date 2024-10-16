@@ -176,34 +176,48 @@ function update_plot() {
 	}
 
     var data = [
-	{
-	    x: columns[X],
-	    y: ydata,
-	    mode: 'markers',
-	    type: 'scatter'
-	}
+		{
+			x: columns[X],
+			y: ydata,
+			mode: 'markers',
+			type: 'scatter'
+		}
     ];
     
-    var width = window.innerWidth;
-    var height = window.innerHeight;
-    var scale = .75;
+	if (document.getElementById('figsize-auto').checked) {
+		var scale = .75;
+		var width = scale * window.innerWidth;
+		var height = scale * window.innerHeight;
+	}
+	else {
+		var width = parseFloat(document.getElementById('figsize-width').value);
+		var height = parseFloat(document.getElementById('figsize-height').value);
+	}
 
     var layout = {
-	xaxis: {
-	    title: labels[X]
-	},
-	yaxis: {
-	    title: labels[Y]
-	},
-	title: global_path.join(' : '),
-	width: scale*width,
-	height: scale*height
+		xaxis: {
+			title: labels[X]
+		},
+		yaxis: {
+			title: labels[Y]
+		},
+		title: global_path.join(' : '),
+		width: width,
+		height: height
     };
+	if (!document.getElementById('ylim-auto').checked) {
+		var ymin = parseFloat(
+			document.getElementById('ylim-zero').checked ?
+			0.0 : document.getElementById('ylim-min').value
+		);		
+		var ymax = parseFloat(document.getElementById('ylim-max').value);		
+		layout.yaxis.range = [ymin,ymax];
+	}	
 
     Plotly.newPlot(
-	PLOTID,
-	data,
-	layout
+		PLOTID,
+		data,
+		layout
     );
 }
 var global_fields;
@@ -246,8 +260,7 @@ function set_dataset(path) {
 						[ZID]:'z-def'
 					}[id]
 				).value
-			)
-			console.log(id,deffield,fields.length);
+			)			
 			select.selectedIndex = deffield < fields.length ? deffield : 0;			
 		    // if (id == XID) {
 			// select.selectedIndex = 0;
@@ -266,11 +279,11 @@ function set_dataset(path) {
 	}
     );
     send_command(
-	'get-metadata',
-	{path:format_md_path(path)},
-	function (metadata) {
-	    json_viewer.showJSON(metadata,-1,-1);
-	}
+		'get-metadata',
+		{path:format_md_path(path)},
+		function (metadata) {
+			json_viewer.showJSON(metadata,-1,-1);
+		},data_hook
     )
     global_path = path;
 }
@@ -402,7 +415,9 @@ function update_folders() {
 }
 
 function on_resize() {
-    update_plot();    
+	if (document.getElementById('figsize-auto').checked) {
+		update_plot();
+	}    
 }
 window.onload = on_load;
 window.onresize = on_resize;
