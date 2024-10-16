@@ -1,0 +1,65 @@
+<html>
+    <head>
+        <title>transfer cavity</title>
+        <link rel="icon" type="image/png" href="icon.png"/>
+        <script src="index.js"></script>
+        <!-- <link rel="stylesheet" href="index.css">      -->
+    </head>
+    <body>
+        <h2><span id="laser-label">?</span> transfer cavity</h2>
+        <canvas id="canvas" width="500" height="300"></canvas>
+        <h3>controls</h3>        
+        <table>
+            <tr>
+                <td>ir scale (mv)</td>
+                <td>min</td>
+                <td>
+                    auto                    
+                    <input id="ir-min-autoscale" type="checkbox" value="unchecked">
+                </td>
+                <td>
+                    meas:<span id="ir-min-value"></span>
+                </td>
+                <td>                    
+                    <input id="ir-min-input" type="number" value="0" min="-200" max="100" step="1">
+                </td>
+                <td>max</td>
+                <td>
+                    auto                    
+                    <input id="ir-max-autoscale" type="checkbox" value="unchecked">
+                </td>
+                <td>
+                    meas:<span id="ir-max-value"></span>
+                </td>
+                <td>                    
+                    <input id="ir-max-input" type="number" value="750" min="-100" max="1000" step="1">
+                </td>
+            </tr>
+            <tr>
+                <td>hene scale (mv)</td>
+                <td>min</td>
+                <td>
+                    auto                    
+                    <input id="hene-min-autoscale" type="checkbox" value="unchecked">
+                </td>
+                <td>
+                    meas:<span id="hene-min-value"></span>
+                </td>
+                <td>                    
+                    <input id="hene-min-input" type="number" value="-12" min="-200" max="100" step="1">
+                </td>
+                <td>max</td>
+                <td>
+                    auto                    
+                    <input id="hene-max-autoscale" type="checkbox" value="unchecked">
+                </td>
+                <td>
+                    meas:<span id="hene-max-value"></span>
+                </td>
+                <td>                    
+                    <input id="hene-max-input" type="number" value="150" min="-100" max="300" step="1">
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>
