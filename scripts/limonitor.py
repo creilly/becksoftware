@@ -1,12 +1,17 @@
-import lockin
+import lockin, argparse
 from grapher import graphclient as gc
 from time import sleep, time
 
+ap = argparse.ArgumentParser()
+ap.add_argument(
+    '--tau','-t',help='time constant in seconds. update rate is 10 x tau',type=float,default=300e-3    
+)
+args = ap.parse_args()
+tau = args.tau
 folder = [*gc.get_day_folder(),'lockin monitor']
 name = input('enter dataset name: ')
 description = input('enter description: ')
-interval = 3.0 # seconds
-tau = interval / 10
+interval = 10*tau
 
 with lockin.LockinHandler() as lih:
     taup = lockin.set_time_constant(lih,tau)

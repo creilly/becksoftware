@@ -1,15 +1,17 @@
 import topo, wavemeter as wm, piezo
-import linescan as ls, hitran as ht
+# import linescan as ls, hitran as ht
 import argparse
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--wavenumber','-w',type=float)
 w_hitran = ap.parse_args().wavenumber
 if w_hitran is None:
+    print('need to specify wavenumber.')
+    exit(1)
     htline = ls.line_wizard()
     w_hitran = ht.parse_line(htline)[ht.W]
 print(w_hitran)
-w_offset_o = -0.0113 # cm-1
+w_offset_o = -0.005 # cm-1
 w_offset = input('enter pump wavemeter offset (default {:.4} cm-1): '.format(w_offset_o))
 if w_offset:
     w_offset = float(w_offset)
