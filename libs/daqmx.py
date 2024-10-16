@@ -6,6 +6,7 @@ bufsize = 2 ** 10
 
 class DAQmxError(Exception):
     def __init__(self,code):
+        self.code = code
         strbuf = create_string_buffer(bufsize)
         dll.DAQmxGetErrorString(code, strbuf, bufsize)
         super().__init__(
@@ -43,7 +44,7 @@ def _pystr_to_cstr(pystr):
     return pystr.encode()
 
 def daqmx(func,*args):
-    result = func(*args)
+    result = func(*args)    
     if result: raise DAQmxError(result)
 
 def create_task():
@@ -187,6 +188,14 @@ CONT_SAMPS = 10123
 RISING = 10280
 FALLING = 10171
 ONBOARD_CLK = None
+
+def set_samp_mode(handle,mode):
+    daqmx(
+        dll.DAQmxSetSampQuantSampMode,
+        handle, 
+        mode
+    )
+
 def cfg_samp_clk_timing(handle,rate,mode,samps,src=ONBOARD_CLK):
     daqmx(
         dll.DAQmxCfgSampClkTiming,
@@ -210,8 +219,15 @@ def cfg_trigger(handle,src):
     daqmx(
         dll.DAQmxCfgDigEdgeStartTrig,
         handle,
-        src,
+        src.encode(),
         RISING
+    )
+
+def set_retriggerable(handle,retriggerable):
+    daqmx(
+        dll.DAQmxSetStartTrigRetriggerable,
+        handle,
+        int(retriggerable)
     )
 
 def get_co_term(handle):
@@ -230,7 +246,7 @@ def set_co_term(handle,term):
         dll.DAQmxSetCOPulseTerm,
         handle,
         None,
-        term
+        term.encode()
     )
 
 WAIT_INFINITELY = c_double(-1.0)
@@ -284,6 +300,15 @@ def get_samps_generated(handle):
     )
     return samps.value
 
+def get_space_available(handle):
+    samps = c_uint32()
+    daqmx(        
+        dll.DAQmxGetWriteSpaceAvail,
+        handle,
+        byref(samps)
+    )
+    return samps.value
+
 def get_num_chans(handle):
     nchans = c_uint32()
     daqmx(
@@ -304,7 +329,7 @@ def read_analog_f64_scalar(handle):
     )
     return scalar.value
 
-def read_analog_f64(handle,samps,arrsize,nchans=None):
+def read_analog_f64(handle,samps,arrsize,nchans=None,timeout=None):    
     if nchans is None:
         nchans = get_num_chans(handle)
     data = (c_double*arrsize)()
@@ -313,7 +338,7 @@ def read_analog_f64(handle,samps,arrsize,nchans=None):
         dll.DAQmxReadAnalogF64,
         handle,
         samps,
-        c_double(1.0), # WAIT_INFINITELY,
+        c_double(-1.0 if timeout is None else timeout), # WAIT_INFINITELY,
         GROUP_BY_CHANNEL,
         data,
         arrsize,
@@ -328,11 +353,11 @@ def read_analog_f64(handle,samps,arrsize,nchans=None):
 def read_all(handle,arrsize,nchans=None):
     return read_analog_f64(handle,-1,arrsize,nchans)
     
-def read_buff(handle,samps,nchans=None):
+def read_buff(handle,samps,nchans=None,timeout=None):
     if nchans is None:
         nchans = get_num_chans(handle)
     arrsize = nchans*samps
-    return read_analog_f64(handle,samps,arrsize,nchans)
+    return read_analog_f64(handle,samps,arrsize,nchans,timeout)
 
 def get_samp_clk_term(handle):
     term_name = create_string_buffer(bufsize)
@@ -345,12 +370,12 @@ def get_samp_clk_term(handle):
     return term_name.value.decode('utf8')
 
 def load_task(name):
-    handle = c_voidp()
+    handle = c_voidp()    
     daqmx(
         dll.DAQmxLoadTask,
         name.encode(),
         byref(handle)
-    )
+    )    
     return handle
 
 def get_sys_tasks():
@@ -414,6 +439,17 @@ def get_ci_count_edges_term(handle):
     )
     return term.value.decode('utf8')
 
+def get_ci_freq_term(handle):
+    term = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetCIFreqTerm,
+        handle,
+        None,
+        term,
+        bufsize
+    )
+    return term.value.decode('utf8')
+
 def get_timebase_divisor(handle):
     divisor = c_uint32()
     daqmx(
@@ -443,6 +479,16 @@ def cfg_arm_start_trig(handle,src,edge):
     set_arm_start_trig_type(handle,DIG_EDGE)
     set_dig_edge_arm_start_trig_src(handle,src)
     set_dig_edge_arm_start_trig_edge(handle,edge)
+
+def get_dig_edge_start_trig_src(handle):
+    buffer = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetDigEdgeStartTrigSrc,
+        handle, 
+        buffer,
+        bufsize        
+    )
+    return buffer.value.decode()
 
 DIG_EDGE = 10150
 def set_arm_start_trig_type(handle,type):
@@ -551,7 +597,7 @@ def create_co_ticks_channel(handle,physical_channel,highticks,lowticks,source_te
         handle,
         physical_channel.encode(),
         None,
-        source_terminal,
+        source_terminal.encode(),
         IDLE_HIGH,
         0, # initial delay
         lowticks,
@@ -578,14 +624,22 @@ def get_samps_per_channel(handle):
     )
     return samps_per_channel.value
 
-def read_counter_f64(handle, samps):
+DAQmx_Val_Auto = -1
+def read_counter_f64(handle, samps, blocking=True, timeout=None):
     data = (c_double*samps)()
     samples_read = c_int32()
     daqmx(
         dll.DAQmxReadCounterF64,
-        handle, -1, 0, data, samps, byref(samples_read), None
+        handle, 
+        samps if blocking else -1, 
+        c_double(DAQmx_Val_Auto if timeout is None else timeout), 
+        data, 
+        samps,
+        byref(samples_read), 
+        None
     )
-    return data, samples_read.value
+    samples_read = samples_read.value
+    return data[:samples_read], samples_read
 
 def read_counter_f64_scalar(handle):
     datum = c_double()
@@ -595,5 +649,89 @@ def read_counter_f64_scalar(handle):
     )
     return datum.value
 
+def get_buffer_size(handle):
+    buffer_size = c_int32()
+    daqmx(
+        dll.DAQmxGetBufInputBufSize,
+        handle, 
+        byref(buffer_size)
+    )
+    return buffer_size.value
+
+def set_buffer_size(handle,buffer_size):    
+    daqmx(
+        dll.DAQmxSetBufInputBufSize,
+        handle, 
+        buffer_size
+    )  
+
+# two edge measurement
+
+def get_two_edge_terminals(handle):    
+    terms = []
+    for func in (
+        dll.DAQmxGetCITwoEdgeSepFirstTerm,
+        dll.DAQmxGetCITwoEdgeSepSecondTerm,
+    ):
+        buffer = create_string_buffer(bufsize)
+        daqmx(func,handle,None,buffer,bufsize)
+        terms.append(buffer.value)
+    return terms
+
+def set_two_edge_terminals(handle, start_term, stop_term):
+    for term, func in (
+        (start_term,dll.DAQmxSetCITwoEdgeSepFirstTerm),
+        (stop_term,dll.DAQmxSetCITwoEdgeSepSecondTerm),
+    ):
+        daqmx(func,handle,None,term.encode())
+
+def get_task_devices(handle):
+    buffer = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetTaskDevices,
+        handle,
+        buffer,
+        bufsize
+    )
+    return buffer.value.decode().split(';')
+
+def get_start_trigger_terminal(handle):
+    buffer = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetStartTrigTerm,
+        handle, 
+        buffer, 
+        bufsize
+    )
+    return buffer.value.decode()
+    
+def get_task_channels(handle):    
+    buffer = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetTaskChannels,
+        handle, 
+        buffer, 
+        bufsize
+    )
+    return buffer.value.decode().split(', ')
+
+def get_exported_start_trig_output_term(handle):
+    buffer = create_string_buffer(bufsize)
+    daqmx(
+        dll.DAQmxGetExportedStartTrigOutputTerm,
+        handle, 
+        buffer,
+        bufsize
+    )
+    return buffer.value.decode()
+
+def set_exported_start_trig_output_term(handle,term):    
+    daqmx(
+        dll.DAQmxSetExportedStartTrigOutputTerm,
+        handle, 
+        term.encode()
+    )    
+
 if __name__ == '__main__':
-    exit(0)
+    task = create_task()
+    clear_task(task)

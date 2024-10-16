@@ -54,4 +54,5 @@ th {
 
 .content {
     vertical-align: top;
+    position:fixed;
 }

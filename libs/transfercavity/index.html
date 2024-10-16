@@ -1,10 +1,10 @@
 <html>
-  <head>
-    <title>transfer cavity</title>
-    <link rel="icon" type="image/png" href="icon.png"/>
-    <script src="index.js"></script>
-    <link rel="stylesheet" href="index.css">     
-  </head>
+	<head>
+		<title>transfer cavity</title>
+		<link rel="icon" type="image/png" href="icon.png"/>
+		<script src="index.js"></script>
+		<link rel="stylesheet" href="index.css">     
+	  </head>
   <body>
     <h1>transfer cavity</h1>
     <table>
@@ -128,23 +128,38 @@
 		</button>
 	      </td>
 	    </tr>
-	    <tr>
-	      <td>
-		peak offset (v)
-	      </td>
-	      <td>
-		<div id="peak-offset-indicator">
-		</div>
-	      </td>
-	      <td>
-		<input type="number" id="peak-offset-control" step="0.01">
-	      </td>
-	      <td>
-		<button id="peak-offset-submit">
-		  submit
-		</button>
-	      </td>
-	    </tr>
+		<!-- <tr>
+			<td>
+				peak offset (v)
+			</td>
+			<td>
+				<div id="peak-offset-indicator">
+				</div>
+			</td>
+			<td>
+				<input type="number" id="peak-offset-control" step="0.01">
+			</td>
+			<td>
+				<button id="peak-offset-submit">
+					submit
+				</button>
+			</td>
+		</tr> -->
+		<tr>
+			<td>
+				modulation frequency (hz)
+			</td>
+			<td>
+				<div id="mod-freq-indicator">
+				</div>
+			</td>
+			<td>
+				none
+			</td>
+			<td>
+				none
+			</td>
+		</tr>
 	    <tr>
 	      <td>
 		lock state
@@ -284,8 +299,8 @@
 	    </tr>
 	    <tr>
 	      <td>max con.</td>
-	      <td><input id="hene-max-con" type="number" step="0.001" value="0.100" /></td>
-	      <td><input id="ir-max-con" type="number" step="0.001" value="0.175" /></td>
+	      <td><input id="hene-max-con" type="number" step="0.001" value="0.150" /></td>
+	      <td><input id="ir-max-con" type="number" step="0.001" value="0.800" /></td>
 	      <td><input id="df-max-con" type="number" step="0.1" value="10.000" /></td>
 	    </tr>
 	    <tr>

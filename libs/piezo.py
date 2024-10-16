@@ -61,28 +61,15 @@ def set_rotary_mode(pdh,mode):
     return write(pdh,'rotarymode',str(mode))
 
 if __name__ == '__main__':
+    import argparse
+    X, Y, Z = 'x', 'y', 'z'
+    ap = argparse.ArgumentParser(description='set thorlabs piezo driver voltage')
+    ap.add_argument('channel',choices=(X,Y,Z),default=Z,help='which channel to set')
+    ap.add_argument('voltage',type=float,help='voltage to set')    
+    args = ap.parse_args()
+    channel = args.channel
+    voltage = args.voltage
+    print('setting piezo channel {} to {:.2f} volts.'.format(channel,voltage))
     with PiezoDriverHandler() as pdh:
-        # pdh.write('?')
-        # try:
-        #     while True:
-        #         print(pdh.read())
-        # except Exception:
-        #     pass
-        # set_rotary_mode(pdh,FIN)
-        # print('rotary mode?',get_rotary_mode(pdh))
-        # for _ in range(10):
-        #     print(set_rotary_mode(pdh,TEN))
-        # print('rotary mode?',get_rotary_mode(pdh))
-        # exit(0)
-        # vo = get_piezo_voltage_act(pdh)
-        # print('vo,',vo)
-        vp = float(input('set piezo voltage to: '))
-        print(set_piezo_voltage(pdh,vp))
-        import time
-        time.sleep(1.0)
-        channel = 'z'
-        vpp = get_piezo_voltage(pdh,'z')                
-        print('vpp,',vpp)        
-        
-
-    
+        set_piezo_voltage(pdh,voltage,channel=channel)
+    print('voltage set.')

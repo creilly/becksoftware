@@ -1,0 +1,3 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+ 2917.629074	 2.017E+01	 2917.629074
+# p branch

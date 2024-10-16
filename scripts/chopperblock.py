@@ -3,6 +3,8 @@ import chopper
 import maxon
 import argparse
 
+posthresh = 500
+
 OPTION = 'blocking'
 BLOCK, UNBLOCK = 'block', 'unblock'
 
@@ -16,17 +18,12 @@ with maxon.MaxonHandler() as mh:
     print('waiting for halt')
     chopper.wait_halt(mh)
     print('halt completed')
-    while True:
-        homed = maxon.get_homed(mh)
-        print('homed state:',homed)    
-        if not homed:
-            print('homing')
-            chopper.start_home(mh)
-            print('waiting for home')
-            chopper.wait_home(mh)    
-            print('homing completed')
-        else:
-            break
+    if not maxon.get_homed(mh) or abs(maxon.get_position_act(mh)) > posthresh:    
+        print('homing')
+        chopper.start_home(mh)
+        print('waiting for home')
+        chopper.wait_home(mh)    
+        print('homing completed')
     print(
         '{} chopper'.format(
             {

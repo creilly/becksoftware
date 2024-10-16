@@ -6,7 +6,7 @@ LOCKIN_VISA_NAME = 'lockin'
 
 OPEN_TIMEOUT = 2.0 # seconds
 
-TIMEOUT = 1000 # milliseconds
+TIMEOUT = 500 # milliseconds
 
 readterm = writeterm = '\r'
 
@@ -254,7 +254,14 @@ def wait_operation(lockin):
             continue
 
 if __name__ == '__main__':
-    with LockinHandler() as lockin:    
+    from argparse import ArgumentParser as AP
+    ap = AP()
+    LOCKIN1, LOCKIN2 = 1, 2
+    ap.add_argument('--lockin','-l',type=int,default=LOCKIN1,choices=(LOCKIN1,LOCKIN2),help='which lockin (default 1)')
+    visaid = {
+        LOCKIN1:'lockin',LOCKIN2:'lockin2'        
+    }[ap.parse_args().lockin]
+    with LockinHandler(visaid) as lockin:    
         sb = get_status_byte(lockin)
         print('status byte:',sb)
         print(

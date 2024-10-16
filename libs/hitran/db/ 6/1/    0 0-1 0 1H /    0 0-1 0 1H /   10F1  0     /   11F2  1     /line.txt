@@ -1,7 +1,7 @@
 wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
 3099.5557	6.043	3099.5557
 # 2024.05.22 - R10 project
-votava transition: w 6114.67232 cm-1
-assumed votava lower level (from hitemp): ll  2, e 575.2598 cm-1
-matching v0->2v3 hitemp transition: w 6114.6732 cm-1
-matching v3->2v3 hitemp transition: l 38, e 3590.3764
+# votava transition: w 6114.67232 cm-1
+# assumed votava lower level (from hitemp): ll  2, e 575.2598 cm-1
+# matching v0->2v3 hitemp transition: w 6114.6732 cm-1
+# matching v3->2v3 hitemp transition: l 38, e 3590.3764

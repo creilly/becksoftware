@@ -99,8 +99,8 @@ def run_beck_server(port,rootfolder,appcls,*args,**kwargs):
         no_interrupt_received.pop()
     prev_handler = signal.signal(signal.SIGINT, signal_handler)
     with BeckHTTPServer(port,rootfolder,appcls,*args,**kwargs) as httpd:
-        while no_interrupt_received:
-            httpd.app.loop()
+        while no_interrupt_received:            
+            httpd.app.loop()            
             httpd.handle_requests()
         httpd.app.shutdown()
         signal.signal(signal.SIGINT, prev_handler)
@@ -114,7 +114,7 @@ def command(name):
 def set_commands(appcls):
     for name, method in appcls.__dict__.items():
         if hasattr(method,COMMANDTAG):
-            appcls.commands[getattr(method,COMMANDTAG)] = method
+            appcls.commands[getattr(method,COMMANDTAG)] = method        
     return appcls
 
 def _instance_methodify(fnc):
@@ -157,7 +157,7 @@ class BeckHTTPServer(http.server.HTTPServer):
     def handle_requests(self):
         with _ServerSelector() as selector:
             selector.register(self, selectors.EVENT_READ)
-            while selector.select(0):
+            while selector.select(0):                
                 self._handle_request_noblock()
 
 def check_path(folder,path):    
@@ -184,6 +184,7 @@ class BeckRequestHandler(http.server.BaseHTTPRequestHandler):
         
     def do_GET(self):
         path = self.path.split('/',1)[1]
+        path, *args = path.split('&')
         if not path:
             path = 'index.html'
         path = self.format_relative_path(path)
@@ -231,9 +232,11 @@ class BeckRequestHandler(http.server.BaseHTTPRequestHandler):
         self.send_response(HTTPStatus.OK)
         self.send_header('Content-type',JSONTYPE)
         self.end_headers()
-        self.wfile.write(json.dumps(response).encode())
+        try:
+            self.wfile.write(json.dumps(response).encode())
+        except ConnectionAbortedError:
+            pass
 
     def log_message(self,*args,**kwargs):
         if self.server._debug:
             super().log_message(*args,**kwargs)
-

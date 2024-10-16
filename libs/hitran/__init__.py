@@ -9,15 +9,26 @@ def format_path(folders):
         os.path.dirname(__file__),root_folder,*folders
     )
 def lookup_line(folders):
-    path = format_path(list(folders)+[fname])
-    with open(path,'r') as f:
-        linefile = f.read()
+    linefile = get_linefile(folders)
     lines = linefile.split('\n')
     dataline = lines[DATA]
     fields = dataline.split('\t')        
     return {
         key:float(fields[key]) for key in (WNUM,EIN_COEFF,WNUMBECK)
     }
+
+def get_linefile(folders):
+    path = format_path(list(folders)+[fname])
+    with open(path,'r') as f:
+        return f.read()
+    
+def get_notes(folders):
+    linefile = get_linefile(folders)
+    return [
+        l[2:] for l in linefile.split('\n')[2:]
+        if l[:2] == '# '
+    ]
+
 def ls(folders):
     path = format_path(folders)
     return os.listdir(path)
@@ -75,13 +86,40 @@ headers = {
     W:'wavenumber (cm-1)',A:'einstein coefficient (s-1)',WB:'measured wavenumber (cm-1)'
 }
 entries = (W,A,WB)
-def add_entry(lined, notes, overwrite = False):
+
+def update_entry(folders, w, *notes):
+    folderpath = format_path(folders)
+    path = os.path.join(folderpath,fname)
+    with open(path,'r') as f:
+        lines = [
+            l for l in f.read().split('\n')
+            if l
+        ]
+    lines.extend(fmt_notes(notes))
+    htline = lines[DATA]
+    fields = htline.split('\t')
+    fields[WNUMBECK] = str(w)
+    lines[DATA] = '\t'.join(fields)
+    with open(path,'w') as f:
+        f.write('\n'.join(lines))
+
+def fmt_notes(notes):
+    return sum(
+        [
+            ['# {}'.format(subnote) for subnote in note.split('\n')]
+            for note in notes
+        ],
+        start = []
+    )                
+
+class LineOverwriteException(Exception): pass    
+def add_entry(lined, *notes, overwrite = False):
     *folders, wdb, a, wbeck, epp = list(zip(*sorted(lined.items())))[1]    
     folder = os.path.join(os.path.dirname(__file__),froot,*folders)   
     if not os.path.exists(folder):        
         os.makedirs(folder)
     elif not overwrite:
-        raise Exception(
+        raise LineOverwriteException(
             'can not overwrite entry {}!'.format(
                 fmt_line(folders)
             )
@@ -94,7 +132,7 @@ def add_entry(lined, notes, overwrite = False):
             ),                
             '\t'.join(
                 {W:wdb,A:a,WB:wbeck}[key].replace(NBS,' ') for key in entries
-            ),'# {}'.format(notes)
+            ),*fmt_notes(notes)
         ]
     )    
     with open(path,'w') as f:
@@ -127,7 +165,7 @@ lq_rmargin = 5
 j_width = 3
 lq_level_width = 3
 @rws
-def format_lq(lq):
+def format_lq(lq):    
     j,sym,level = lq
     return ' '*lq_lmargin + format_int(j,j_width) + format_sym(sym) + format_int(level,lq_level_width) + ' '*lq_rmargin
 

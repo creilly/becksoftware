@@ -25,6 +25,7 @@ var scanX = [];
 var fitscanx = [];
 var fitscanX = [];
 var fitscann = 300;
+var fullscanlen = 3001; // hardcoded magic number !
 
 // scan display params
 var scancanvas;
@@ -37,6 +38,8 @@ var margin = 10; // pixels
 
 // fitting contants
 var Vo = 4.0;
+var modfreq = 511.0; // hz
+var sampling_rate = 200e3; // samps per second
 var VMAX = 'vmax';
 var VMIN = 'vmin';
 var DELTAV = 'deltav';
@@ -44,8 +47,10 @@ var SIGMAV = 'sigmav';
 var VP = 'vp';
 var VPP = 'vpp';
 var MUV = 'muv';
+var DF = 'df';
+var PHIF = 'phif';
 
-var fitparamindices = [VMAX, VMIN, DELTAV, SIGMAV, VP, VPP, MUV]
+var fitparamindices = [VMAX, VMIN, DELTAV, SIGMAV, VP, VPP, MUV, DF, PHIF];
 
 // df display params
 var dfcanvas;
@@ -103,10 +108,11 @@ indicators = [
 	['get scan index','scan-index',{},-1,null],
 	['get center voltage','hene-peak',{channel:HENE},4,null],
 	['get center voltage','ir-peak',{channel:IR},4,null],
-	['get offset','peak-offset-indicator',{},4,null],
+	// ['get offset','peak-offset-indicator',{},4,null],
 	['get setpoint','lock-setpoint-indicator',{},2,on_setpoint],
 	['get locking','lock-state-indicator',{},-1,null],
 	['get lock output','lock-output',{},4,null],
+	['get modulation frequency','mod-freq-indicator',{},2,on_modfreq]
 ];
 
 function heater_cb(value) {
@@ -146,17 +152,17 @@ function update_indicators() {
 	var indicatorprecision = indicator[3];
 	var indicatorcb = indicator[4];
 	send_command(
-	indicatorcommand,
-	indicatorparams,
-	update_cb(indicatorid,indicatorprecision,indicatorcb)
+		indicatorcommand,
+		indicatorparams,
+		update_cb(indicatorid,indicatorprecision,indicatorcb)
 	);
 	setTimeout(
-	update_indicators,
-	25
+		update_indicators,
+		25
 	);
 	indicatorindex += 1;
 	if (indicatorindex == indicators.length) {
-	indicatorindex = 0;
+		indicatorindex = 0;
 	}
 }
 
@@ -175,29 +181,34 @@ function distort_v(v,vp,vpp) {
 	return Vo + 1 * (v - Vo) + vp * (v - Vo)**2 + vpp * (v - Vo)**3;
 }
 
-function transmission(v,vmax,vmin,deltav,sigmav,vp,vpp,muv) {
+function transmission(index,v,vmax,vmin,deltav,sigmav,vp,vpp,muv,df,phif) {
 	var v = distort_v(v,vp,vpp);
-	var muv = distort_v(muv,vp,vpp);
+	var muv = muv + df / 100.0 * Math.sin(
+		2. * Math.PI * modfreq / sampling_rate * fullscanlen / fitscann * index - phif / 180.0 * Math.PI
+	);
 	var b = 1/Math.sin(Math.PI/2*sigmav/deltav)**2 - 2;
 	var a = ( 1 + 1 / b ) * ( vmax - vmin );
 	var c = vmin - a / ( 1 + b );
-	var t = a / ( 1 + b * Math.sin(Math.PI * ( v - muv ) / deltav)**2 ) + c;
+	var t = a / ( 1 + b * Math.sin(Math.PI * ( v - muv ) / deltav)**2 ) + c;	
 	return t;
 }
 
 function fit(params) {
+	var n = 0;	
 	return fitscanx.map(
-	function (x) {
-		return transmission(
-		...[x].concat(
-			fitparamindices.map(
-			function (index) {
-				return params[index];
-			}
-			)
-		)
-		);
-	}
+		function (x) {
+			y = transmission(
+				...[n,x].concat(
+					fitparamindices.map(
+						function (index) {
+							return params[index];
+						}
+					)
+				)
+			);
+			n += 1;
+			return y;
+		}
 	);
 }
 
@@ -271,8 +282,8 @@ function update_scan() {
 	{},
 	function (scan) {
 		if (document.getElementById('scan-pause').checked) {
-		setTimeout(update_scan,0);
-		return;
+			setTimeout(update_scan,0);
+			return;
 		}
 		initialize_plot(scancanvas,scancontext,scanwidth,scanheight);
 		for (var channel in scan) {		
@@ -327,102 +338,104 @@ function update_scan() {
 		}
 		}
 		setTimeout(
-		update_scan,
-		0
+			update_scan,
+			0
 		);
 	}
 	);
 }
-
+function on_modfreq(modfreqp) {			
+	modfreq = modfreqp;
+}
 function update_df() {
 	send_command(
-	'get samples',
-	{
-		maxindex: scanindex
-	},
-	function (samples) {
-		if (samples.length == 0) {
-		send_command(
-			'get scan index',
-			{},
-			function (_scanindex) {
-			if (_scanindex < scanindex) {
-				scanindex = -1;
+		'get samples',
+		{
+			maxindex: scanindex
+		},
+		function (samples) {
+			if (samples.length == 0) {
+			send_command(
+				'get scan index',
+				{},
+				function (_scanindex) {
+				if (_scanindex < scanindex) {
+					scanindex = -1;
+				}
+				setTimeout(			    
+					update_df,
+					100
+				);
+				}
+			);
+			return;
 			}
-			setTimeout(			    
+			for (var sample of samples) {
+				scanindex = sample[SCANINDEX];
+				dfs.splice(0,0,sample[DELTAF]);
+			}
+			while (dfs.length > dfhistory) {
+				dfs.pop();
+			}
+			if (dfs.length) {
+			var errorsignal = dfs[0];
+			if (errorsignal != null) {
+				errorsignal = errorsignal.toFixed(2);
+			}
+			document.getElementById('error-signal').innerHTML = errorsignal;		
+			}	    
+			if (document.getElementById('df-pause').checked) {
+			setTimeout(
 				update_df,
 				100
 			);
+			return;
 			}
-		);
-		return;
+			var ylims = update_plot_lims(DF,dfs);
+			var ymin = ylims[0];
+			var ymax = ylims[1];
+			if (setpoint != null) {
+				dfcontext.strokeStyle = '#CC8800';
+				dfcontext.lineWidth = linewidth;
+				dfcontext.beginPath();
+				var spXl = transform(0,0,dfhistory,margin,dfwidth-margin);
+				var spXr = transform(dfhistory,0,dfhistory,margin,dfwidth-margin);
+				var spY = transform(setpoint,ymin,ymax,dfheight-margin,margin);
+				dfcontext.moveTo(spXl,spY);
+				dfcontext.lineTo(spXr,spY);
+				dfcontext.stroke()
+			}
+			var y;
+			var x;
+			var X;
+			var Y;
+			var moving = true;
+			initialize_plot(dfcanvas,dfcontext,dfwidth,dfheight);
+			dfcontext.strokeStyle = '#008800';
+			dfcontext.beginPath();
+			for (var index in dfs) {
+				x = index;		
+				y = dfs[index];
+				if (y == null) {
+					moving = true;
+					continue;
+				}
+				X = transform(x,0,dfhistory,margin,dfwidth-margin);
+				Y = transform(y,ymin,ymax,dfheight-margin,margin);
+				if (moving) {
+					dfcontext.moveTo(X,Y);
+				}
+				else {
+					dfcontext.lineTo(X,Y);
+				}
+				moving = false;
+			}
+			dfcontext.stroke();
+			setTimeout(
+				update_df,
+				100
+			);
 		}
-		for (var sample of samples) {
-		scanindex = sample[SCANINDEX];
-		dfs.splice(0,0,sample[DELTAF]);
-		}
-		while (dfs.length > dfhistory) {
-		dfs.pop();
-		}
-		if (dfs.length) {
-		var errorsignal = dfs[0];
-		if (errorsignal != null) {
-			errorsignal = errorsignal.toFixed(2);
-		}
-		document.getElementById('error-signal').innerHTML = errorsignal;		
-		}	    
-		if (document.getElementById('df-pause').checked) {
-		setTimeout(
-			update_df,
-			100
-		);
-		return;
-		}
-		var ylims = update_plot_lims(DF,dfs);
-		var ymin = ylims[0];
-		var ymax = ylims[1];
-		if (setpoint != null) {
-		dfcontext.strokeStyle = '#CC8800';
-		dfcontext.lineWidth = linewidth;
-		dfcontext.beginPath();
-		var spXl = transform(0,0,dfhistory,margin,dfwidth-margin);
-		var spXr = transform(dfhistory,0,dfhistory,margin,dfwidth-margin);
-		var spY = transform(setpoint,ymin,ymax,dfheight-margin,margin);
-		dfcontext.moveTo(spXl,spY);
-		dfcontext.lineTo(spXr,spY);
-		dfcontext.stroke()
-		}
-		var y;
-		var x;
-		var X;
-		var Y;
-		var moving = true;
-		initialize_plot(dfcanvas,dfcontext,dfwidth,dfheight);
-		dfcontext.strokeStyle = '#008800';
-		dfcontext.beginPath();
-		for (var index in dfs) {
-		x = index;		
-		y = dfs[index];
-		if (y == null) {
-			moving = true;
-			continue;
-		}
-		X = transform(x,0,dfhistory,margin,dfwidth-margin);
-		Y = transform(y,ymin,ymax,dfheight-margin,margin);
-		if (moving) {
-			dfcontext.moveTo(X,Y);
-		}
-		else {
-			dfcontext.lineTo(X,Y);
-		}
-		moving = false;
-		}
-		dfcontext.stroke();
-		setTimeout(
-		update_df,
-		100
-		);
-	}
 	)
 }
 
@@ -433,7 +446,7 @@ function on_load() {
 			{},
 			function () {}
 		);
-	}
+	};
 	document.getElementById('heater-state-submit').onclick = function () {
 		send_command(
 			'set heating',
@@ -442,7 +455,7 @@ function on_load() {
 			},
 			function () {}
 		);
-	}
+	};
 	document.getElementById('heater-voltage-submit').onclick = function () {
 	send_command(
 		'set heater voltage',
@@ -453,7 +466,7 @@ function on_load() {
 		},
 		function () {}
 	);
-	}
+	};
 	document.getElementById('scan-state-submit').onclick = function () {
 	send_command(
 		'set scanning',
@@ -462,7 +475,7 @@ function on_load() {
 		},
 		function () {}
 	);
-	}
+	};
 	document.getElementById('hene-fit-state-submit').onclick = function () {
 	send_command(
 		'set fitting',
@@ -472,7 +485,7 @@ function on_load() {
 		},
 		function () {}
 	);
-	}
+	};
 	document.getElementById('ir-fit-state-submit').onclick = function () {
 	send_command(
 		'set fitting',
@@ -482,18 +495,18 @@ function on_load() {
 		},
 		function () {}
 	);
-	}
-	document.getElementById('peak-offset-submit').onclick = function () {
-	send_command(
-		'set offset',
-		{
-		offset: parseFloat(
-			document.getElementById('peak-offset-control').value
-		)
-		},
-		function () {}
-	)
-	}
+	};
+	// document.getElementById('peak-offset-submit').onclick = function () {
+	// send_command(
+	// 	'set offset',
+	// 	{
+	// 	offset: parseFloat(
+	// 		document.getElementById('peak-offset-control').value
+	// 	)
+	// 	},
+	// 	function () {}
+	// );
+	// };
 	document.getElementById('lock-state-submit').onclick = function () {
 	send_command(
 		'set locking',
@@ -502,7 +515,7 @@ function on_load() {
 		},
 		function () {}
 	);
-	}
+	};
 	document.getElementById('lock-setpoint-submit').onclick = function () {
 	send_command(
 		'set setpoint',
@@ -512,15 +525,15 @@ function on_load() {
 		)
 		},
 		function () {}
-	)
-	}
+	);
+	};
 	document.getElementById('zero-offset').onclick = function () {
 	send_command(
 		'zero offset',
 		{},
 		function () {}
-	)
-	}
+	);
+	};
 	
 	scancanvas = document.getElementById(SCANPLOT);
 	scancontext = scancanvas.getContext('2d');
@@ -534,31 +547,31 @@ function on_load() {
 	
 	update_indicators();
 	send_command(
-	'get x decimated',
-	{},
-	function (xs64) {
-		scanx = decode_floats(xs64);
-		scanlength = scanx.length;
-		var xmin = scanx[0];
-		var xmax = scanx[scanx.length-1];
-		scanx.forEach(
-		function (x) {
-			scanX.push(transform(x,xmin,xmax,margin,scanwidth-margin));
-		}
-		)
-		n = 0
-		var x = xmin;
-		var dx = (xmax-xmin)/(fitscann-1);
-		while (n < fitscann) {
-		fitscanx.push(x);
-		fitscanX.push(transform(x,xmin,xmax,margin,scanwidth-margin));
-		x += dx;
-		n += 1;
-		}
-		update_scan();
-	}	
+		'get x decimated',
+		{},
+		function (xs64) {
+			scanx = decode_floats(xs64);
+			scanlength = scanx.length;
+			var xmin = scanx[0];
+			var xmax = scanx[scanx.length-1];
+			scanx.forEach(
+			function (x) {
+				scanX.push(transform(x,xmin,xmax,margin,scanwidth-margin));
+			}
+			)
+			n = 0
+			var x = xmin;
+			var dx = (xmax-xmin)/(fitscann-1);
+			while (n < fitscann) {
+			fitscanx.push(x);
+			fitscanX.push(transform(x,xmin,xmax,margin,scanwidth-margin));
+			x += dx;
+			n += 1;
+			}
+			update_scan();
+		}	
 	)
-	update_df();
+	update_df();	
 }
 
 function on_resize() {

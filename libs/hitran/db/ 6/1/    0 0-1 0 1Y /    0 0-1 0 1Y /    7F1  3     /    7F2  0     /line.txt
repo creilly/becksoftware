@@ -1,0 +1,4 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+2929.85613	5.823	2929.85613
+# epp: 3309.804500
+# added 2024-04-11 from HITEMP work on 2023-06-07

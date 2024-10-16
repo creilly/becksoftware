@@ -1,6 +1,4 @@
-import json
-import os
-import datetime
+import json, os, datetime, topo, wavemeter
 
 PATHENV = 'OPOPATH'
 try:
@@ -72,7 +70,7 @@ MOTOR = 'motor'
 PIEZO = 'piezo'
 TEMPERATURE = 'temperature'
 WAVENUMBER = 'wavenumber'
-def add_entry(htline,etalon,motor,piezo,temperature,wavenumber):
+def add_entry(htline,etalon,motor,piezo,temperature,wavenumber=None):
     path = fmt_path(*htline)
     if not os.path.exists(path):
         os.makedirs(path)
@@ -95,6 +93,17 @@ def add_entry(htline,etalon,motor,piezo,temperature,wavenumber):
             indent=2,sort_keys=True
         )
     return entry_code
+
+def get_parameters():
+    ic = topo.InstructionClient()
+    etalon = ic.get_etalon_pos()
+    motor = ic.get_motor_set_pos()
+    piezo = ic.get_piezo()
+    temperature = ic.get_diode_set_temperature()    
+    with wavemeter.WavemeterHandler() as wmh:
+        wavenumber = wavemeter.get_wavenumber(wmh)
+    return etalon, motor, piezo, temperature, wavenumber
+
 
 if __name__ == '__main__':
     htline = r' 6	1	    0 0 0 0 1A1	    0 1 0 1 1F2	    0A1  1     	    1A2  2     '.split('\t')

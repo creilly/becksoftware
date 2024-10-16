@@ -1,5 +1,5 @@
 import tclock as tl
-from transfercavity import transfercavityclient as tcc
+from tc import tcclient as tcc
 from grapher import graphclient as gc
 import lockin
 import config
@@ -9,14 +9,17 @@ import numpy as np
 import mirrormotion as mm
 import pi
 import topo
+import math
 
 transition = input('enter tagging transition: ')
 
 lidangle = float(input('enter center mirror angle: '))
 
-fshift = 50.0 # MHz
+fmod = {
+    'y':True, 'n':False
+}[input('frequency modulating? y or n: ').strip().lower()[0]]
 
-meastimefc = 1.0
+fshift = 50.0 # MHz
 
 delta_theta = 6.0
 
@@ -32,64 +35,47 @@ lip = config.get_lockin_params()
 with (
         pi.PIHandler() as pih,
         lockin.LockinHandler() as lih
-):
-    tau = lockin.get_time_constant(lih)
-    for _ in (None,):
-        def get_lockin(meastime):
-            starttime = time()
-            X = Y = PD = 0
-            n = 0
-            while True:
-                x, y, pd = lockin.get_xya(lih)
-                pd = topo.InstructionClient().get_input(topo.FAST4)
-                X += x
-                Y += y
-                PD += pd
-                n += 1 
-                if time() - starttime > meastime:
-                    break
-            X /= n
-            Y /= n
-            PD /= n
-            return X, Y, PD
+):    
+    ic = topo.InstructionClient()
+    meastime = lockin.get_time_constant(lih) * 10
+    name = transition
+    fmax = tcc.get_setpoint()
+    fmin = fmax + (
+        -1 if fmax > 0 else + 1
+    ) * fshift
+    path = gc.add_dataset(
+        gc.get_day_folder() + ['mirror bolo calib'],
+        name,
+        (
+            'mirror angle (degs)',
+            'lockin x on res (v)',
+            'lockin y on res (v)',
+            'pd on res (v)',
+            'lockin x off res (v)',
+            'lockin y off res (v)',
+            'pd off res (v)',
+        ),
         metadata = {
-            'wavesource':wsp,
-            'lockin':lip,
-            'transition':transition
+            'fmod':fmod,
+            **config.get_metadata(lih)
         }
-        name = transition
-        fmax = tcc.get_setpoint()
-        fmin = fmax + (
-            -1 if fmax > 0 else + 1
-        ) * fshift
-        path = gc.add_dataset(
-            gc.get_day_folder() + ['mirror bolo calib'],
-            name,
+    )
+    for phiindex, phi in enumerate(phis):
+        tcc.set_setpoint(fmax)
+        mm.set_mirrors(pih,phi)            
+        data = [phi]        
+        for resindex, f in enumerate(
             (
-                'mirror angle (degs)',
-                'delta lockin r (v)',
-                'delta lockin x (v)',
-                'delta lockin y (v)',
-                'ir photodiode off res (v)'                 
-            ),
-            metadata = metadata
-        )
-        for phiindex, phi in enumerate(phis):
-            tcc.set_setpoint(fmax)
-            mm.set_mirrors(pih,phi)            
-            X = Y = 0.0            
-            for resindex, f in enumerate(
-                (
-                    fmax,fmin
-                )
-            ):
-                if resindex:
-                    tcc.set_setpoint(f)
-                tcc.check_transfer_cavity(f,1.0)                
-                sleep(tau * 10.0)
-                x, y, pd = get_lockin(meastimefc)
-                sign = {0:+1,1:-1}[resindex]                
-                X += sign * x
-                Y += sign * y
-            R = np.sqrt(X**2 + Y**2)
-            gc.add_data(path,[phi,R,X,Y,pd])
+                fmax,*([fmin] if fmod else [])
+            )
+        ):
+            if resindex and not fmod:
+                tcc.set_setpoint(f)            
+            sleep(meastime)
+            x, y = lockin.get_xy(lih)
+            pd = ic.get_input(topo.FAST4)        
+            data.extend([x,y,pd])
+            if fmod:
+                data.extend([math.nan]*3)
+                continue
+        gc.add_data(path,data)

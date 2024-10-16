@@ -22,7 +22,7 @@ def open_tlc(visa_id):
     tlc = pyvisa.ResourceManager().open_resource(visa_id)
     tlc.write_termination = None
     tlc.baud_rate = BAUD_RATE
-    tlc.timeout = 100 # milliseconds
+    tlc.timeout = 1000 # milliseconds
     return tlc
 
 def close_tlc(tlc):
@@ -65,6 +65,32 @@ def get_command_list(tlc):
 def get_locked(tlc):
     return bool(send_command(tlc,'locked?'))
 
+INTERNAL, EXTERNAL = 0, 1
+def set_reference_mode(tlc,reference_mode):
+    return send_command(tlc,'ref={:d}'.format(reference_mode))
+
+def get_reference_mode(tlc):
+    return int(send_command(tlc,'ref?'))
+
+def get_frequency(tlc):    
+    return int(send_command(tlc,'freq?'))
+
+def set_frequency(tlc,freq):
+    return send_command(tlc,'freq={:d}'.format(freq))
+
+def set_enable(tlc,enabled):
+    return send_command(tlc,'enable={:d}'.format(int(enabled)))
+
 if __name__ == '__main__':
+    import argparse
+    ap = argparse.ArgumentParser(description='set the reference mode of the thorlabs chopper')
+    ap.add_argument('-m','--mode',type=int,choices=(INTERNAL,EXTERNAL),help='interal (0) or external (1) reference')
+    ap.add_argument('-p','--phase',type=int,help='chopper phase')
+    args = ap. parse_args()
+    mode = args.mode
+    phase = args.phase
     with TLChopperHandler() as tlch:
-        print('locked?',get_locked(tlch))
+        if mode is not None:
+            set_reference_mode(tlch,mode)
+        if phase is not None:
+            set_phase(tlch,phase)

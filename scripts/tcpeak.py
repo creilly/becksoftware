@@ -1,60 +1,74 @@
-from transfercavity import transfercavityclient as tcc
+from tc import tcclient as tcc, locker, tcserver
 import lockin
 from time import time
 from time import sleep
-import topo, config
+import config
 import argparse
 import numpy as np
 from matplotlib import pyplot as plt
 import fit
-from bologain import bologainclient, bologainserver
+from bologain import bologainclient
 from grapher import graphclient as gc
+from scipy.optimize import curve_fit
+
+np.random.seed()
 
 X, Y, R = 'x', 'y', 'r'
 
-def find_peak(deltaf,df,tau,sens,axis,saving,name):    
-    meastime = 10 * tau # seconds
-    settletime = 10 * tau # seconds
+LOCKIN1, LOCKIN2 = 1, 2
+
+def fm_fit(f,muf,sigmaf,amp,offset):
+    return amp / sigmaf * np.exp(1/2) * (f-muf) * np.exp(
+        -1/2 * ((f-muf)/sigmaf)**2
+    ) + offset
+
+def find_peak(deltaf,df,tau,sens,axis,saving,name,liid,laser,fmod,debug):    
     success = True
-    with lockin.LockinHandler() as lih:
-        tau = lockin.set_time_constant(lih,tau)
-        lockin.set_sensitivity(lih,sens)
-        lid = config.get_lockin_params(lih)
-        def get_lockin(meastime):
-            starttime = time()
-            X = Y = 0
-            n = 0
-            while True:
-                x, y, _ = lockin.get_xya(lih)
-                X += x
-                Y += y
-                n += 1 
-                if time() - starttime > meastime:
-                    break
-            X /= n
-            Y /= n
-            return X, Y
-        fo = tcc.get_setpoint()
+    for tcdirection, laserp in tcserver.laserd.items():
+        if laserp == laser:
+            break
+    livisa = {
+        LOCKIN1:'lockin',LOCKIN2:'lockin2'
+    }[liid]
+    with lockin.LockinHandler(livisa) as lih:
+        tau = lockin.set_time_constant(lih,tau)        
+        meastime = 10 * tau # seconds        
+        lockin.set_sensitivity(lih,sens)              
+        sleep(1.0)              
+        lid = config.get_lockin_params(lih)      
+        fo = tcc.get_setpoint(tcdirection)
         print('initial setpoint: {:.2f} MHz'.format(fo))
         fs = np.arange(fo-deltaf/2,fo+deltaf/2,df)
-        zs = []
-        tcc.set_setpoint(fs[0])
-        print('settling.')
-        sleep(settletime)
-        print('done settling.')
+        zs = []        
         if saving:
             path = gc.add_dataset(
                 [*gc.get_day_folder(),'tc peaks'],
                 name,
                 ('tc setpoint (MHz)','lockin x (v)','lockin y (v)'),
                 metadata={
-                    'lockin':lid
+                    'lockin':lid,
+                    'livisa':livisa,
+                    'laser':{
+                        locker.TOPO:'topo',
+                        locker.ARGOS:'argos'
+                    }[laser]
                 }
             )
         for f in fs:
             try:
-                tcc.set_setpoint(f)
-                x, y = get_lockin(meastime)
+                tcc.set_setpoint(tcdirection,f)
+                sleep(meastime)
+                if not debug:
+                    x, y = lockin.get_xy(lih)
+                else:
+                    x = (
+                        -fm_fit(
+                            f, fo, 10, 1e-3, 0.0
+                        ) if fmod else fit.gaussian(
+                            f, fo, 10, 1e-3, 0.0
+                        )
+                    ) + np.random.normal(0,5e-2*1e-3)
+                    y = np.random.normal(0,5e-2*1e-3)                    
                 if saving:
                     gc.add_data(path,(f,x,y))
                 print(
@@ -87,7 +101,7 @@ def find_peak(deltaf,df,tau,sens,axis,saving,name):
                 zs.append(
                     {
                         X:x,Y:y,R:np.sqrt(x**2 + y**2)
-                    }[axis]
+                    }[axis] if not fmod else x
                 )            
             except KeyboardInterrupt:
                 response = input('interrupt received. [q]uit or [c]ontinue (default)? : ')
@@ -96,16 +110,34 @@ def find_peak(deltaf,df,tau,sens,axis,saving,name):
                 break            
         zs = np.array(zs)
         fs = fs[:len(zs)]
-        tcc.set_setpoint(fo)        
+        tcc.set_setpoint(tcdirection,fo)        
         try:
             if np.abs(zs).max() > zs.max():
                 sign = -1.0
             else:
                 sign = +1.0
-            params, cov = fit.gaussian_fit(fs,sign*zs,*fit.gaussian_guess(fs,sign*zs))
+            if fmod:
+                zmin = zs.min()
+                zmax = zs.max()                
+                fmin = fs[zs.argmin()]
+                fmax = fs[zs.argmax()]
+                if fmin < fmax:
+                    sign = +1.0
+                else:
+                    sign = -1.0
+                fmu = 1/2 * (fmin + fmax)
+                sigma = 1/2 * abs(fmax - fmin)
+                amp = np.average(np.abs([zmin,zmax]))
+                offset = 0.0
+                guess = (fmu,sigma,amp,offset)
+                params, cov = curve_fit(fm_fit,fs,sign*zs,guess)
+                ffunc = fm_fit
+            else:
+                params, cov = fit.gaussian_fit(fs,sign*zs,*fit.gaussian_guess(fs,sign*zs))
+                ffunc = fit.gaussian
             print('params',params)
             plt.plot(fs,1e3*zs,'k+',label='data')
-            plt.plot(fs,1e3*sign*fit.gaussian(fs,*params),'r--',label='fit')
+            plt.plot(fs,1e3*sign*ffunc(fs,*params),'r--',label='fit')
             plt.xlabel('tcc setpoint / MHz')
             plt.ylabel('lock-in {} signal (millivolts)'.format(axis))
             plt.title(name)
@@ -122,7 +154,8 @@ if __name__ == '__main__':
     DELTAF = 200.0 # MHz
     DF = 1.0 # MHz
     TAU = 100e-3 # seconds
-    SENS = 100e-3 # volts
+    SENS = 100e-3 # volts    
+    topo, argos = 'topo', 'argos'
     parser = argparse.ArgumentParser(description='transfer cavity peak finder')
     parser.add_argument(
         '-d','--deltaf',type=float,default=DELTAF,
@@ -151,15 +184,33 @@ if __name__ == '__main__':
     parser.add_argument(
         '-n', '--name',default='scan',help='name for grapher dataset'
     )
+    parser.add_argument(
+        '-f', '--fmod',choices=('y','n'),default='n',help='frequency modulation'
+    )
+    parser.add_argument(
+        '-g', '--debug',choices=('y','n'),default='n',help='debug mode'
+    )
+    parser.add_argument(
+        '-l','--lockin',choices=(LOCKIN1,LOCKIN2),default=LOCKIN1,type=int,help='which lockin amplifier'
+    )
+    parser.add_argument(
+        '-z','--laser',choices=(topo,argos),default=topo,help='which laser to scan'
+    )
     args = parser.parse_args()
     deltaf = args.deltaf
     df = args.epsilonf
     tau = args.tau
     sens = args.sensitivity
     saving = {'y':True,'n':False}[args.save]
+    fmod = {'y':True,'n':False}[args.fmod]
+    debug = {'y':True,'n':False}[args.debug]
     axis = args.axis
     bologain = args.bologain
     name = args.name
+    liid = args.lockin
+    laser = {
+        topo:locker.TOPO,argos:locker.ARGOS
+    }[args.laser]
     bologainclient.set_gain(bologain)
     print(
         ','.join(
@@ -175,7 +226,7 @@ if __name__ == '__main__':
         ),',','axis:',axis
     )    
     while True:
-        success, fs, xs, params, cov = find_peak(deltaf,df,tau,sens,axis,saving,name)
+        success, fs, xs, params, cov = find_peak(deltaf,df,tau,sens,axis,saving,name,liid,laser,fmod,debug)
         if success:
             break
         response = input(
@@ -184,10 +235,14 @@ if __name__ == '__main__':
         if not response or response[0].lower() == 'q':
             exit(0)
         deltaf = float(response)
-    fmax = params[0]
+    if fmod:
+        muf, sigmaf, ampz, offsetz = params
+        fmax = min(muf + sigmaf,muf - sigmaf,key = abs)
+    else:
+        fmax = params[0]
     print('peak detuning: {:.2f} MHz'.format(fmax))
-    print('setting to peak.')
-    tcc.set_setpoint(fmax)
+    # print('setting to peak.')
+    # tcc.set_setpoint(fmax)
     print('done.')
                 
     

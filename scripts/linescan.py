@@ -1,5 +1,6 @@
 import topo, wavemeter as wm, interrupthandler, oscilloscope as scope, \
-    numpy as np, hitran, argparse, beckasync, interrupthandler, opo as opomod
+    numpy as np, hitran, beckasync, interrupthandler, opo as opomod, laselock, \
+        topolock, piezo
 from topo import topotoolsplus as ttp
 from time import sleep
 
@@ -460,8 +461,27 @@ def line_wizard(spin,nuo,nup,j,jmax,branch):
     return htline
 
 if __name__ == '__main__':
-    import opo
-    import tclock
+    import opo, os, tclock, argparse, pathlib 
+
+    aliasfname = 'linescanaliases.txt'
+    def lookup_alias(alias):        
+        with open(
+            os.path.join(
+                os.path.split(
+                    pathlib.Path(__file__)
+                )[0],aliasfname
+            ),'r'
+        ) as f:            
+            lines = f.read().split('\n')
+            while lines:
+                line = lines.pop()
+                if not line:
+                    return None
+                if not line.strip(): continue
+                aliasp, *htline = line.split('\t')                
+                if aliasp.lower() == alias.lower():
+                    return htline
+                
     ap = argparse.ArgumentParser()
     YES, NO = 'y', 'n'    
     boold = {
@@ -469,62 +489,79 @@ if __name__ == '__main__':
     }
     options = (YES,NO)
     ap.add_argument(
-        '--opo','-o',choices=(YES,NO),default=YES,help='look up values in opo db? ([y] or [n])',
+        '--opo','-o',choices=(YES,NO),default=YES,help='look up values in opo db? ( [y] or n ).',
     )
     ap.add_argument(
-        '--code','-c',type=int,default=OPO_LATEST,help='entry code to look up in opo dp (latest = {:d})'.format(OPO_LATEST)
+        '--code','-c',type=int,default=OPO_LATEST,help='entry code to look up in opo dp (default latest = {:d})'.format(OPO_LATEST)
     )
     ap.add_argument(
-        '--update','-u',choices=(YES,NO),default=YES,help='update opo db after set? ([y] or [n])'
+        '--update','-u',choices=(YES,NO),default=YES,help='update opo db after set? ( [y] or n )'
     )
+    # ap.add_argument(
+    #     '--tc','-t',default=NO,choices=(YES,NO),help='lock to transfer cavity? ( y or [n] )'
+    # )    
     ap.add_argument(
-        '--tc','-t',default=NO,choices=(YES,NO),help='lock to transfer cavity? ([y] or [n])'
-    )
-    ap.add_argument(
-        '--wavenum','-w',default=-1,type=float,help='set topo to specified wavenumber (skips line selection)'
-    )
-    ap.add_argument(
-        '--spin','-s',default=ALLSPIN,type=int,choices=(META,ORTHO,PARA),help='nuclear spin isomer (para=0, ortho=1, meta=2)'
+        '--spin','-s',default=ALLSPIN,type=int,choices=(META,ORTHO,PARA),help='nuclear spin isomer ( all spins={:d} para=0, ortho=1, meta=2 )'.format(ALLSPIN)
     )   
     ap.add_argument(
-        '--jmax','-x',default=10,type=int,help='max initial j to display'
+        '--jmax','-x',default=10,type=int,help='max initial j to display (default j <= {:d})'.format(10)
     )
     ap.add_argument(
-        '--j','-j',default=ALLJ,type=int,help='lower j level'
+        '--j','-j',default=ALLJ,type=int,help='lower j level (default all j values)'
     )
     ap.add_argument(
-        '--nuo','-v',default=ALLNU,type=int,nargs=4,help='lower nu quanta (e.g. 0 1 0 1 for v2v4 comb band)'
+        '--nuo','-v',default=ALLNU,type=int,nargs=4,help='lower nu quanta (e.g. 0 1 0 1 for v2v4 comb band). default all nu quanta'
     )
     ap.add_argument(
-        '--nup','-p',default=ALLNU,type=int,nargs=4,help='upper nu quanta (e.g. 0 1 0 1 for v2v4 comb band)'
+        '--nup','-p',default=ALLNU,type=int,nargs=4,help='upper nu quanta (e.g. 0 1 0 1 for v2v4 comb band). default all nu quanta'
     )
     ap.add_argument(
-        '--dw','-d',default=0.0,type=float,help='wavemeter offset (cm-1)'
+        '--dw','-d',default=0.0,type=float,help='wavemeter offset (cm-1). default 0.0 cm-1'
     )
     ap.add_argument(
-        '--branch','-b',type=int,default=ALLBRANCH,help='branch (p = -1, q = 0, r = +1)'
+        '--branch','-b',type=int,default=ALLBRANCH,help='branch ( p = -1, q = 0, r = +1, default all branches = {:d} )'.format(ALLBRANCH)
+    )   
+    ap.add_argument(
+        '--alias','-a',help='line alias'
+    ) 
+    ap.add_argument(
+        '--topolock','-k',choices=(YES,NO),default=YES,help='fabry perot locking after line set? ( [y] or n )'
     )
-    args = ap.parse_args()
-    w = args.wavenum    
+    args = ap.parse_args()    
     opob = boold[args.opo]
     code = args.code
     update = boold[args.update]
-    tc = boold[args.tc]    
+    # tc = boold[args.tc]    
     dw = args.dw
-    htline = line_wizard(args.spin,args.nuo,args.nup,args.j,args.jmax,args.branch)
+    alias = args.alias
+    topolocking = boold[args.topolock]
+    if alias is None:
+        htline = line_wizard(args.spin,args.nuo,args.nup,args.j,args.jmax,args.branch)
+    else:
+        htline = lookup_alias(alias)
     if htline is None:
         print('no line found!')
         exit(1)
     print('selected line: {}'.format(hitran.fmt_line(htline)))    
     print('setting line...')   
-    if tc:
-        while True:
-            success, (e, m, f, w) = tclock.locktc(htline,dw,opo=opob,opo_entry=code)
-            if not success:
-                print('tc lock failed. retrying...')
-            break
-    else:
+    # if tc:
+    #     while True:
+    #         success, (e, m, f, w) = tclock.locktc(htline,dw,opo=opob,opo_entry=code)
+    #         if not success:
+    #             print('tc lock failed. retrying...')
+    #         break        
+    tclock.disable_lock('down')
+    with (
+        laselock.LaseLockHandler() as llh,
+        scope.ScopeHandler() as sh,
+        piezo.PiezoDriverHandler() as pdh
+    ):        
+        topolock.setup_lock(sh,llh)        
         w, _, e, m = set_line(htline,dw,opo = opob,opo_entry=code)
+        if topolocking:            
+            topolock.lock_topo(topo.InstructionClient(),sh,pdh,llh) 
+        else:
+            topolock.set_dither(llh,True)
     print('line set.')
     if update:
         ic = topo.InstructionClient()                

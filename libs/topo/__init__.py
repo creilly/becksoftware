@@ -19,6 +19,7 @@ bufsize = 256
 class Client:
     def __init__(self,port,readterm):
         socket = s.socket(s.AF_INET, s.SOCK_STREAM)
+        socket.setsockopt(s.IPPROTO_TCP, s.TCP_NODELAY,1)
         socket.connect((IP,port))
         self.socket = socket
         self.readterm = readterm

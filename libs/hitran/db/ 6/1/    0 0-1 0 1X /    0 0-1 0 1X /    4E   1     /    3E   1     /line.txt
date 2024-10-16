@@ -1,5 +1,6 @@
 wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
-2942.48547	19.67	2942.4857
+2942.48547	19.67	2942.4853
 # epp = 3125.6106 cm-1
+# update: observed BILT 2023-10-24
 # update: observed BILT 2023-06-29
 # previous observation: gas cell 2942.48506
