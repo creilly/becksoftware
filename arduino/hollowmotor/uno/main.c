@@ -6,15 +6,17 @@
  */ 
 
 #define F_CPU 16000000UL // clock speed of crystal oscillator integrated into arduino
-#define F_FUND 474.0 // base frequency (in Hz) from which subharmonics are synthesized
+#define F_FUND 3555.0 // base frequency (in Hz) from which subharmonics are synthesized
 #define PRESCALAR1 8 // clock resolution for counter1 (set so that oscillation period of C1 is < 2^16 counts)
 #define PRESCALAR0 8 // clock resolution for counter0 (set so that sufficient time passes between interrupts)
-#define SUB0A 2 // subharmonic for waveform A of counter0 (e.g. if F_FUND is 1000 Hz and SUB0A is 10, then freq of waveform A of counter0 is 100 Hz)
-#define SUB0B 1 // subharmonic for waveform B of counter0
-#define SUB1 4 // subharmonic for waveform B of counter1 (set equal to double of desired subharmonic for motor frequency [in chopper slits / second]
-#define C1 0 // identifier for waveform B of counter1
-#define C0A 1 // identifier for waveform A of counter0
-#define C0B 2 // identifier for waveform B of counter0
+#define SUB0A 10 // subharmonic for waveform A of counter0 (e.g. if F_FUND is 1000 Hz and SUB0A is 10, then freq of waveform A of counter0 is 100 Hz)
+#define SUB0B 15 // subharmonic for waveform B of counter0
+#define SUB1A 12 // subharmonic for waveform A of counter1 (set equal to double of desired subharmonic for motor frequency [in chopper slits / second]
+#define SUB1B 60 // subharmonic for waveform B of counter1 (set equal to double of desired subharmonic for motor frequency [in chopper slits / second]
+#define C1A 0 // identifier for waveform A of counter1
+#define C1B 1 // identifier for waveform B of counter1
+#define C0A 2 // identifier for waveform A of counter0
+#define C0B 3 // identifier for waveform B of counter0
 
 // phase shift modes
 #define SHIFT_IDLE 0
@@ -56,8 +58,8 @@ typedef struct Counters {
 // variable holding current dac value
 uint16_t dac;
 
-// counters C1, C0A, C0B
-Counter counters[3];
+// counters C1A, C1B, C0A, C0B
+Counter counters[4];
 
 // C0A phase shifter vars
 volatile uint8_t shift_signal = SHIFT_IDLE;
@@ -187,19 +189,26 @@ void init_timers(void) {
 	// preloop variable initializations
 	uint32_t period;
 	uint16_t subharmonic;
-	uint8_t tc_bit;
+	uint8_t tc_bit, isc1;
 	
 	// compute counter properties
-	for (int i = 0; i < 3; i++) {
-		uint16_t prescalar = i == C1 ? PRESCALAR1 : PRESCALAR0;
+	for (int i = 0; i < 4; i++) {
+		isc1 = i == C1A || i == C1B;
+		uint16_t prescalar = isc1 ? PRESCALAR1 : PRESCALAR0;
 		Counter* counter = counters + i;
-		counter->bytes = i == C1 ? 2 : 1;
+		counter->bytes = isc1 ? 2 : 1;
 		counter->state = false;
-		counter->tc_reg = i == C1 ? &TCCR1A : &TCCR0A;
-		set_ps(i == C1 ? &TCCR1B : &TCCR0B, prescalar, i == C1 ? CS10 : CS00);
+		counter->tc_reg = isc1 ? &TCCR1A : &TCCR0A;
+		set_ps(isc1 ? &TCCR1B : &TCCR0B, prescalar, isc1 ? CS10 : CS00);
 		switch (i) {
-			case C1:
-				subharmonic = SUB1;
+			case C1A:
+				subharmonic = SUB1A;
+				counter->oc_reg = &OCR1A;
+				counter->state_bit = COM1A0;
+				tc_bit = COM1A1;
+				break;
+			case C1B:
+				subharmonic = SUB1B;
 				counter->oc_reg = &OCR1B;
 				counter->state_bit = COM1B0;
 				tc_bit = COM1B1;
@@ -220,22 +229,22 @@ void init_timers(void) {
 		// set counters to run
 		toggle_bit(counter->tc_reg,tc_bit,true);
 		period = periodo * prescalaro / prescalar * subharmonic;
-		get_largest_remainder(period,(1L << (counter->bytes * 8)) - (i == C1 ? shift_value : 0),&counter->period,&counter->remainder,&counter->cycles);
+		get_largest_remainder(period,(1L << (counter->bytes * 8)) - (i == C1A ? shift_value : 0),&counter->period,&counter->remainder,&counter->cycles);
 		counter->cycle = counter->cycles;
-		set_oc(counter,counter->remainder);
+		set_oc(counter,counter->cycle ? counter->period : counter->remainder);
 	}
 	
 	// set counter0 output compare pins to output
 	set(DDRD,DDD6,DDD5);
 	
 	// set counter1 output compare pins to output
-	set(DDRB,DDB2);
+	set(DDRB,DDB1,DDB2);
 	
 	// enable interrupt for counter0 comp matches
 	set(TIMSK0,OCIE0A,OCIE0B);
 	
 	// enable interrupt for counter1 comp match
-	set(TIMSK1,OCIE1B);
+	set(TIMSK1,OCIE1A,OCIE1B);
 	
 	// enable counters
 	unset(GTCCR,TSM);
@@ -258,7 +267,7 @@ void output_compare_update(uint8_t counter_index) {
 	uint16_t cycle = counter->cycle--;
 	if (cycle == 0) {
 		// phase shift logic
-		if (counter_index == C1) {
+		if (counter_index == C1A) {
 			if (shift_signal == SHIFT_REQUESTED) {
 				counter->remainder += shift_sign * shift_value;
 				shift_signal = UNSHIFT_REQUESTED;
@@ -279,8 +288,12 @@ void output_compare_update(uint8_t counter_index) {
 	increment_oc(counter,cycle ? counter->period : counter->remainder);
 }
 
+ISR(TIMER1_COMPA_vect) {
+	output_compare_update(C1A);
+}
+
 ISR(TIMER1_COMPB_vect) {
-	output_compare_update(C1);
+	output_compare_update(C1B);
 }
 
 ISR(TIMER0_COMPA_vect) {
@@ -386,7 +399,7 @@ void write_bytes(uint8_t nbytes, uint8_t bytes[]) {
 
 // compute delay between opto-interrupter trigger and next output compare
 uint16_t get_delay(void) {
-	Counter* counter = counters + C1;
+	Counter* counter = counters + C1A;
 	uint16_t delay = get_oc(counter) - ICR1;
 	return delay < counter->remainder ? delay : ~delay + 1;
 }
@@ -414,8 +427,8 @@ void init_io(void) {
 
 // initialize servo
 void init_feedback(void) {
-	setpoint = counters[C1].remainder / 2;
-	delay = counters[C1].remainder;
+	setpoint = counters[C1A].remainder / 2;
+	delay = counters[C1A].remainder;
 	previous = delay;
 }
 
@@ -438,7 +451,7 @@ int main(void)
 	init_feedback();
 	init_input_capture();
 	sei();
-	uint16_t period = counters[C1].remainder;
+	uint16_t period = counters[C1A].remainder;
 	uint8_t status, data;
 	int32_t dac_p, delayo, previouso, setpointo;
 	bool positive;
@@ -553,6 +566,9 @@ int main(void)
 				// phase shift already in progress
 				write(0x00);
 			}
+		}
+		else if (data == 'L') {
+			write_bytes(1,&locking);
 		}
 	}
 }
