@@ -17,7 +17,7 @@ ap.add_argument('--settle','-l',default=1.0,type=float,help='settle time')
 ap.add_argument('--step','-s',type=float,default=2.0,help='step size (degrees)')
 ap.add_argument('--min','-m',default=10.0,type=float,help='starting angle')
 ap.add_argument('--max','-p',default=65.0,type=float,help='stopping angle')
-ap.add_argument('--sensitivity','-v',default=pm.RANGE_3W,type=float,help='power meter range (in watts for pm, volts for li)')
+ap.add_argument('--sensitivity','-v',default=3.0e0,type=float,help='power meter range (in watts for pm, volts for li)')
 ap.add_argument(
     '--folder','-f',default=[],nargs='*',
     help='grapher folders. enclose each subfolder in quotes and separate by whitespace.'
@@ -73,7 +73,18 @@ with (
         dh = pmh
         pm.set_autoscale(dh,False)
         sleep(1.0)
-        pm.set_range(dh,sensitivity)
+        pm.set_range(
+            dh,min(
+                (abs(sensitivity - so),ko)
+                for so, ko in (
+                    (30e-3,pm.RANGE_30MW),
+                    (100e-3,pm.RANGE_100MW),
+                    (300e-3,pm.RANGE_300MW),
+                    (1e-0,pm.RANGE_1W),
+                    (3e-0,pm.RANGE_3W)
+                )
+            )[1]
+        )
         sleep(1.0)
     if detector == LOCKIN:
         dh = lih
