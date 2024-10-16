@@ -32,12 +32,12 @@ calibdate = '2023.06.25'
 
 ro = 16.0
 
-# xc = -25.812800000141785     #x offset (mm)
-# yc = -39.51900000014259     #y offset (mm)
+# xc = -25.812800000141785     # x offset (mm)
+# yc = -39.51900000014259     # y offset (mm)
 # r = 14.962259999773522      # - circle radius (mm), calibrated at r=15.0
-# a =  -5.603500000056165      #- angle offset (degs)
+# a =  -5.603500000056165      # - angle offset (degs)
 # e = 1.010219999972917      # -squish (unitless)
-# s = -1.910800000003037     #- slant (degs)
+# s = -1.910800000003037     # - slant (degs)
 
 # 2023-06-25
 # see Z:\Surface\chris\scripts-data\2023\06\25\lidmirrorcalib\anlmc.py
