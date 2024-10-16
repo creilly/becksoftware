@@ -120,10 +120,10 @@ def set_biasing(pah,biasing):
 if __name__ == '__main__':
     try:
         with PicoammeterHandler() as pah:
-            biasing = {
-                'y':'1','n':'0'
-            }[input('do you want to bias? y/n: ')]        
-            print(query_pa(pah,'B',biasing))
+            # biasing = {
+            #     'y':'1','n':'0'
+            # }[input('do you want to bias? y/n: ')]        
+            # print(query_pa(pah,'B',biasing))
             while True:
                 try:
                     print(
