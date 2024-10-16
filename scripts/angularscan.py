@@ -1,165 +1,138 @@
+import lockin, config, numpy as np, argparse, interrupthandler, maxon, chopper, time
 from bologain import bologainserver, bologainclient
 from lid import lidclient
-import lockin
-import config
 from grapher import graphclient as gc
-from time import sleep, time
-import numpy as np
-import argparse
-import interrupthandler
-import maxon
-import datetime
 
-epsilonv = 50 # rpm
-# def_bolo_sens = 100.0e-3
-def_bolo_sens = 500.0e-3
+fo = 237.0 # Hz
+foldero = 'lid scans'
 
 ap = argparse.ArgumentParser()
-ap.add_argument('-s','--bolosens',type=float,default=def_bolo_sens,help='bolometer sensitivity')
+
+ap.add_argument(
+    '-l','--laser',action='store_true',help='laser measurement (no molecular beam chopper)'
+)
+ap.add_argument(
+    '-b','--bologain',type=int,
+    choices=(
+        bologainserver.X10,
+        bologainserver.X100,
+        bologainserver.X200,
+        bologainserver.X1000,
+    ),
+    default=bologainserver.X1000,help='bolometer gain'
+)
+ap.add_argument(
+    'start',type=float,help='starting lid angle'
+)
+ap.add_argument(
+    'stop',type=float,help='final lid angle'
+)
+ap.add_argument(
+    'step',type=float,help='lid angle step size'
+)
+ap.add_argument(
+    'name',help='dataset name'
+)
+ap.add_argument(
+    '-t','--tau',type=float,help='lockin time constant (seconds)'
+)
+ap.add_argument(
+    '-v','--sensitivity',type=float,help='lockin sensitivity'
+)
+ap.add_argument(
+    '-f','--frequency',type=float,default=fo,help='chopper frequency (Hz). default {:.1f} Hz'.format(fo)
+)
+ap.add_argument(
+    '-d','--folder',default=foldero,help='grapher folder (default "{}")'.format(foldero)
+)
+ap.add_argument(
+    '-r','--rootfolder',nargs='*',help='root folder tree. separate levels by space. default is day folder.'
+)
+ap.add_argument(
+    '-i','--info',help='info to add to metadata'
+)
 
 args = ap.parse_args()
 
-bolo_sens = args.bolosens
-lockin_tau = 30e-3
+if args.bologain is not None:
+    bologainclient.set_gain(args.bologain)
 
 with lockin.LockinHandler() as lih:
-    lockin.set_time_constant(lih,lockin_tau)
-    lockin.set_sensitivity(lih,bolo_sens)
-    lockin.set_ref_source(lih,lockin.EXTERNAL)
+    for arg, func in (
+        (args.tau, lockin.set_time_constant),
+        (args.sensitivity, lockin.set_sensitivity),
+    ):
+        if arg is not None:
+            func(lih,arg)
+    tau = lockin.get_time_constant(lih)
 
-centerangle = float(input('enter the center lid angle: '))
+measure_time = tau * 20
 
-# bologain = bologainserver.X200
-bologain = bologainserver.X10
+freq = args.frequency
 
-theta_lim = 45.0
-
-delta_theta = 5.0
-theta_spec = centerangle
-theta_min = max(theta_lim,theta_spec-delta_theta)
-theta_max = theta_spec+delta_theta
-# theta_min = 52
-# theta_max = 96
-
-# dtheta = 2
-dtheta = 0.5
-
-thetas = np.arange(theta_min,theta_max + dtheta/2,dtheta)
-
-wait_time = 1.0
-
-measure_time = 2.5
-maxon_open = 0
-f_chop = 237.1 #Hz
-
-folder = gc.get_day_folder() + ['lidscan']
-
-fname = input('enter description: ')
-
-bologainclient.set_gain(bologain)
-
-metadata = {}
-startscantime = time()
-metadata['start time'] = (startscantime,'seconds since epoch')
-
-with (
-    lockin.LockinHandler() as lih,
-    interrupthandler.InterruptHandler() as ih,
-    maxon.MaxonHandler() as mh,
-):
-    metadata.update(config.get_metadata(lih,[config.LOGGER,config.LOCKIN,config.BOLOMETER]))
-    print('press ctrl-c to quit.')
-
-    def check_fault():
-        # handle maxon motor faults        
-        faulting = maxon.get_fault(mh)        
-        if faulting:            
-            print('fault detected!')
-            print('clearing fault.')
-            maxon.clear_fault(mh)
-            with open('faultlog.txt','a') as f:
-                f.write(datetime.datetime.now().isoformat() + '\n')
-        return faulting
-
-    check_fault()
-    units = maxon.get_velocity_units(mh)
-    maxon.set_operation_mode(mh,maxon.M_PROFILE_VELOCITY)
-    maxon.set_enabled_state(mh,True)
-    v_chop = f_chop * 60 / 2 # rpm
-    maxon.move_with_velocity(mh,v_chop,units)
-    sleep(5)
-    v_act = maxon.get_velocity_act(mh,units)
-    print('waiting for motor to reach chopping speed...')
-    while abs(v_act-v_chop) > epsilonv:
-        v_act = maxon.get_velocity_act(mh,units)
-        print(
-                    ',\t'.join(
-                        '{}: {:.3f} rpm'.format(label,vel)
-                        for label, vel in (
-                                ('vset',v_chop),
-                                ('vact',v_act),
-                        )
-                    )
-                )   
-        sleep(2)         
-    print('chopping speed reached.')
-
-    separation_valve = input('open separation valve, press enter when done')
-    path = gc.add_dataset(
-        folder,
-        fname,
-        (
-            'lid angle (degrees)',
-            'lockin r (volts)',
-            'lockin theta (degrees)',
-            'time delta since start time(s)'        
-        ),
-        metadata = metadata
-    )
-    for theta in thetas:
-        if ih.interrupt_received():
-            print('interrupt received. quitting.')
-            break
-        print('angle:',int(1000*theta),'milldegrees')
-        lidclient.set_lid(theta)
-        print('waiting to stabilize...')
-        sleep(wait_time)
-        lidclient.wait_lid(lambda : print(lidclient.get_lid()))
-        R = T = DT = 0
-        n = 0
-        start_time = time()
-        while True:
-            r, t = lockin.get_rt(lih)
-            R += r
-            T += t
-            DT += time()-startscantime
-            n += 1
-            if time()-start_time > measure_time:
-                break
-        R /= n
-        T /= n
-        DT /=n        
-        gc.add_data(path,(theta,R,T,DT))
-
-    print('quick stopping motor.')
-    maxon.set_quick_stop_state(mh)
-    print('waiting for motor to stop.')
-    while not maxon.get_movement_state(mh):
-        if check_fault():
-            break
-        print(
-                    'slowing down. vel act:',
-                    maxon.get_velocity_act(mh,units),
-                    'rpm'
-                )
-        sleep(5)
-        continue
-    print('quick stop complete.')
-    maxon.set_enabled_state(mh,False)
-    separation_valve = input('close separation valve, press enter when done')
-    print('setting motor to homing mode.')
-    maxon.set_operation_mode(mh,maxon.M_HOMING)        
-    
-    maxon.set_enabled_state(mh,True)
-    print('homing motor.')
-    maxon.find_home(mh)
+with maxon.MaxonHandler() as mh:
+    try:
+        angles = np.arange(args.start,args.stop,args.step)
+        print('press ctrl-c to quit.')
+        print('starting lid move')
+        lidclient.set_lid(angles[0]-0.001,wait=False)
+        if not args.laser:
+            print('starting spin')
+            chopper.start_spin(mh,freq*60/2)
+            print('waiting spin...')
+            chopper.wait_spin(mh,1.0)
+            print('spin done.')            
+        print('waiting lid move...')
+        lidclient.wait_lid()
+        print('lid move done')
+        with (
+            lockin.LockinHandler() as lih,
+            interrupthandler.InterruptHandler() as ih,
+        ):
+            if lockin.get_unlocked(lih):                
+                print('waiting for lockin to lock...')        
+                while lockin.get_unlocked(lih):
+                    continue
+                print('lockin locked.')
+            folder = [*(gc.get_day_folder() if args.rootfolder is None else args.rootfolder),args.folder]
+            metadata = {} if args.info is None else {'info':args.info}
+            metadata.update(config.get_metadata(lih,[config.LOGGER,config.LOCKIN,config.BOLOMETER]))
+            path = gc.add_dataset(
+                folder,
+                args.name,
+                (
+                    'lid angle (degrees)',
+                    'lockin r (volts)',
+                    'lockin theta (degrees)'            
+                ),
+                metadata = metadata
+            )
+            for angle in angles:
+                if ih.interrupt_received():
+                    print('interrupt received. quitting.')
+                    break
+                lidclient.set_lid(angle)                
+                lidclient.wait_lid()
+                print('angle set: {:.2f} degs'.format(angle))
+                to = time.time()
+                while time.time() - to < measure_time:
+                    if ih.interrupt_received():
+                        print('interrupt received. quitting.')
+                        break
+                r, t = lockin.get_rt(lih)
+                n = 0                                
+                gc.add_data(path,(angle,r,t))
+    finally:
+        if not args.laser:
+            print('halting...')
+            chopper.start_halt(mh)
+            chopper.wait_halt(mh,1.0)
+            print('halted.')
+            print('homing...')
+            chopper.start_home(mh)
+            chopper.wait_home(mh,1.0)
+            print('homed.')
+            print('blocking...')
+            chopper.set_blocking(mh,True)        
+            chopper.wait_movement(mh,1.0)
+            print('blocked.')
