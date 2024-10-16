@@ -7,9 +7,10 @@ MIN, MAX = 0, 1
 def polar_plot(
     direction=POLBACK,offset=90,ticks=None,
     rlabel=None,tlabel=None,tmin=None,tmax=None,
-    rmin=None,rmax=None
+    rmin=None,rmax=None,fig=None,ax=None
 ):
-    fig, ax = plt.subplots(subplot_kw={'projection':'polar'})
+    if None in (fig,ax):
+        fig, ax = plt.subplots(subplot_kw={'projection':'polar'})
     ax.set_theta_direction(direction)
     ax.set_theta_offset(np.deg2rad(offset))
     if ticks is not None:
@@ -28,4 +29,4 @@ def polar_plot(
                 if axis is RAD:
                     limd['y{}'.format(key)] = val
     ax.set_ylim(**limd)
-    return fig, ax
+    return fig, ax    
