@@ -1,0 +1,6 @@
+td {
+    vertical-align:top;
+}
+input[type="number"] {
+    width:200px;
+}
