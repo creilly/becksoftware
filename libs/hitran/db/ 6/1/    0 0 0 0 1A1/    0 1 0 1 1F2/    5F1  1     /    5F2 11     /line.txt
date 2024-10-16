@@ -1,0 +1,3 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+ 2825.294835	 5.306E-01	 2825.294835
+# from hitran

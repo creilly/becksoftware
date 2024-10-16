@@ -1,0 +1,6 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+ 2968.692920	 1.755E+01	2968.692436668659
+# from gas cell data of 2023-06-18, transition frequency estimated by eye
+# 
+# ds - 00045-v3p(5)F1(2,1).tsv	measured dw: -0.00650 cm-1
+# update: 2024.04.15 r branch pump BILT data, w (dw corrected): 2968.69244 cm-1, dw -0.00773 cm-1, w prev: 2968.69373 cm-1

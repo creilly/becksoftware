@@ -1,0 +1,6 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+2942.29471	12.43	2942.293937270024
+# epp: 3293.910400
+# added 2024-04-15 from HITEMP work on 2023-06-07
+# epp: 3293.9104
+update: 2024.04.15 r branch pump hitemp BILT data, w (dw corrected): 2942.29394 cm-1, wm offset dw -0.00773 cm-1, w prev: 2942.29471 cm-1

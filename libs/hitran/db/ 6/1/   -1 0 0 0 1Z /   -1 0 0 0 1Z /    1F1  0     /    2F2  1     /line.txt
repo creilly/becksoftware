@@ -1,0 +1,7 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+ 2968.458200	 1.050E+01	2968.457655705439
+# 2023-06-18 data
+# using HITEMP value
+# ds - 00035-v1r(1)F1(0,1).tsv	measured dw: -0.00650 cm-1	gas cell measured w (offset corrected): 2968.45847 cm-1
+# interfering line(s)
+# update: 2024.04.05 BILT data, dw -0.00653 cm-1

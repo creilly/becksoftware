@@ -1,0 +1,7 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+ 2963.534690	 2.338E+01	2963.5346
+# from gas cell data of 2023-06-18, transition frequency estimated by eye
+# 
+# ds - 00023-v3p(2)F1(1,1).tsv	measured dw: -0.00650 cm-1
+# gas cell: 2963.53515
+# update bilt 2024-04-03: 2963.5346
