@@ -1,5 +1,4 @@
-from transfercavity import transfercavityclient as tcc
-from transfercavity import transfercavityserver as tcs
+from tc import tcclient as tcc
 import laselock as ll
 import linescan as ls
 import topolock as tl
@@ -9,7 +8,8 @@ import wavemeter as wm
 from beckasync import sleep, get_blocking
 
 Nwm = 10
-fitwait = 1.0
+fitwait = 0.5
+shortwait = 0.25
 
 dfdw = 30.0e3 # MHz / cm-1
 damping = 3.0
@@ -17,24 +17,20 @@ damping = 3.0
 deltawmax   =   0.0500 # cm-1
 epsilonw    =   0.0010 # cm-1
 
-def disable_lock():
-    tcc.set_locking(False)
-    tcc.set_setpoint(0.0)
-    for channel in (tcs.HENE,tcs.IR):
-        tcc.set_fitting(channel,False)
-    tcc.set_scanning(False)
-    with ll.LaseLockHandler() as llh:        
-        ll.set_reg_on_off(llh,ll.A,False)
+def disable_lock(direction):
+    d = direction
+    tcc.set_locking(d,False)
+    tcc.set_setpoint(d,0.0,False)
+    tcc.set_fitting(d,False)       
 
-def setup_lock():
-    tcc.set_scanning(True)
-
-def start_lock():    
-    for channel in (tcs.HENE,tcs.IR):
-        tcc.set_fitting(channel,True)
-    yield from sleep(fitwait)
-    tcc.zero_offset()
-    tcc.set_locking(True)
+def start_lock(direction):
+    d = direction
+    tcc.set_fitting(d,True)
+    while tcc.get_frequency(d) is None:
+        yield from sleep(shortwait)    
+    tcc.zero_offset(d)
+    yield from sleep(shortwait)
+    tcc.set_locking(d,True)
 
 def finish_lock(wmh,wtarget):
     N = 4
@@ -79,8 +75,7 @@ def locktc_async(
     disable_lock()
     wp, pmax, e, m = ls.set_line(
         htline,dw,wmh,opo,opo_entry,interrupt_handler
-    )
-    setup_lock()
+    )    
     with (
         oscilloscope.ScopeHandler() as sh,
         piezo.PiezoDriverHandler() as pdh,
