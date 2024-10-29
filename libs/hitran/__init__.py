@@ -65,7 +65,7 @@ def parse_line(rawline):
         key:replace_whitespace(rawline[offset:offset+width]) for key, (offset, width) in fields.items()
     }
 def replace_whitespace(s):
-    return s.replace(' ',NBS)
+    return s.replace(' ',NBS).replace('"','`')
 def rws(f):
     def g(*args,**kwargs):
         return replace_whitespace(
@@ -75,7 +75,7 @@ def rws(f):
 def fmt_line(line):
     return ':'.join(
         [
-            x.replace(NBS,' ')
+            x.replace(NBS,' ').replace('`','"')
             for x in line
         ]
     )
@@ -98,7 +98,8 @@ def update_entry(folders, w, *notes):
     lines.extend(fmt_notes(notes))
     htline = lines[DATA]
     fields = htline.split('\t')
-    fields[WNUMBECK] = str(w)
+    if w is not None:
+        fields[WNUMBECK] = str(w)
     lines[DATA] = '\t'.join(fields)
     with open(path,'w') as f:
         f.write('\n'.join(lines))
