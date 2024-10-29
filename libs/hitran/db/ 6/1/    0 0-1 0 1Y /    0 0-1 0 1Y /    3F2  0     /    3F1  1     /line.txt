@@ -6,3 +6,4 @@ wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
 # gas cell: 3024.14457
 # update bilt 2024-04-03: 3024.1440
 # update: 2024.04.11 r branch pump BILT data, dw -0.00700 cm-1
+# epp: 3081.117500

@@ -5,3 +5,4 @@ wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
 # interfering line(s)
 # 
 # update: 2024.04.11 r branch pump hitemp BILT data, dw -0.00700 cm-1
+# epp: 3125.863800

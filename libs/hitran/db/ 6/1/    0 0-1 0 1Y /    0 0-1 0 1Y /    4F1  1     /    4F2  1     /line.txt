@@ -4,3 +4,4 @@ wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
 # 
 # ds - 00004-v3q(4)F1(1,1).tsv	measured dw: -0.00650 cm-1
 # update: 2024.04.11 r branch pump hitemp BILT data, dw -0.00700 cm-1
+# epp: 3122.985200

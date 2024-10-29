@@ -1,0 +1,4 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+ 3331.923930	 4.648E+00	 3331.923930
+# epp:	  422.4295
+# from 2024-10-25 folder in scripts data
