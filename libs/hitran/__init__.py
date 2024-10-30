@@ -1,4 +1,6 @@
-import os
+import os, pandas as pd
+
+CH4, NH3 = 6, 11
 
 WNUM, EIN_COEFF, WNUMBECK = 0, 1, 2
 root_folder = 'db'
@@ -60,12 +62,17 @@ def format_line(mol,iso,lgq,ugq,llq,ulq):
     ]
 
 NBS = chr(0xA0)
+SPACE = ' '
+QUOTE = '"'
+BACKTICK = '`'
 def parse_line(rawline):    
     return {
         key:replace_whitespace(rawline[offset:offset+width]) for key, (offset, width) in fields.items()
     }
 def replace_whitespace(s):
-    return s.replace(' ',NBS).replace('"','`')
+    return s.replace(SPACE,NBS).replace(QUOTE,BACKTICK)
+def undo_replace(s):
+    return s.replace(NBS,SPACE).replace(BACKTICK,QUOTE)
 def rws(f):
     def g(*args,**kwargs):
         return replace_whitespace(
@@ -179,7 +186,10 @@ formatters = {
     ULQ:format_lq
 }
 
-def parse_gq(raw_gq):    
+def parse_gq(raw_gq,mol):
+    return gqformatters[mol](raw_gq)
+
+def parse_gq_ch4(raw_gq):    
     raw_gq = raw_gq[gq_lmargin:]
     nmodes = 4
     nmode = 0
@@ -194,6 +204,13 @@ def parse_gq(raw_gq):
     sym = raw_gq[:sym_width].strip()
     return quanta, sym, level
 
+def parse_gq_nh3(raw_gq):
+    nus = tuple(map(int,raw_gq[1:5]))
+    ls = tuple(map(int,raw_gq[6:8]))
+    l = int(raw_gq[9])
+    sym = raw_gq[11:15].strip()
+    return (nus,ls,l,sym)
+
 def parse_gq_co2(raw_gq):    
     raw_gq = raw_gq[gq_lmargin+3:]
     nmodes = 5
@@ -206,8 +223,14 @@ def parse_gq_co2(raw_gq):
     quanta = (*quanta,)
     return quanta
 
+gqformatters = {
+    CH4:parse_gq_ch4,
+    NH3:parse_gq_nh3
+}
 
-def parse_lq(raw_lq):
+def parse_lq(raw_lq,mol=CH4):
+    return lqparsers[mol](raw_lq)
+def parse_lq_ch4(raw_lq):
     # need to modify to compensate for 
     # irregularities in boudon database    
     raw_lq = raw_lq.strip()
@@ -218,16 +241,18 @@ def parse_lq(raw_lq):
     nj -= 1 
     j = int(raw_lq[:nj])
     raw_lq = raw_lq[nj:].strip()
-    sym, rawlevel = raw_lq.split()
-    level = int(rawlevel)    
-    return j, sym, level
-    # raw_lq = raw_lq.replace(NBS,' ')[lq_lmargin:]
-    # j = int(raw_lq[:j_width])
-    # raw_lq = raw_lq[j_width:]
-    # sym = raw_lq[:sym_width] 
-    # raw_lq = raw_lq[sym_width:]   
-    # level = int(raw_lq[:lq_level_width])
-    return j, sym, level
+    sym, rawlevel = undo_replace(raw_lq.split())
+    level = int(rawlevel)
+    return (j, sym, level)
+
+def parse_lq_nh3(rlq):
+    j = int(rlq[0:2])
+    k = int(rlq[2:5])
+    l = rlq[5:7].strip()
+    rs = rlq[8:11].strip()
+    ts = rlq[11:14].strip()
+    l, rs, ts = map(undo_replace,(l,rs,ts))
+    return (j,k,l,rs,ts)
 
 def parse_lq_co2(raw_lq):
     raw_lq= raw_lq.strip()
@@ -237,6 +262,10 @@ def parse_lq_co2(raw_lq):
     #print('j:',jp,'branch:',branch,'ef:',ef)
     return jp,branch,ef
 
+lqparsers = {
+    CH4:parse_lq_ch4,
+    NH3:parse_lq_nh3
+}
 symd = {
     1:'A1',
     2:'A2',
@@ -244,6 +273,16 @@ symd = {
     4:'F1',
     5:'F2'
 }
+dbcols = ('mol','iso','lgq','ugq','llq','ulq','line')
+def get_db(mol):
+    root = [format_mol(mol)]
+    rows = []
+    for r, d, f in os.walk(format_path(root)):
+        if fname in f:
+            rows.append(r.split('\\')[-6:])
+    return pd.DataFrame(
+        [[*row,row] for row in rows],columns=dbcols
+    )
 
 def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None):     
     folders = [
@@ -322,6 +361,8 @@ def _lookup_line_old(folders):
     }
 
 if __name__ == '__main__':
+    get_db()
+    exit()
     print(ls([]))
     exit()
     mol = 6
