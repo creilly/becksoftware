@@ -19,12 +19,20 @@ statusbits = (EMISSION,STARTUP,BACKREFLECTION)
 ON = 'On'
 OFF = 'Off'
 
+A99 = 99
+A03 = 3
+
+visad = {
+    A99:'ipg-argos-c1',
+    A03:'ipg03',
+}
+
 class IPGHandler:
     def __init__(self,visaid=visaid):
         self.visaid = visaid
 
     def __enter__(self):
-        self.ipgh = open(visaid)
+        self.ipgh = open(self.visaid)
         return self.ipgh
 
     def __exit__(self,*args):
@@ -103,7 +111,11 @@ def get_input_power(ipgh):
     return 1e-3*float(send_command(ipgh,'RIN'))
 
 if __name__ == '__main__':
-    with IPGHandler() as ipgh:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--amp','-a',choices=(A03,A99),type=int,default=A99,help='which ipg amp to query')
+    amp = ap.parse_args().amp    
+    with IPGHandler(visaid=visad[amp]) as ipgh:
         print('status',get_status(ipgh))
         print('emission state',get_emission_state(ipgh))
         print('power setpoint',get_power_setpoint(ipgh))

@@ -1,32 +1,40 @@
 import ipg, argparse
 from time import time, sleep
 
-DELTAT_SHORT = 180.0 # seconds
-DELTAT_MEDIUM = 540 
-DELTAT_LONG = 2400.0 
+DELTAT_SHORT = 30.0 # seconds
+DELTAT_MEDIUM = 30.0 
+DELTAT_LONG = 120.0 
 DELTAT_NOW = 0.0
 
 steps = (
-    ( 3.0, DELTAT_SHORT ),
+    ( 3.0, DELTAT_NOW ),
     ( 6.0, DELTAT_SHORT ),
     ( 8.0, DELTAT_SHORT ),
     ( 10.0, DELTAT_SHORT ),
     ( 12.0, DELTAT_LONG ),
-    ( 14.0, DELTAT_MEDIUM )
+    ( 14.0, DELTAT_MEDIUM ),
+    ( 15.0, DELTAT_SHORT)
 )
 
 SLEEP = 1.0
 
 W12 = 12
 W14 = 14
-ap = argparse.ArgumentParser()
-ap.add_argument('--power','-p',choices=(W12,W14),type=int,default=W12)
-maxpower = ap.parse_args().power
+W15 = 15
 
-with ipg.IPGHandler() as ipgh:
+ap = argparse.ArgumentParser()
+ap.add_argument('--power','-p',choices=(W12,W14,W15),type=int,default=W12)
+ap.add_argument('--amp','-a',choices=(ipg.A99,ipg.A03),type=int,default=ipg.A03)
+apargs = ap.parse_args()
+maxpower = apargs.power
+amp = apargs.amp
+
+with ipg.IPGHandler(ipg.visad[amp]) as ipgh:
     for power, DELTAT in steps:
         if power > maxpower:
             break
+        powero = ipg.get_power_setpoint(ipgh)
+        if powero >= power: continue
         starttime = time()
         while True:
             currenttime = time()
@@ -34,7 +42,7 @@ with ipg.IPGHandler() as ipgh:
             print(
                 'current setpoint:',
                 '{:.2f} w'.format(
-                    ipg.get_power_setpoint(ipgh)
+                    powero
                 ).rjust(10),
                 ',',
                 'next setpoint:',
@@ -51,5 +59,6 @@ with ipg.IPGHandler() as ipgh:
                 break
             sleep(SLEEP)
         ipg.set_power_setpoint(ipgh,power)
+        sleep(SLEEP)
             
     
