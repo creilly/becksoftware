@@ -66,6 +66,7 @@ def get_locked(tlc):
     return bool(send_command(tlc,'locked?'))
 
 INTERNAL, EXTERNAL = 0, 1
+REF_MODES = (INTERNAL,EXTERNAL)
 def set_reference_mode(tlc,reference_mode):
     return send_command(tlc,'ref={:d}'.format(reference_mode))
 
@@ -83,14 +84,22 @@ def set_enable(tlc,enabled):
 
 if __name__ == '__main__':
     import argparse
-    ap = argparse.ArgumentParser(description='set the reference mode of the thorlabs chopper')
-    ap.add_argument('-m','--mode',type=int,choices=(INTERNAL,EXTERNAL),help='interal (0) or external (1) reference')
-    ap.add_argument('-p','--phase',type=int,help='chopper phase')
+    ap = argparse.ArgumentParser(description='set the reference mode, frequency, and phase of the thorlabs chopper')
+    ap.add_argument('-m','--mode',type=int,choices=REF_MODES,help='internal ({:d}) or external ({:d}) reference'.format(*REF_MODES))
+    ap.add_argument('-p','--phase',type=int,help='chopper phase',default=-1)
+    ap.add_argument('-f','--freq',type=int,help='chopper frequency',default=-1)
+    ap.add_argument('-r','--run',choices=('y','n'),help='run after set',default='y')
     args = ap. parse_args()
     mode = args.mode
     phase = args.phase
+    freq = args.freq
+    run = args.run == 'y'
     with TLChopperHandler() as tlch:
-        if mode is not None:
-            set_reference_mode(tlch,mode)
-        if phase is not None:
+        set_enable(tlch,False)        
+        set_reference_mode(tlch,mode)
+        if phase > 0:
             set_phase(tlch,phase)
+        if freq > 0:
+            set_frequency(tlch,freq)
+        if run:
+            set_enable(tlch,True)
