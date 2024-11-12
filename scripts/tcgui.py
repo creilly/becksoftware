@@ -26,16 +26,16 @@ laser = {
 vmins = {
     HENE:-0.05,
     IR:-0.05,
-    FREQ:-10.0
+    FREQ:-100.0
 }
 
 vmaxs = {
     HENE:+0.15,
     IR:{
-        TOPO:+0.75,
+        TOPO:+0.55,
         ARGOS:+0.20
     }[laser],
-    FREQ:+10.0
+    FREQ:+100.0
 }
 
 SCANNING, FITTING, LOCKING = 'scanning', 'fitting', 'locking'

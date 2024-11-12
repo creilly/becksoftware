@@ -130,7 +130,7 @@ def set_etalon_motor(ic : topo.InstructionClient,wtarget,eo,mo,es,ms,pv,wmh,ih,o
             print('e + m tuning below thresh. continuing...')
             return w, pmax, e, m
         else:
-            de = -int(round(es * dw))
+            de = -int(round(es * dw / 1.5))  # div 1.5 damp factor added 2024.11.06
             e += de
             pv = dither_piezo(ic)
             print('dithering piezo to {:.2f} volts'.format(pv))

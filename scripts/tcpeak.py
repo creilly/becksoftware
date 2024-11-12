@@ -22,20 +22,31 @@ def fm_fit(f,muf,sigmaf,amp,offset):
         -1/2 * ((f-muf)/sigmaf)**2
     ) + offset
 
-def find_peak(deltaf,df,tau,sens,axis,saving,name,liid,laser,fmod,debug):    
+def find_peak(deltaf,df,tau,sens,axis,saving,name,notes,liid,laser,fmod,debug):    
     success = True
     for tcdirection, laserp in tcserver.laserd.items():
         if laserp == laser:
             break
-    livisa = {
+    livisad = {
         LOCKIN1:'lockin',LOCKIN2:'lockin2'
-    }[liid]
+    }
+    livisa = livisad[liid]
     with lockin.LockinHandler(livisa) as lih:
         tau = lockin.set_time_constant(lih,tau)        
         meastime = 10 * tau # seconds        
         lockin.set_sensitivity(lih,sens)              
         sleep(1.0)              
-        lid = config.get_lockin_params(lih)      
+        lid = config.get_lockin_params(lih)
+        try:
+            with lockin.LockinHandler(
+                livisad[
+                    LOCKIN1 if liid == LOCKIN2 else LOCKIN2
+                ]
+            ) as olih:
+                olid = config.get_lockin_params(olih)
+        except Exception:
+            print('error getting config for other lockin')
+            olid = 'error'            
         fo = tcc.get_setpoint(tcdirection)
         print('initial setpoint: {:.2f} MHz'.format(fo))
         fs = np.arange(fo-deltaf/2,fo+deltaf/2,df)
@@ -46,12 +57,14 @@ def find_peak(deltaf,df,tau,sens,axis,saving,name,liid,laser,fmod,debug):
                 name,
                 ('tc setpoint (MHz)','lockin x (v)','lockin y (v)'),
                 metadata={
-                    'lockin':lid,
-                    'livisa':livisa,
+                    'notes':notes,                    
                     'laser':{
                         locker.TOPO:'topo',
                         locker.ARGOS:'argos'
-                    }[laser]
+                    }[laser],
+                    'livisa':livisa,
+                    'lockin params':lid,                    
+                    'other lockin params':olid
                 }
             )
         for f in fs:
@@ -196,6 +209,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '-z','--laser',choices=(topo,argos),default=topo,help='which laser to scan'
     )
+    parser.add_argument(
+        '-o','--notes',default='no notes',help='notes to add to metadata'
+    )
     args = parser.parse_args()
     deltaf = args.deltaf
     df = args.epsilonf
@@ -211,6 +227,7 @@ if __name__ == '__main__':
     laser = {
         topo:locker.TOPO,argos:locker.ARGOS
     }[args.laser]
+    notes = args.notes
     bologainclient.set_gain(bologain)
     print(
         ','.join(
@@ -226,7 +243,7 @@ if __name__ == '__main__':
         ),',','axis:',axis
     )    
     while True:
-        success, fs, xs, params, cov = find_peak(deltaf,df,tau,sens,axis,saving,name,liid,laser,fmod,debug)
+        success, fs, xs, params, cov = find_peak(deltaf,df,tau,sens,axis,saving,name,notes,liid,laser,fmod,debug)
         if success:
             break
         response = input(

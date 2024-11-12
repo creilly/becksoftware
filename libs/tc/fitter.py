@@ -1,5 +1,5 @@
 from matplotlib import pyplot as plt
-import numpy as np
+import numpy as np, time
 from scipy.optimize import curve_fit
 from tc import samplingrate
 
@@ -324,6 +324,10 @@ def calibrate_hene(vs,Vs,sigmas,debug=False):
 
     return ps
 
+dt = 5.0
+td = {
+    't':time.time()
+}
 def calibrate_ir(etas,Vs,sigmas,modfreq,debug=False):
 
     Vmax = Vs.max()
@@ -332,17 +336,64 @@ def calibrate_ir(etas,Vs,sigmas,modfreq,debug=False):
     f_upper_thresh = 0.9
     f_lower_thresh = 0.7    
 
-    peaks, etaos, sigmaetas = get_peaks(etas,Vs,f_lower_thresh,f_upper_thresh)
-
+    # 2024-11-05 - commented out to tailor to low-finesse nh3 data
+    # vvvv start of old code optimized for ch4
+    # peaks, etaos, sigmaetas = get_peaks(etas,Vs,f_lower_thresh,f_upper_thresh)
+    # guess = ir_calib_guess(
+    #     min(etaos,key=abs),Vmax,Vmin,
+    #     np.average(
+    #         np.diff(
+    #             sorted(etaos)
+    #         )
+    #     ),np.average(sigmaetas),f_upper_thresh
+    # )
+    # ^^^^ end of old code optimized for ch4
+    # vvvv start of new code for nh3
+    def cosine_fit(etas,etao,deltaeta,amp,offset):
+        return offset + amp * np.cos(
+            2 * np.pi * (etas-etao) / deltaeta
+        )
     
+    etaoo = etas[Vs.argmax()]    
+    deltaetao = 4.5
+    ampo = (Vmax-Vmin)/2
+    offseto = np.average(Vs)
+    guess = (etaoo,deltaetao,ampo,offseto)
+    tp = time.time()
+    printing = tp > td['t'] + dt
+    if printing:
+        td['t']= tp
+    cf_ps, cf_cov = curve_fit(cosine_fit,etas,Vs,guess,sigmas)    
+    etao, deltaeta, amp, offset = cf_ps
+    if debug:
+        pass
+        # plt.plot(etas,Vs,'.')
+        # plt.plot(etas,cosine_fit(etas,*cf_ps))
+        # plt.show()
+    
+    etal, etar = etas[0], etas[-1]
+    etamin, etamax = (etal, etar) if etal < etar else (etar,etal)
+    etaos = [etao]
+    eta = etao
+    while True:
+        eta -= deltaeta
+        if eta < etamin:
+            break
+        etaos.append(eta)
+    eta = etao
+    while True:
+        eta += deltaeta
+        if eta > etamax:
+            break
+        etaos.append(eta)
+    alpha = 1/2
     guess = ir_calib_guess(
         min(etaos,key=abs),Vmax,Vmin,
-        np.average(
-            np.diff(
-                sorted(etaos)
-            )
-        ),np.average(sigmaetas),f_upper_thresh
-    )    
+        deltaeta,deltaeta/2,3*alpha/4
+    )
+    # ^^^^ end of new code for nh3
+    # 2024-11-05 end of nh3 hacks    
+    
     # else:
     #     guess = (
     #         min(etaos,key=abs),
@@ -352,28 +403,51 @@ def calibrate_ir(etas,Vs,sigmas,modfreq,debug=False):
     #         -0.0036259765403136696,
     #     )
     if modfreq is None:
+        if debug:
+            print(guess)
+            plt.plot(etas,Vs,'.')
+            plt.plot(etas,ir_calib(etas,*guess),'.')
+            plt.show()
+            return
         ps, cov = curve_fit(
             ir_calib,etas,Vs,guess,sigmas
         )
         ps = (*ps,None,None)        
     else:
         guess = (*guess,deltafo,phifo)
-        # guess = (*guess,8.890269050976588,+2.48449)
-        ps, cov = curve_fit(
-            ir_calib_freqmod(modfreq),etas,Vs,guess,sigmas,
-        )
+        # guess = (*guess,8.890269050976588,+2.48449)        
+        # vvv commented out 2024-11-08
+        # ps, cov = curve_fit(
+        #     ir_calib_freqmod(modfreq),etas,Vs,guess,sigmas            
+        # )
+        # if printing:
+        #     print(', '.join(map('{:.3e}'.format,ps)))
+        # ^^^ commented out 2024-11-08
+        # vvv added 2024-11-08
+        # deltaf, phif = 22.3 / 2.5, 2.169 # at 244.75 hz
+        deltaf, phif = 19.55 / 2, 1.00 # at 734.25 hz
+        fitf = ir_calib_freqmod(modfreq)
+        def fitfp(*args):
+            return fitf(*args,deltaf,phif)
+        ps, cov, infod, *_ = curve_fit(
+            fitfp,etas,Vs,guess[:-2],sigmas,
+            maxfev=500000,full_output=True
+        )        
+        ps = [*ps,deltaf,phif]
+        # ^^^ added 2024-11-08
 
-    if debug:
-        raise NotImplementedError()
-        fitetas = np.linspace(etas.min(),etas.max(),1000)
-        print('ir ps',ps)
-        plt.plot(etas,Vs,'.',color='black',ms=1,label='data')
-        plt.plot(fitetas,ir_calib(fitetas,*guess),color='red',label='guess')
-        plt.plot(fitetas,ir_calib(fitetas,*ps),color='blue',label='fit')
-        plt.xlabel('etas (unitless)')
-        plt.ylabel('ir detector (v)')
-        plt.title('ir calibration')
-        plt.legend()
-        plt.show()
+    if debug:        
+        pass
+        # raise NotImplementedError()
+        # fitetas = np.linspace(etas.min(),etas.max(),1000)
+        # print('ir ps',ps)
+        # plt.plot(etas,Vs,'.',color='black',ms=1,label='data')
+        # plt.plot(fitetas,ir_calib(fitetas,*guess),color='red',label='guess')
+        # plt.plot(fitetas,ir_calib(fitetas,*ps),color='blue',label='fit')
+        # plt.xlabel('etas (unitless)')
+        # plt.ylabel('ir detector (v)')
+        # plt.title('ir calibration')
+        # plt.legend()
+        # plt.show()
 
     return ps

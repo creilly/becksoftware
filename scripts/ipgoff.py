@@ -1,26 +1,33 @@
-import ipg
+import ipg, argparse
 from time import time, sleep
 
-steps = (9.0, 6.0, 3.0, 0.0)
+ap = argparse.ArgumentParser()
+ap.add_argument('--amp','-a',choices=(ipg.A99,ipg.A03),type=int,default=ipg.A03)
+apargs = ap.parse_args()
+amp = apargs.amp
 
-DELTAT = 180.0 # seconds
+step = 2.0
+
+DELTAT = 30.0 # seconds
 SLEEP = 1.0
 
-with ipg.IPGHandler() as ipgh:
-    for index, power in enumerate(steps):
+with ipg.IPGHandler(ipg.visad[amp]) as ipgh:
+    while True:
         starttime = time()
+        powero = ipg.get_power_setpoint(ipgh)
+        powerp = max(powero - step,0)        
         while True:
             currenttime = time()
             deltat = currenttime - starttime
             print(
                 'current setpoint:',
                 '{:.2f} w'.format(
-                    ipg.get_power_setpoint(ipgh)
+                    powero
                 ).rjust(10),
                 ',',
                 'next setpoint:',
                 '{:.2f} w'.format(
-                    power
+                    powerp
                 ).rjust(10),
                 ',',
                 'time:',
@@ -28,7 +35,10 @@ with ipg.IPGHandler() as ipgh:
                 '/',
                 '{: 3d} s'.format(int(DELTAT))
             )
-            if deltat > DELTAT or index == 0:
+            if deltat > DELTAT:
                 break
             sleep(SLEEP)
-        ipg.set_power_setpoint(ipgh,power)    
+        ipg.set_power_setpoint(ipgh,powerp)
+        if powerp == 0:
+            break
+        sleep(SLEEP)

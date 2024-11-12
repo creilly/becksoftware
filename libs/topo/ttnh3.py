@@ -6,17 +6,23 @@ fnd = {
     ET:'e',MO:'m'
 }
 fnfmt = 'fringe-data-{}-v-f.tsv'
+epsilonf = 0.001 # cm-1
+
+def eval_poly(cs,f):
+    order = len(cs) - 1
+    return sum(
+        c * f ** (order - n) for n, c in enumerate(cs)
+    )
 def get_param(param,f):
     rows = np.loadtxt(
         os.path.join(datafolder,fnfmt.format(fnd[param]))
     )
     for row in rows:
-        fmin, fmax, *cs = row
-        order = len(cs) - 1
+        fmin, fmax, *cs = row        
         if f > fmin and f < fmax:
-            return sum(
-                c * f ** (order - n) for n, c in enumerate(cs)
-            )
+            p = eval_poly(cs,f)
+            dpdf = (eval_poly(cs,f+epsilonf) - p)/epsilonf
+            return p, dpdf
 
 def get_etalon(f):
     return get_param(ET,f)

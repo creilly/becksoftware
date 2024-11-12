@@ -9,7 +9,7 @@ dfdvsd = {
 }
 
 dampingd = {
-    TOPO:10,ARGOS:20
+    TOPO:10,ARGOS:50 
 }
 
 outputchanneld = {
