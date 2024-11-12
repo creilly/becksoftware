@@ -1,8 +1,11 @@
 from scipy.optimize import curve_fit
 import numpy as np
 
-def der_gaussian(x,mean,std,amp):
-    return -amp * ( x - mean ) * np.exp(-1/2*((x-mean)/std)**2)
+# peak of amp + offset
+# spacing bewteen (+ and -) peaks of 2 std
+# center of symmetry at (mean,offset)
+def der_gaussian(x,mean,std,amp,offset):
+    return -amp * ( x - mean ) / std * np.exp(-1/2*((x-mean)/std)**2) * np.exp(1/2) + offset
 
 def gaussian(x,mean,std,amp,offset):
     return amp * np.exp(-1/2*((x-mean)/std)**2) + offset
