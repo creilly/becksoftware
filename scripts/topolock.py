@@ -13,7 +13,7 @@ PVo = 20.0 # volts piezo output
 
 dither_amp = 3.3000 # volts # from 2022-11-18 calibration
 
-noise_amp = 0.060 # volts rms
+noise_amp = 0.040 # changed 2024-11-08 # 0.060 # volts rms
 ws_shape = scope.NOISE
 ws_enabled = True
 ws_load = scope.LOW
