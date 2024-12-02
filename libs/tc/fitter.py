@@ -424,8 +424,8 @@ def calibrate_ir(etas,Vs,sigmas,modfreq,debug=False):
         #     print(', '.join(map('{:.3e}'.format,ps)))
         # ^^^ commented out 2024-11-08
         # vvv added 2024-11-08
-        # deltaf, phif = 22.3 / 2.5, 2.169 # at 244.75 hz
-        deltaf, phif = 19.55 / 2, 1.00 # at 734.25 hz
+        deltaf, phif = 22.3 / 2.5, 2.169 # at 244.75 hz
+        # deltaf, phif = 19.55 / 2, 1.00 # at 734.25 hz
         fitf = ir_calib_freqmod(modfreq)
         def fitfp(*args):
             return fitf(*args,deltaf,phif)
