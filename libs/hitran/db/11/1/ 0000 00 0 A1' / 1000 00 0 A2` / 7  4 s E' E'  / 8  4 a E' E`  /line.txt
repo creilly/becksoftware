@@ -1,0 +1,3 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+ 3491.230800	 3.548E+00	 3491.230800
+# Epp=  495.2417 cm-1
