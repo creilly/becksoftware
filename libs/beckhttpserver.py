@@ -151,7 +151,7 @@ class BeckHTTPServer(http.server.HTTPServer):
         else:
             interface = DEF_INTERFACE
         self.rootfolder = rootfolder
-        self.app = set_commands(appcls)(*args,**kwargs)
+        self.app = set_commands(appcls)(*args,**kwargs)        
         super().__init__((interface,port),BeckRequestHandler)
 
     def handle_requests(self):
