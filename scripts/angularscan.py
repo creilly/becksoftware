@@ -2,6 +2,9 @@ import lockin, config, numpy as np, argparse, interrupthandler, maxon, chopper, 
 from bologain import bologainserver, bologainclient
 from lid import lidclient
 from grapher import graphclient as gc
+import multiplexer
+
+MUX_CHAN = multiplexer.B
 
 fo = 237.0 # Hz
 foldero = 'lid scans'
@@ -11,6 +14,11 @@ ap = argparse.ArgumentParser()
 ap.add_argument(
     '-l','--laser',action='store_true',help='laser measurement (no molecular beam chopper)'
 )
+
+ap.add_argument(
+    '-n','--spin',action='store_true',help='keep spinning after measurement'
+)
+
 ap.add_argument(
     '-b','--bologain',type=int,
     choices=(
@@ -65,6 +73,7 @@ with lockin.LockinHandler() as lih:
         if arg is not None:
             func(lih,arg)
     tau = lockin.get_time_constant(lih)
+    multiplexer.set_output(lih,MUX_CHAN)
 
 measure_time = tau * 20
 
@@ -103,7 +112,8 @@ with maxon.MaxonHandler() as mh:
                 (
                     'lid angle (degrees)',
                     'lockin r (volts)',
-                    'lockin theta (degrees)'            
+                    'lockin theta (degrees)',
+                    'rotary encoder (steps)'
                 ),
                 metadata = metadata
             )
@@ -121,9 +131,9 @@ with maxon.MaxonHandler() as mh:
                         break
                 r, t = lockin.get_rt(lih)
                 n = 0                                
-                gc.add_data(path,(angle,r,t))
+                gc.add_data(path,(angle,r,t,lidclient.get_encoder()))
     finally:
-        if not args.laser:
+        if (not args.laser) and (not args.spin):
             print('halting...')
             chopper.start_halt(mh)
             chopper.wait_halt(mh,1.0)

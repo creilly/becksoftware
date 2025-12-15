@@ -41,10 +41,16 @@ ro = 16.0
 
 # 2023-06-25
 # see Z:\Surface\chris\scripts-data\2023\06\25\lidmirrorcalib\anlmc.py
-xo = 25.672 # x offset (mm)
-yo = 40.059 # y offset (mm)
-r  = 15.269 # radius (mm)
-to = 182.387 # angle offset (degs)
+# xo = 25.672 # x offset (mm)
+# yo = 40.059 # y offset (mm)
+# r  = 15.269 # radius (mm)
+# to = 182.387 # angle offset (degs)
+
+# updated 2025-11-10
+xo = 26.323 # x offset (mm)
+yo = 40.280 # y offset (mm)
+r  = 15.224 # radius (mm)
+to = 183.126 # angle offset (degs)
 
 def get_calibration_metadata():
     return {

@@ -1,3 +1,4 @@
+import time
 import topo, wavemeter as wm, interrupthandler, oscilloscope as scope, \
     numpy as np, hitran, beckasync, interrupthandler, opo as opomod, laselock, \
         topolock, piezo
@@ -72,7 +73,7 @@ def get_random_piezo():
     return pzo + dpz*np.random.random()
 
 class LineSetError(Exception): pass    
-def set_etalon_motor(ic : topo.InstructionClient,wtarget,eo,mo,es,ms,pv,wmh,ih,opo):    
+def set_etalon_motor(ic : topo.InstructionClient,wtarget,eo,mo,es,ms,pv,wmh,ih : interrupthandler.InterruptHandler,opo):    
     print('setting initial e + m pair:',eo,round(mo,3))        
     ic.set_etalon_pos(eo)
     ic.set_piezo(pv)
@@ -102,7 +103,9 @@ def set_etalon_motor(ic : topo.InstructionClient,wtarget,eo,mo,es,ms,pv,wmh,ih,o
             print('no wavemeter signal, dithering etalon')
             dw = +0.25 # cm-1
             deltaw = dw
-            while True:     
+            while True:  
+                if ih.interrupt_received():
+                    ih.raise_interrupt() 
                 walk_opo()
                 w = get_stable_wavenumber_with_dither(wmh,ic,ih)
                 if w is W_NOSIGNAL:
@@ -255,7 +258,7 @@ def tune_diode_temperature(
     )
 
 OPO_LATEST = -1
-def set_line(htline,dw,wmh=None,opo=False,opo_entry=OPO_LATEST,ih=None):    
+def set_line(htline,dw,wmh=None,opo=False,opo_entry=OPO_LATEST,ih=None): 
     if opo:
         if opo_entry == OPO_LATEST:
             opod = opomod.open_latest(htline)               
@@ -339,8 +342,8 @@ def set_omega(wo,dw,wmh=None,opo=False,em=None,pv=None,dt=None,ih=None):
                 ic.set_diode_current(Io)                
                 while True:                    
                     wp, pmax, e, m = set_etalon_motor(ic,w,eo,mo,es,ms,pv,wmh,ih,opo)
-                    wp = tune_diode_temperature(ic,wmh,w,wp,ih)                                    
-                    return wp, pmax, e, m                    
+                    wp = tune_diode_temperature(ic,wmh,w,wp,ih)                        
+                    return wp, pmax, e, m
             finally:
                 with scope.ScopeHandler() as sh:
                     scope.set_wavesource_enabled(sh,ws_enabled)
@@ -462,6 +465,7 @@ def line_wizard(spin,nuo,nup,j,jmax,branch):
 
 if __name__ == '__main__':
     import opo, os, tclock, argparse, pathlib 
+    print('hello')
 
     aliasfname = 'linescanaliases.txt'
     def lookup_alias(alias):        
@@ -552,14 +556,15 @@ if __name__ == '__main__':
     #         break        
     tclock.disable_lock('down')
     with (
-        laselock.LaseLockHandler() as llh,
-        scope.ScopeHandler() as sh,
+        laselock.LaseLockHandler() as llh,        
         piezo.PiezoDriverHandler() as pdh
     ):        
-        topolock.setup_lock(sh,llh)        
+        with scope.ScopeHandler() as sh:
+            topolock.setup_lock(sh,llh)        
         w, _, e, m = set_line(htline,dw,opo = opob,opo_entry=code)
         if topolocking:            
-            topolock.lock_topo(topo.InstructionClient(),sh,pdh,llh) 
+            with scope.ScopeHandler() as sh:
+                topolock.lock_topo(topo.InstructionClient(),sh,pdh,llh) 
         else:
             topolock.set_dither(llh,True)
     print('line set.')

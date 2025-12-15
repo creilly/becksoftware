@@ -1,6 +1,6 @@
 import serial, struct
 
-comport = 17
+comport = 4
 baudrate = 115200
 stopbits = 1
 

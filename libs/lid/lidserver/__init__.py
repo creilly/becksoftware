@@ -5,12 +5,10 @@ import rotaryencoder
 class LidApp(bhs.BeckApp):
     def __init__(
         self,
-        lidmotor_handle: lidmotor.LidMotor,
-        rotary_encoder_handle,
+        lidmotor_handle: lidmotor.LidMotor,        
         phi_o
     ):        
-        self.lmh = lidmotor_handle
-        self.reh = rotary_encoder_handle
+        self.lmh = lidmotor_handle        
         self.lp = lidmotor.LidPositioner(self.lmh,phi_o)
         self.backlash = self.lp.get_backlash()
         self.backlash_buffer = 0.50
@@ -19,7 +17,9 @@ class LidApp(bhs.BeckApp):
 
     @bhs.command('get-encoder')
     def get_encoder(self):
-        return rotaryencoder.get_position(self.reh)
+        return 0.0
+        # with rotaryencoder.RotaryEncoderHandler() as reh:
+        #     return rotaryencoder.get_position(reh)
 
     @bhs.command('calibrate-lid')
     def calibrate_lid(self,phi_o):

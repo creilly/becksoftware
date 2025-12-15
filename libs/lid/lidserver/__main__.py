@@ -12,8 +12,5 @@ while True:
     except ValueError:
         print('invalid input.')
         continue
-with (
-    lidmotor.LidMotorHandler() as lmh,
-    rotaryencoder.RotaryEncoderHandler() as reh
-):    
-    bhs.run_beck_server(lid.PORT,os.path.dirname(__file__),lidserver.LidApp,lmh,reh,phi_o,_debug=True)
+with lidmotor.LidMotorHandler() as lmh:
+    bhs.run_beck_server(lid.PORT,os.path.dirname(__file__),lidserver.LidApp,lmh,phi_o,_debug=False)

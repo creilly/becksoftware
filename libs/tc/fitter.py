@@ -40,8 +40,8 @@ def get_ir_calib(freqmod):
         return ir_calib_freqmod(freqmod)
 
 # # 3f params
-# deltafo = +8.98564159900431 # MHz
-# phifo = +4.218448404825894
+# deltafo = 8.595 # MHz # << added 2025-06-12 # +8.98564159900431 # MHz
+# phifo = 5.469 # << added 2025-06-12 # +4.218448404825894
 # 1f params (237 hz)
 deltafo = 9.315 # 237 hz, 1.6 mod amp >> 8.25 # MHz
 phifo = -0.007 # 237 hz >> 1.56 # rads
@@ -145,8 +145,34 @@ class Fitter:
             else:
                 (self.f,), cov = curve_fit(self.irfit,self.get_etas(),Vs,(self.f,),self.sigmas)            
             return True
-        except RuntimeError:
+        except RuntimeError as rte:            
             return False
+        
+def get_peaks_ir(vs,Vs,alpha_low,alpha_high):
+    dvmax = 0.075 * (vs.max() - vs.min())    
+    Vmin, Vmax = Vs.min(), Vs.max()
+    Vt = Vmin + alpha_high * (Vmax - Vmin)
+    peaks = []    
+    peak = []
+    for v, V in zip(vs,Vs):
+        if V > Vt:
+            if peak:
+                if abs(peak[-1][0]-v) < dvmax:
+                    peak.append([v,V])
+                else:
+                    peaks.append([*zip(*peak)])
+                    peak = [[v,V]]
+            else:
+                peak.append([v,V])
+    if peak:
+        peaks.append([*zip(*peak)])    
+    peaks = map(np.array,peaks)
+    sigmavs = []
+    vpeaks = []
+    for vs, Vs in peaks:
+        sigmavs.append(vs.max() - vs.min())
+        vpeaks.append(vs[Vs.argmax()])
+    return peaks, vpeaks, sigmavs
     
 def get_peaks(vs,Vs,alpha_low,alpha_high):
     Vmax = Vs.max()
@@ -333,64 +359,66 @@ def calibrate_ir(etas,Vs,sigmas,modfreq,debug=False):
     Vmax = Vs.max()
     Vmin = Vs.min()
 
-    f_upper_thresh = 0.9
-    f_lower_thresh = 0.7    
+    f_upper_thresh = 0.5 # 0.9
+    f_lower_thresh = -1.0 # << not used # 0.7 
 
     # 2024-11-05 - commented out to tailor to low-finesse nh3 data
     # vvvv start of old code optimized for ch4
-    # peaks, etaos, sigmaetas = get_peaks(etas,Vs,f_lower_thresh,f_upper_thresh)
-    # guess = ir_calib_guess(
-    #     min(etaos,key=abs),Vmax,Vmin,
-    #     np.average(
-    #         np.diff(
-    #             sorted(etaos)
-    #         )
-    #     ),np.average(sigmaetas),f_upper_thresh
-    # )
-    # ^^^^ end of old code optimized for ch4
-    # vvvv start of new code for nh3
-    def cosine_fit(etas,etao,deltaeta,amp,offset):
-        return offset + amp * np.cos(
-            2 * np.pi * (etas-etao) / deltaeta
-        )
-    
-    etaoo = etas[Vs.argmax()]    
-    deltaetao = 4.5
-    ampo = (Vmax-Vmin)/2
-    offseto = np.average(Vs)
-    guess = (etaoo,deltaetao,ampo,offseto)
-    tp = time.time()
-    printing = tp > td['t'] + dt
-    if printing:
-        td['t']= tp
-    cf_ps, cf_cov = curve_fit(cosine_fit,etas,Vs,guess,sigmas)    
-    etao, deltaeta, amp, offset = cf_ps
-    if debug:
-        pass
-        # plt.plot(etas,Vs,'.')
-        # plt.plot(etas,cosine_fit(etas,*cf_ps))
-        # plt.show()
-    
-    etal, etar = etas[0], etas[-1]
-    etamin, etamax = (etal, etar) if etal < etar else (etar,etal)
-    etaos = [etao]
-    eta = etao
-    while True:
-        eta -= deltaeta
-        if eta < etamin:
-            break
-        etaos.append(eta)
-    eta = etao
-    while True:
-        eta += deltaeta
-        if eta > etamax:
-            break
-        etaos.append(eta)
-    alpha = 1/2
+    peaks, etaos, sigmaetas = get_peaks_ir(etas,Vs,f_lower_thresh,f_upper_thresh)      
     guess = ir_calib_guess(
         min(etaos,key=abs),Vmax,Vmin,
-        deltaeta,deltaeta/2,3*alpha/4
-    )
+        np.abs(
+            np.average(
+                np.diff(
+                    sorted(etaos)
+                )
+            )
+        ),np.average(sigmaetas[np.abs(np.array(etaos)).argmin()]),f_upper_thresh
+    )    
+    # ^^^^ end of old code optimized for ch4
+    # vvvv start of new code for nh3
+    # def cosine_fit(etas,etao,deltaeta,amp,offset):
+    #     return offset + amp * np.cos(
+    #         2 * np.pi * (etas-etao) / deltaeta
+    #     )
+    
+    # etaoo = etas[Vs.argmax()]    
+    # deltaetao = 4.5
+    # ampo = (Vmax-Vmin)/2
+    # offseto = np.average(Vs)
+    # guess = (etaoo,deltaetao,ampo,offseto)
+    # tp = time.time()
+    # printing = tp > td['t'] + dt
+    # if printing:
+    #     td['t']= tp
+    # cf_ps, cf_cov = curve_fit(cosine_fit,etas,Vs,guess,sigmas)    
+    # etao, deltaeta, amp, offset = cf_ps
+    # if debug:
+    #     pass
+    #     # plt.plot(etas,Vs,'.')
+    #     # plt.plot(etas,cosine_fit(etas,*cf_ps))
+    #     # plt.show()
+    
+    # etal, etar = etas[0], etas[-1]
+    # etamin, etamax = (etal, etar) if etal < etar else (etar,etal)
+    # etaos = [etao]
+    # eta = etao
+    # while True:
+    #     eta -= deltaeta
+    #     if eta < etamin:
+    #         break
+    #     etaos.append(eta)
+    # eta = etao
+    # while True:
+    #     eta += deltaeta
+    #     if eta > etamax:
+    #         break
+    #     etaos.append(eta)
+    # alpha = 1/2
+    # guess = ir_calib_guess(
+    #     min(etaos,key=abs),Vmax,Vmin,
+    #     deltaeta,deltaeta/2,3*alpha/4
+    # )
     # ^^^^ end of new code for nh3
     # 2024-11-05 end of nh3 hacks    
     
@@ -407,8 +435,9 @@ def calibrate_ir(etas,Vs,sigmas,modfreq,debug=False):
             print(guess)
             plt.plot(etas,Vs,'.')
             plt.plot(etas,ir_calib(etas,*guess),'.')
-            plt.show()
-            return
+            plt.savefig(r'C:\tmp\guess.png')
+            plt.cla()
+            return        
         ps, cov = curve_fit(
             ir_calib,etas,Vs,guess,sigmas
         )
@@ -417,23 +446,23 @@ def calibrate_ir(etas,Vs,sigmas,modfreq,debug=False):
         guess = (*guess,deltafo,phifo)
         # guess = (*guess,8.890269050976588,+2.48449)        
         # vvv commented out 2024-11-08
-        # ps, cov = curve_fit(
-        #     ir_calib_freqmod(modfreq),etas,Vs,guess,sigmas            
-        # )
+        ps, cov = curve_fit(
+            ir_calib_freqmod(modfreq),etas,Vs,guess,sigmas            
+        )
         # if printing:
         #     print(', '.join(map('{:.3e}'.format,ps)))
         # ^^^ commented out 2024-11-08
         # vvv added 2024-11-08
-        deltaf, phif = 22.3 / 2.5, 2.169 # at 244.75 hz
+        # deltaf, phif = 22.3 / 2.5, 2.169 # at 244.75 hz
         # deltaf, phif = 19.55 / 2, 1.00 # at 734.25 hz
-        fitf = ir_calib_freqmod(modfreq)
-        def fitfp(*args):
-            return fitf(*args,deltaf,phif)
-        ps, cov, infod, *_ = curve_fit(
-            fitfp,etas,Vs,guess[:-2],sigmas,
-            maxfev=500000,full_output=True
-        )        
-        ps = [*ps,deltaf,phif]
+        # fitf = ir_calib_freqmod(modfreq)
+        # def fitfp(*args):
+        #     return fitf(*args,deltaf,phif)
+        # ps, cov, infod, *_ = curve_fit(
+        #     fitfp,etas,Vs,guess[:-2],sigmas,
+        #     maxfev=500000,full_output=True
+        # )        
+        # ps = [*ps,deltaf,phif]
         # ^^^ added 2024-11-08
 
     if debug:        

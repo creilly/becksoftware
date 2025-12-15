@@ -13,8 +13,8 @@ def gaussian(x,mean,std,amp,offset):
 def gaussian_fit(xs,ys,mean,std,amp,offset):
     return curve_fit(gaussian,xs,ys,(mean,std,amp,offset))
 
-def der_gaussian_fit(xs,ys,mean,std,amp):
-    return curve_fit(der_gaussian,xs,ys,(mean,std,amp))
+def der_gaussian_fit(xs,ys,mean,std,amp,offset):
+    return curve_fit(der_gaussian,xs,ys,(mean,std,amp,offset))
 
 def fmt_gaussian(mu,sigma,amp,off):
     return ', '.join(

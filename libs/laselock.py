@@ -2,7 +2,7 @@ import serial
 import re
 import json
 
-llport = 'COM45'
+llport = 'COM15'
 
 write_term = '\r'
 read_term = '\r\n'

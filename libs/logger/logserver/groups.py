@@ -1,11 +1,5 @@
-import daqmx
-import sampleheater
-import nozzleheater
-import lakeshore
-import pfeiffer
-import pyvisa
+import daqmx, sampleheater, nozzleheater, lakeshore, pfeiffer, pyvisa, math, time
 from logger import logserver as ls
-import math
 
 pfeiffer_channels = (
     (
@@ -76,12 +70,17 @@ To = 273.15
 sample_heater_channels = ['sample','sample setpoint']
 
 def sample_heater_handle():
-    with sampleheater.SampleHeaterHandler() as shh:
-        return [
-            shh.get_temperature(),
-            shh.get_setpoint()
-        ]
-
+    temps = []
+    for foo in ('get_temperature','get_setpoint'):
+        try:
+            with sampleheater.SampleHeaterHandler() as shh:            
+                temp = getattr(shh,foo)()
+        except (ConnectionRefusedError, pyvisa.errors.VisaIOError) as e:
+            print('error connecting to sample heater:',type(e))
+            temp = math.nan
+        temps.append(temp)
+    return temps
+        
 nozzle_heater_channels = ['nozzle','nozzle holder','tantalum']
 nozzle_heater_indices = [0,1,2]
 
@@ -95,23 +94,42 @@ def nozzle_heater_handle():
         return [math.nan] * len(nozzle_heater_indices)
     
 lakeshore_channels = ['bolometer diode']
-
+timer = [None]
+dt_ls = 300.0 # seconds
 def lakeshore_handle():
     try:
-        with lakeshore.LakeShoreMonitorHandler() as lsm:
-            return [lsm.get_temperature()]
+        to = timer[0]
+        if to is None or time.time() - to > dt_ls:
+            with lakeshore.LakeShoreMonitorHandler() as lsm:
+                return [lsm.get_temperature()]
+        else:
+            return [math.nan]
     except pyvisa.errors.VisaIOError as e:
-        print('lakeshore error:',repr(e))
+        print('lakeshore error:',repr(e))        
+        timer[0] = time.time()
         return [math.nan]
 
-daqmx_channels = ['snout tc']
+daqmx_channels = ['snout tc'] # ['snout tc','bakeout tc']
 
 def daqmx_handle():
-    try:
-        with daqmx.TaskHandler(['snout thermocouple']) as ai:
-            return [daqmx.read_analog_f64_scalar(ai)]
-    except daqmx.DAQmxError:
-        return [math.nan]
+    temps = []
+    for logger_channel in daqmx_channels:
+        try:
+            with daqmx.TaskHandler(
+                [
+                    {
+                        'snout tc':'snout thermocouple',
+                        'bakeout tc':'bakeout thermocouple'
+                    }[logger_channel]
+                ]
+            ) as ai:
+                temp = daqmx.read_analog_f64_scalar(ai) + (
+                    273.15 if logger_channel == 'bakeout tc' else 0.0
+                )
+        except daqmx.DAQmxError:
+            temp = math.nan
+        temps.append(temp)
+    return temps
 
 temperature_groups = [
     (sample_heater_channels,sample_heater_handle),

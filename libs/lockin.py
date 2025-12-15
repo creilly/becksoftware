@@ -4,9 +4,9 @@ from time import time
 
 LOCKIN_VISA_NAME = 'lockin'
 
-OPEN_TIMEOUT = 2.0 # seconds
+OPEN_TIMEOUT = 5.0 # seconds
 
-TIMEOUT = 500 # milliseconds
+TIMEOUT = 5000 # milliseconds
 
 readterm = writeterm = '\r'
 

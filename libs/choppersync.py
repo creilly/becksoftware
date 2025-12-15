@@ -1,7 +1,7 @@
 import maxon, chopper, daqmx, numpy as np, time
 
-c_phase = 0.00015 # rpm per (degree per update)
-c_freq = 0.10000 # rpm per (degree per update)
+c_phase = 0.0000015 # 0.00015 # rpm per (degree per update)
+c_freq = 0.01 # 0.10000 # rpm per (degree per update)
 cbdt = 0.25 # seconds
 stat_samples = 500
 mup_thresh = 2.0 # degrees
@@ -64,7 +64,7 @@ class ChopperSyncHandler:
 
     def __exit__(self,*args):
         self._ct.__exit__(*args)
-        self.block()
+        # self.block()
 
     @state_filter(STOPPED)
     def start(self):
@@ -144,7 +144,8 @@ class ChopperSyncHandler:
             )
         self.v += dv
         if abs(self.v-self.vo) > dvmax:
-            raise ChopperSyncException('max velocity range exceeded.')   
+            print('warning: max velocity range exceeded.')
+            # raise ChopperSyncException('max velocity range exceeded.')   
         maxon.set_velocity(self.mh,self.v,self.units)
 
     @state_filter(LOCKING,LOCKED)
@@ -179,8 +180,7 @@ def get_frequency():
     
 if __name__ == '__main__':
     import msvcrt, beckasync
-    frequency = get_frequency()
-    print('freq: {:.2f} Hz'.format(frequency))
+    frequency = get_frequency()    
     with maxon.MaxonHandler() as mh:
         with ChopperSyncHandler(mh,frequency) as csh:
             beckasync.unwind_generator(csh.start())
@@ -188,7 +188,7 @@ if __name__ == '__main__':
             while True:
                 if msvcrt.kbhit():
                     if msvcrt.getwch() == 'q':
-                        print('quit command received')                        
+                        print('quit command received')          
                         csh.unlock()
                         csh.block()
                         exit(0)

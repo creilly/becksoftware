@@ -212,21 +212,4 @@ def wait(scope):
 
 if __name__ == '__main__':
     with ScopeHandler() as scope:
-        print(get_wavesource_shape(scope))
-        print(set_wavesource_shape(scope,NOISE))
-        print(get_wavesource_shape(scope))
-        print(set_output_impedance(scope,HIGH))
-        print(get_output_impedance(scope))
-        print(set_output_impedance(scope,LOW))
-        print(get_output_impedance(scope))
-        # vrmso = get_rms_noise(scope)
-        # vrmsp = vrmso+.1
-        # print('vrmso',vrmso)
-        # print('setting vrms to vrmsp = {:e}'.format(vrmsp))
-        # set_rms_noise(scope,vrmsp)
-        # print('vrmsp measured',get_rms_noise(scope))
-        # print('setting vrms to vrmso = {:e}'.format(vrmso))
-        # set_rms_noise(scope,vrmso)
-        # print('vrmso measured',get_rms_noise(scope))
-              
-      
+        set_wavesource_enabled(scope,True)

@@ -1,0 +1,27 @@
+html body {
+    font-size: 40pt;
+}
+
+table {
+    font-size: 40pt;
+}
+
+#clear {
+    font-size: 80pt;
+}
+
+#toggle {
+    font-size: 40pt;
+}
+
+td {
+    padding: 40px;
+}
+
+.data {
+    border: 3px solid grey;
+}
+
+#data {
+    font-size: larger;
+}

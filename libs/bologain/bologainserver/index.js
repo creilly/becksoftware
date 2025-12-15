@@ -7,6 +7,8 @@ var gain_cell;
 var gains_select;
 var set_gain_button;
 
+var audio;
+
 function send_command(command, parameters, cb, hook = (x) => x) {
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function() {	

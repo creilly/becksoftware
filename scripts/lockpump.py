@@ -87,7 +87,6 @@ with (
         print('quitting.')
         exit()
 
-
 def get_b():
     return ic.get_output(topo.B)
 with wm.WavemeterHandler('argos-wavemeter') as wmh:

@@ -1,0 +1,129 @@
+<html>
+    <head>
+        <title>sample heater</title>
+        <link rel="icon" type="image/png" href="icon.png"/>
+        <script src="index.js"></script>
+        <!-- <link rel="stylesheet" href="index.css">      -->
+    </head>
+    <body>
+        <h2>sample heater</h2>        
+        <table>
+            <tr>
+                <td>
+                    <button id="release-control">release control</button>
+                </td>                
+                <td>
+                    remote mode:
+                </td>
+                <td>
+                    <span id="remote-mode"></span>
+                </td>
+                <td></td>                
+            </tr>
+            <tr>
+                <td>
+                    temperature:
+                </td>
+                <td>
+                    <span id="temperature"></span>
+                </td>
+                <td>
+                    kelvin
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    operation mode:
+                </td>
+                <td>
+                    <span id="operation-mode"></span>
+                </td>
+                <td>
+                    <button id="standby">standby</button>
+                </td>
+                <td>
+                    <button id="operate">operate</button>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    heating mode:
+                </td>
+                <td>
+                    <span id="heating-mode"></span>
+                </td>
+                <td>
+                    <button id="res-button">resistive</button>
+                </td>
+                <td>
+                    <button id="eb-button">ebeam</button>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <h4>filament</h4>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    current (amps)
+                </td>
+                <td>act:<span id="cc"></span></td>                
+                <td>sp:<span id="cc-sp"></span></td>                
+                <td>
+                    <input id="cc-sp-input" type="number" min="0" max="4.5" step="0.001" value="0"/>
+                    <button id="cc-sp-button">submit</button>
+                </td>
+            </tr>
+            <tr>
+                <td>voltage (volts)</td>
+                <td>act:<span id="cv"></span></td>
+                <td></td><td></td>
+            </tr>
+            <tr>
+                <td colspan="4">
+                    <h4>acceleration</h4>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    voltage (volts)
+                </td>
+                <td>act:<span id="ev"></span></td>                
+                <td>sp:<span id="ev-sp"></span></td>                
+                <td>
+                    <input id="ev-sp-input" type="number" min="0" max="1000" step="0.1" value="0"/>
+                    <button id="ev-sp-button">submit</button>
+                </td>
+            </tr>
+            <tr>
+                <td>current (milliamps)</td>
+                <td>act:<span id="ec"></span></td>
+                <td></td><td></td>
+            </tr>
+            <tr>
+                <td>copper block hv</td>
+                <td>state: <span id="hv"></span></td>
+                <td>
+                    set: 
+                    <input type="radio" name="hv" value="0" checked>
+                    <label for="0">off</label>
+                    <input type="radio" name="hv" value="1">
+                    <label for="1">on</label>
+                </td>
+                <td>
+                    <button id="hv-button">submit</button>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    heartbeat:
+                </td>
+                <td>
+                    <span id="heartbeat"></span>
+                </td>
+                <td colspan="2"></td>
+            </tr>
+        </table>
+    </body>
+</html>

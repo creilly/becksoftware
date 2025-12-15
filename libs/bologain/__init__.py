@@ -1,9 +1,8 @@
-import pyvisa
+import serial
 
 PORT = 8010
 
-VISAID = 'bologain'
-FLOW_CONTROL = pyvisa.constants.ControlFlow.dtr_dsr
+COM = 14
 
 X10 = 10
 X100 = 100
@@ -17,18 +16,19 @@ char_d = {
 }
 
 class BoloGainHandler():
-    def __enter__(self):
-        self.handle = open_bologain()
+    def __enter__(self):        
+        self.handle = open_bologain()        
         return self.handle
 
     def __exit__(self,*args):
         close_bologain(self.handle)
 
 def open_bologain():
-    return pyvisa.ResourceManager().open_resource(VISAID,flow_control=FLOW_CONTROL)
+    return serial.Serial('COM{:d}'.format(COM),dsrdtr=True)
 
-def set_gain(handle,gain):
-    handle.write_raw(char_d[gain])
+def set_gain(gain):    
+    with BoloGainHandler() as handle:
+        handle.write(char_d[gain])
 
 def close_bologain(handle):
     handle.close()

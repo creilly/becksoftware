@@ -235,7 +235,7 @@ if __name__ == '__main__':
     
     with (
         daqmx.TaskHandler('transfer cavity piezo task',global_task=True) as aot,
-        daqmx.TaskHandler('transfer cavity detector task',global_task=True) as ait,
+        daqmx.TaskHandler('transfer cavity detector task',global_task=True) as ait,        
         daqmx.TaskHandler(['transfer cavity sync']) as cot, 
         daqmx.TaskHandler([]) as fmt, # freqmod divider
         daqmx.TaskHandler('transfer cavity frequency task',global_task=True) as cit,

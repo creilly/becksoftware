@@ -1,7 +1,7 @@
-import pyvisa as visa
+import serial as s
 import re
 
-VISA_ID = 'picoammeter'
+COMPORT = 'COM5'
 
 termseq = '\r\n'
 
@@ -10,8 +10,8 @@ BAUDRATE = 57600
 chunksize = 16
 
 class PicoammeterHandler:
-    def __init__(self,visa_id=VISA_ID):
-        self.pah = open_pa(visa_id)
+    def __init__(self):
+        self.pah = open_pa()
 
     def __enter__(self):
         return self.pah
@@ -19,12 +19,14 @@ class PicoammeterHandler:
     def __exit__(self,*args):
         close_pa(self.pah)
 
-def open_pa(visa_id=VISA_ID):
-    pah = visa.ResourceManager().open_resource(visa_id)
-    pah.baud_rate = BAUDRATE    
-    pah.read_termination = pah.write_termination = termseq
-    pah.timeout = 50
-    set_interval(pah,0)
+def open_pa():
+    pah = s.Serial(
+        'COM5',baudrate=57600,bytesize=s.EIGHTBITS,
+        parity=s.PARITY_NONE,stopbits=s.STOPBITS_ONE,
+        xonxoff=False
+    )
+    pah.timeout = 0.500
+    set_interval(pah,0)    
     return pah
 
 def close_pa(pah):
@@ -32,7 +34,7 @@ def close_pa(pah):
 
 def send_command(pah,command,data = ''):
     pah.write(
-        '&{}{}'.format(command,data)
+        bytes('&{}{}{}'.format(command,data,termseq),'utf8')
     )
 
 # set to 0 to disable interval
@@ -45,32 +47,38 @@ def get_match(command,response):
         '^&{}(.*)'.format(command)
     ).match(
         response
-    )
+    )    
     if match is None:
-        return None
+        return None    
     return match.groups()[0]
 
 def parse_response(pah,command):
     response = None
     tail = ''
-    while True:
-        try:
-            chunk = pah.read_bytes(chunksize,chunksize,True).decode('utf8')
-            tail += chunk
-            if termseq in tail:
-                head, tail = tail.split(termseq,1)
-                response = get_match(command,head)
-        except visa.errors.VisaIOError:
-            if response is None:
-                continue
-            return response
+    while True:        
+        chunk = pah.read(chunksize).decode('utf8')   
+        if not chunk and response is not None:
+            return response                     
+        tail += chunk
+        if termseq in tail:
+            head, tail = tail.split(termseq,1)                
+            response = get_match(command,head)
 
 def query_pa(pah,command,data=''):
     send_command(pah,command,data)
     return parse_response(pah,command)
 
+class PicoammeterException(Exception):
+    pass
 def read_line(pah):
-    return pah.read()
+    r = ''
+    while True:
+        b = pah.read().decode('utf8')        
+        if not b:
+            raise PicoammeterException('read line timeout')
+        r += b
+        if r[-2:] == termseq:
+            return r[:-2]
 
 def get_menu(pah):
     lines = []
@@ -78,10 +86,10 @@ def get_menu(pah):
     while True:
         try:
             line = read_line(pah)
-        except visa.errors.VisaIOError:
+        except PicoammeterException as e:
+            print(e)
             return lines
-        lines.append(line)
-    return lines
+        lines.append(line)  
 
 NANOAMPS, MICROAMPS, MILLIAMPS = 'nA', 'uA', 'mA'
 OVER_RANGE, IN_RANGE, UNDER_RANGE = '>', '=', '<'
@@ -119,11 +127,7 @@ def set_biasing(pah,biasing):
 # TODO: set ranging, range querying
 if __name__ == '__main__':
     try:
-        with PicoammeterHandler() as pah:
-            # biasing = {
-            #     'y':'1','n':'0'
-            # }[input('do you want to bias? y/n: ')]        
-            # print(query_pa(pah,'B',biasing))
+        with PicoammeterHandler() as pah:                        
             while True:
                 try:
                     print(

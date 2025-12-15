@@ -2,6 +2,8 @@ import os, pandas as pd
 
 CH4, NH3 = 6, 11
 
+ISO_CH4, ISO_CH3D = 1, 3
+
 WNUM, EIN_COEFF, WNUMBECK = 0, 1, 2
 root_folder = 'db'
 fname = 'line.txt'
@@ -80,6 +82,10 @@ def rws(f):
         )
     return g
 def fmt_line(line):
+    if type(line) is dict:
+        line = [
+            v for k, v in sorted(line.items())
+        ]
     return ':'.join(
         [
             x.replace(NBS,' ').replace('`','"')
@@ -121,7 +127,9 @@ def fmt_notes(notes):
     )                
 
 class LineOverwriteException(Exception): pass    
+class NoWBException(Exception): pass
 def add_entry(lined, *notes, overwrite = False):
+    if WB not in lined: raise NoWBException('no wbeck specified!')
     *folders, wdb, a, wbeck, epp = list(zip(*sorted(lined.items())))[1]    
     folder = os.path.join(os.path.dirname(__file__),froot,*folders)   
     if not os.path.exists(folder):        
@@ -162,7 +170,9 @@ def format_sym(sym):
 gq_lmargin = 3
 gq_int_width = 2
 @rws
-def format_gq(gq):
+def format_gq(gq,mol=CH4,iso=1):
+    if mol == CH4 and iso == ISO_CH3D:
+        return gq.rjust(15)
     quanta,sym,level = gq
     return ' '*gq_lmargin + ''.join(
         format_int(nu,gq_int_width)
@@ -186,10 +196,12 @@ formatters = {
     ULQ:format_lq
 }
 
-def parse_gq(raw_gq,mol):
-    return gqformatters[mol](raw_gq)
+def parse_gq(raw_gq,mol=CH4,iso=1):
+    return gqformatters[mol](raw_gq,iso)
 
-def parse_gq_ch4(raw_gq):    
+def parse_gq_ch4(raw_gq,iso):    
+    if iso == 3:
+        return str(raw_gq)
     raw_gq = raw_gq[gq_lmargin:]
     nmodes = 4
     nmode = 0
@@ -204,14 +216,14 @@ def parse_gq_ch4(raw_gq):
     sym = raw_gq[:sym_width].strip()
     return quanta, sym, level
 
-def parse_gq_nh3(raw_gq):
+def parse_gq_nh3(raw_gq,iso):
     nus = tuple(map(int,raw_gq[1:5]))
     ls = tuple(map(int,raw_gq[6:8]))
     l = int(raw_gq[9])
     sym = raw_gq[11:15].strip()
     return (nus,ls,l,sym)
 
-def parse_gq_co2(raw_gq):    
+def parse_gq_co2(raw_gq,iso):    
     raw_gq = raw_gq[gq_lmargin+3:]
     nmodes = 5
     nmode = 0
@@ -228,9 +240,14 @@ gqformatters = {
     NH3:parse_gq_nh3
 }
 
-def parse_lq(raw_lq,mol=CH4):
-    return lqparsers[mol](raw_lq)
-def parse_lq_ch4(raw_lq):
+def parse_lq(raw_lq,mol=CH4,iso=1):
+    return lqparsers[mol](raw_lq,iso)
+def parse_lq_ch4(raw_lq,iso):
+    if iso == 3:
+        j = int(raw_lq[:3])
+        k = int(raw_lq[3:][:3])
+        s = raw_lq[6:].strip()
+        return j, k, s
     # need to modify to compensate for 
     # irregularities in boudon database    
     raw_lq = raw_lq.strip()
@@ -240,12 +257,12 @@ def parse_lq_ch4(raw_lq):
         nj += 1      
     nj -= 1 
     j = int(raw_lq[:nj])
-    raw_lq = raw_lq[nj:].strip()
-    sym, rawlevel = undo_replace(raw_lq.split())
+    raw_lq = raw_lq[nj:].strip()    
+    sym, rawlevel = map(undo_replace,raw_lq.split())
     level = int(rawlevel)
     return (j, sym, level)
 
-def parse_lq_nh3(rlq):
+def parse_lq_nh3(rlq,iso):
     j = int(rlq[0:2])
     k = int(rlq[2:5])
     l = rlq[5:7].strip()
@@ -254,7 +271,7 @@ def parse_lq_nh3(rlq):
     l, rs, ts = map(undo_replace,(l,rs,ts))
     return (j,k,l,rs,ts)
 
-def parse_lq_co2(raw_lq):
+def parse_lq_co2(raw_lq,iso):
     raw_lq= raw_lq.strip()
     #print(raw_lq)
     branch, rawj= raw_lq.split()
@@ -283,116 +300,3 @@ def get_db(mol):
     return pd.DataFrame(
         [[*row,row] for row in rows],columns=dbcols
     )
-
-def search_db(mol,iso,glq,guq,b,j,newsym=None,oldsym=None,ll=None,ul=None):     
-    folders = [
-        formatters[key](field) for key, field in sorted(
-            {
-                MOL:mol,ISO:iso,LGQ:glq,UGQ:guq
-            }.items()
-        )
-    ]    
-    results = []
-    raw_llqs = os.listdir(format_path(folders))
-    for raw_llq in raw_llqs:        
-        _j, _sym, _level = parse_lq(raw_llq)        
-        if _j == j and (
-            oldsym is None or symd[oldsym] is None or _sym == symd[oldsym]
-        ) and (
-            ll is None or ll == _level
-        ) and (
-            newsym is None or newsym == _sym
-        ):
-            folders.append(raw_llq)
-            try:
-                raw_ulqs = os.listdir(format_path(folders))
-            except FileNotFoundError:
-                continue
-            for raw_ulq in raw_ulqs:
-                __j, __sym, __level = parse_lq(raw_ulq)                
-                _b = __j - _j
-                if _b == b and (
-                    ul is None or ul == __level
-                ):
-                    folders.append(raw_ulq)                    
-                    results.append([*folders])
-                    folders.pop()
-            folders.pop()
-    return results
-# conversion between old and new convention
-def _search_db(mol,iso,glq,guq,b,j,oldsym=None,ll=None,ul=None):    
-    folders = [
-        formatters[key](field) for key, field in sorted(
-            {
-                MOL:mol,ISO:iso,LGQ:glq,UGQ:guq
-            }.items()
-        )
-    ]    
-    raw_llqs = os.listdir(format_path(folders))
-    for raw_llq in raw_llqs:        
-        _j, _sym, _level = parse_lq(raw_llq)        
-        if _j == j and (
-            oldsym is None or symd[oldsym] is None or _sym == symd[oldsym]
-        ) and (
-            ll is None or ll == _level
-        ):
-            folders.append(raw_llq)
-            raw_ulqs = os.listdir(format_path(folders))
-            for raw_ulq in raw_ulqs:
-                __j, __sym, __level = parse_lq(raw_ulq)                
-                _b = __j - _j
-                if _b == b and (
-                    ul is None or ul == __level
-                ):
-                    folders.append(raw_ulq)                    
-                    return [folder for folder in folders]
-            folders.pop()
-    return None
-
-def _lookup_line_old(folders):
-    path = format_path(list(folders)+[fname])
-    with open(path,'r') as f:
-        linefile = f.read()
-    lines = linefile.split('\n')
-    dataline = lines[DATA]
-    fields = dataline.split('\t')        
-    return {
-        key:float(fields[key]) for key in (WNUM,EIN_COEFF)
-    }
-
-if __name__ == '__main__':
-    get_db()
-    exit()
-    print(ls([]))
-    exit()
-    mol = 6
-    iso = 1
-
-    glq_quanta = (0,0,0,0)
-    glq_sym = 'A1'
-    glq_level = 1
-
-    glq = (glq_quanta,glq_sym,glq_level)
-    
-    guq_quanta = (0,0,1,0)
-    guq_sym = 'F2'
-    guq_level = 1
-
-    guq = (guq_quanta,guq_sym,guq_level)
-
-    llq_j = 0
-    llq_sym = 'A1'
-    llq_level = 1
-
-    llq = (llq_j,llq_sym,llq_level)
-
-    luq_j = 1
-    luq_sym = 'A2'
-    luq_level = 3
-
-    luq = (luq_j,luq_sym,luq_level)
-
-    folders = format_line(mol,iso,glq,guq,llq,luq)
-    print(lookup_line(folders))
-    folders = search_db(mol,iso,glq,guq,R,0,1)
-    print(lookup_line(folders))    

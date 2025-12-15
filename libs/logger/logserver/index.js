@@ -212,8 +212,8 @@ function update_plot(data,extend) {
 		    type: 'log',
 		    autorange: true
 		},
-		width: width,
-		height: height
+		width: parseInt(document.getElementById('plotwidth').value),
+		height: parseInt(document.getElementById('plotheight').value),
 	    }
 	);
     }
@@ -270,6 +270,17 @@ function update_data(group,date,start) {
     }
 }
 
+function update_dims() {
+	var layout = plot_div.layout;
+	layout.width = parseInt(document.getElementById('plotwidth').value);
+	layout.height = parseInt(document.getElementById('plotheight').value);
+	Plotly.newPlot(
+		plot_div,
+		plot_div.data,
+		layout
+	);
+}
+
 function on_load() {
     groups_select = document.getElementById('groups');
     years_select = document.getElementById('years');
@@ -285,6 +296,10 @@ function on_load() {
     plot_div = document.getElementById('plot');
 
     update_button.onclick = get_log;
+
+	for (var dimdiv of ['plotwidth','plotheight']) {
+		document.getElementById(dimdiv).onchange = update_dims;
+	}
     
     params = [
 	[

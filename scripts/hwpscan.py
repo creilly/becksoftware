@@ -1,4 +1,4 @@
-import rotationstage as rot
+import rotationstage as rot, math
 import gentec as pm
 from grapher import graphclient as gc
 import numpy as np
@@ -129,6 +129,8 @@ with (
                     break                
             y /= n
             x = pm.stop_stream(dh)
+            if x is None:
+                x = math.nan
         if detector == LOCKIN:
             while time() - starttime < meastime:
                 continue

@@ -51,9 +51,11 @@ class Scanner:
         self.create_ramp()
         if not self.ext_trigger:
             # feed dummy reference to trigger input   
-            daqmx.cfg_implicit_timing(self.cot,daqmx.CONT_SAMPS,1)
-            daqmx.set_co_term(self.cot,daqmx.get_dig_edge_start_trig_src(self.aot))
-            daqmx.start_task(self.cot)
+            # daqmx.cfg_implicit_timing(self.cot,daqmx.CONT_SAMPS,1)
+            # daqmx.set_co_term(self.cot,daqmx.get_dig_edge_start_trig_src(self.aot))
+            # daqmx.start_task(self.cot)
+            self._manual_trigger = daqmx.load_line('transfer cavity do trigger')
+            self.manual_trigger()            
         for task in (self.aot,self.ait):
             daqmx.set_samp_clk_rate(task,self.sampling_rate)
             daqmx.set_samples(
@@ -106,7 +108,9 @@ class Scanner:
                     self.direction = self.UP                     
                     daqmx.start_task(task)
                 else:                    
-                    daqmx.stop_task(task)                    
+                    daqmx.stop_task(task)      
+            if scanning and not self.ext_trigger:
+                self.manual_trigger()              
         self.scanning = scanning
 
     def read(self,samples=daqmx.DAQmx_Val_Auto):
@@ -148,6 +152,12 @@ class Scanner:
             self.direction = {
                 self.UP:self.DOWN, self.DOWN:self.UP
             }[direction]
+            if not self.ext_trigger:
+                self.manual_trigger()
         else:
             scan = None            
         return direction, scan
+    
+    def manual_trigger(self):
+        daqmx.write_line(self._manual_trigger,False)
+        daqmx.write_line(self._manual_trigger,True)

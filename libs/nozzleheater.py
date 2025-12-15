@@ -46,10 +46,32 @@ def set_nozzle_setpoint(handle,setpoint):
 def send_popup(handle,message):
     return handle.write('popup "{}"'.format(message))
 
+def set_relay(handle,relay,value):
+    relayso = get_relays(handle)
+    return handle.write(
+        '"Relays.value"={:d}'.format(
+            (relayso | 1 << relay)
+            if value else 
+            (relayso & ~(1 << relay))
+        ) 
+    )
+
+HV_RELAY = 3
+def set_hv(handle,enabled):
+    return set_relay(handle,HV_RELAY,enabled)
+
+def get_relays(handle):
+    return int(handle.query('"Relays.value?"'))
+
+def get_relay(handle,relay):
+    return bool((get_relays(handle) >> relay) & 1)
+
+def get_hv(handle):
+    return get_relay(handle,HV_RELAY)
+
 if __name__ == '__main__':
-    with NozzleHeaterHandler() as nhh:
-        print(send_popup(nhh,'hello, whirled'))
-        print(get_description(nhh))
+    with NozzleHeaterHandler() as nhh:        
+        print(get_relays(nhh))         
     # print(get_output(nhh))
     # print(get_output_names(nhh))
     # print(get_nozzle_setpoint(nhh))

@@ -8,8 +8,8 @@ ap.add_argument('--log', action='store_true')
 ap.add_argument('--nolog',dest='log',action='store_false')
 ap.set_defaults(log=False)
 args = ap.parse_args()
-if args.log:
-    from logger.logserver import groups as lsg
+if args.log:    
+    from logger.logserver import groups as lsg    
     groups = lsg.groups
 else:
     groups = []

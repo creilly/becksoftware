@@ -15,12 +15,14 @@ commandreadterm = b'\n' + b'> '
 monitoringreadterm = b'\n'
 
 bufsize = 256
+timeout = 1.0 # seconds
 
 class Client:
-    def __init__(self,port,readterm):
+    def __init__(self,port,readterm,timeout=None):
         socket = s.socket(s.AF_INET, s.SOCK_STREAM)
-        socket.setsockopt(s.IPPROTO_TCP, s.TCP_NODELAY,1)
-        socket.connect((IP,port))
+        socket.setsockopt(s.IPPROTO_TCP, s.TCP_NODELAY,1)        
+        socket.settimeout(timeout)
+        socket.connect((IP,port))        
         self.socket = socket
         self.readterm = readterm
         
@@ -108,8 +110,8 @@ class SetParamError(Exception):
 def do_nothing(x): return x
 
 class InstructionClient(Client):
-    def __init__(self):
-        super().__init__(commandport,commandreadterm)
+    def __init__(self,timeout=None):
+        super().__init__(commandport,commandreadterm,timeout)
         self.greet()
         
     def greet(self):

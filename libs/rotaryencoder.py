@@ -1,6 +1,6 @@
 import serial
 
-comport = 'COM10'
+comport = 'COM19'
 
 GET_COMMAND = b'g'
 READ_TERM = b' '
@@ -24,7 +24,7 @@ def get_position(handle):
     response = b''
     while True:
         b = handle.read(1)
-        if b == READ_TERM:
+        if b == READ_TERM:            
             return int(response.decode('utf8'))
         response += b
 

@@ -95,11 +95,11 @@ def fmt_dev_info(devinfo):
 
 def open_device(sn = None,typeid = KCUBE_DC_SERVO):
     dll = dlls[typeid]
-    if sn is None:
+    if sn is None:        
         sns = list_devices(typeid)        
         if not sns:
             raise Exception('no devices connected')
-        sn = sns[0]
+        sn = sns[0]        
     k(
         dll.CC_Open,
         (sn,)

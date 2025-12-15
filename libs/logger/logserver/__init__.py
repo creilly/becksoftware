@@ -128,7 +128,7 @@ class LoggerError(Exception):
     pass
 
 class LoggerApp(bhs.BeckApp):
-    def __init__(self,groups):
+    def __init__(self,groups):        
         now = dt.datetime.now()
         for group in groups:
             group[THEN] = now
