@@ -1,3 +1,7 @@
 wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
- 3469.730450	 4.681E+00	 3469.730450
+ 3469.730450	 4.681E+00	 3469.73466
 # Epp=  412.4444 cm-1
+# updated 2024-12-11 from measurements on 2024-12-04
+# 2024-12-04 line assignments might be ambiguous, this should be updated or scrutinized
+# 2024-12-11: previous assignment verified using g.s. depletion experiment from today
+#     and corroborated by 10.1016/j.jqsrt.2017.02.012

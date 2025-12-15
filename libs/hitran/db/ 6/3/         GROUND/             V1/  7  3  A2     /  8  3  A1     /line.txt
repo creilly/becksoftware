@@ -1,0 +1,4 @@
+wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
+ 3034.184686	 1.609E+00	 3034.185493
+ # 2025-12-10: setting to average of A1 and A2 transitions
+ # hitran reports the pair as having nearly identical einstein coeffs

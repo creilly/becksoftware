@@ -1,3 +1,12 @@
 wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
- 3471.643280	 4.419E+00	 3471.643280
+ 3471.643280	 4.419E+00	 3471.64918
 # Epp=  400.8544 cm-1
+# updated 2024-12-11 from measurements on 2024-12-04
+# 2024-12-04 line assignments might be ambiguous, this should be updated or scrutinized
+# update 2024-12-11:
+#   10.1016/j.jqsrt.2017.02.012 suggests we flip assignment of j6k1ls and j6k2ls:
+#     from 10.1016/j.jqsrt.2017.02.012:
+#       k1 : 3.47163712E+03
+#       k2 : 3.47164907E+03
+#   old beck measured assignment: 3471.63552
+#   new beck measured assignment: 3471.64918

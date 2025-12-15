@@ -1,4 +1,9 @@
 wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
- 3470.744040	 1.336E+00	 3470.744040
+ 3470.744040	 1.336E+00	 3470.73750
 # epp:	  283.6168
 # from 2024-10-25 folder in scripts data
+# 2024-12-11 update: line is part of hitran twin. 
+#   according to 10.1016/j.jqsrt.2017.02.012:
+#     v1j6k6la r branch : 3.47073750E+03
+#     v3j1k1ls r branch : 3.47075184E+03
+#     could do a g.s. depletion experiment to resolve if necessary

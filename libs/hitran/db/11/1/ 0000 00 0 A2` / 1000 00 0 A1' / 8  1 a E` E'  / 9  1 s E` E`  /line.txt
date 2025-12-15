@@ -1,3 +1,13 @@
 wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
- 3508.977610	 4.543E+00	 3508.977610
+ 3508.977610	 4.543E+00	 3509.97807
 # Epp=  707.9532 cm-1
+# update 2024-12-11 : hitran line triplet:
+#   from 10.1016/j.jqsrt.2017.02.012:
+#     j8k0la : 3.50997725E+03
+#     j8k1la : 3.50997607E+03
+#     j8k2la : 3.50897522E+03
+#     note!!! the k2 line is, according to 10.1016/j.jqsrt.2017.02.012, 
+#             quite far from the k0 and k1 lines, yet HITRAN seems to think 
+#             they should coincide. what is going on?
+# 2024-12-11 : from dataset 82 of 2024/12/11/no pump/coarse scans, making *tentative* 60 MHz shift to high frequency
+# 2024-12-11 : didn't find anything either before or after 60 MHz shift

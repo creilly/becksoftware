@@ -1,3 +1,13 @@
 wavenumber (cm-1)	einstein coefficient (s-1)	measured wavenumber (cm-1)
- 3488.975890	 4.526E+00	 3488.975890
+ 3488.975890	 4.526E+00	 3488.97031
 # Epp=  539.6283 cm-1
+# updated 2024-12-11 from measurements on 2024-12-04
+# 2024-12-04 line assignments might be ambiguous, this should be updated or scrutinized
+# 11/12/24- We can assign this line to the lowest frequency of the three lines that were mixed up:
+#  old value : 3488.98234
+# vvv from 10.1016/j.jqsrt.2017.02.012 vvv
+# j7k1la : 3.48898184E+03
+# j7k2la : 3.48897058E+03
+# j2k3la : 3.48897310E+03
+# ^^^ from 10.1016/j.jqsrt.2017.02.012 ^^^
+# We know this due to the new database that we have: 10.1016/j.jqsrt.2017.02.012
