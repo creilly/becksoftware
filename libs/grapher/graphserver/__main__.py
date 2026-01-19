@@ -207,5 +207,5 @@ if __name__ == '__main__':
         PORT,
         os.path.dirname(__file__),
         bhs.create_app(commands),
-        _debug=True
+        _debug=False
     )

@@ -201,7 +201,12 @@ function update_plot() {
 		yaxis: {
 			title: labels[Y]
 		},
-		title: global_path.join(' : '),
+		title: {
+			text: global_path.join(' : '),
+			font: {
+				size: 12
+			}
+		},
 		width: width,
 		height: height
     };
